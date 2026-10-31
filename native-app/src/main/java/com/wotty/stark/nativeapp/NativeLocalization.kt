@@ -50,6 +50,7 @@ internal class NativeUiPreferences(context: Context) {
 }
 
 internal val LocalNativeUiPreferences = staticCompositionLocalOf<NativeUiPreferences> { error("Native UI preferences are not provided") }
+internal val LocalNativeHomeTypography = staticCompositionLocalOf { false }
 
 internal fun nativeFontDensity(base: Density, font: NativeFontChoice): Density = Density(base.density, base.fontScale * font.scale)
 
@@ -1689,13 +1690,14 @@ internal fun Text(
     style: TextStyle = LocalTextStyle.current,
 ) {
     val settings = LocalNativeUiPreferences.current.value
+    val homeTypography = LocalNativeHomeTypography.current
     MaterialText(
         text = translateNativeText(text, settings.language),
         modifier = modifier,
         color = color,
-        fontSize = nativeReadableFontSize(fontSize),
+        fontSize = if (homeTypography) fontSize else nativeReadableFontSize(fontSize),
         fontStyle = fontStyle,
-        fontWeight = nativeReadableFontWeight(fontWeight),
+        fontWeight = if (homeTypography) fontWeight else nativeReadableFontWeight(fontWeight),
         fontFamily = fontFamily,
         letterSpacing = letterSpacing,
         textDecoration = textDecoration,

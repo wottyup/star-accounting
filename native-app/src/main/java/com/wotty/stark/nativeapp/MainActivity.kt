@@ -2519,61 +2519,66 @@ private fun HomeScreen(
         HomeMetric.INCOME -> if (selectedYear != null) "全年收入" else "本月收入"
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 0.dp, bottom = 70.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+    CompositionLocalProvider(
+        LocalNativeHomeTypography provides true,
+        androidx.compose.material3.LocalTextStyle provides androidx.compose.material3.LocalTextStyle.current.copy(fontWeight = FontWeight.Normal),
     ) {
-        item { WebReplicaHeader(onSearch = { onOpenOverlay(HomeOverlay.SEARCH) }, onApi = { onOpenOverlay(HomeOverlay.API) }, apiStatus = apiStatus) }
-        item {
-            WebReplicaMetricControl(
-                metric = metric,
-                monthLabel = monthLabel,
-                onMonthClick = { onOpenOverlay(HomeOverlay.MONTH) },
-                onMetricChange = onHomeMetricChange,
-            )
-            Spacer(Modifier.height(8.dp))
-            WebReplicaHero(
-                metric = metric,
-                period = balancePeriod,
-                label = label,
-                value = value,
-                count = heroCashflow.transactionCount,
-                monthLabel = monthLabel,
-                salaryDay = salaryDay,
-                calendarCashflow = calendarCashflow,
-                cycleCashflow = allocationCashflow,
-                verifiedBalance = verifiedBalance,
-                ledgerAccount = ledgerAccount,
-                salarySource = heroSalarySource,
-                annual = selectedYear != null,
-                onPeriodChange = onBalancePeriodChange,
-                onSalaryDayClick = onSalaryDayClick,
-                onDetails = { onSelectTab(RootTab.CONSUMPTION) },
-            )
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 10.dp, end = 10.dp, top = 0.dp, bottom = 70.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item { WebReplicaHeader(onSearch = { onOpenOverlay(HomeOverlay.SEARCH) }, onApi = { onOpenOverlay(HomeOverlay.API) }, apiStatus = apiStatus) }
+            item {
+                WebReplicaMetricControl(
+                    metric = metric,
+                    monthLabel = monthLabel,
+                    onMonthClick = { onOpenOverlay(HomeOverlay.MONTH) },
+                    onMetricChange = onHomeMetricChange,
+                )
+                Spacer(Modifier.height(8.dp))
+                WebReplicaHero(
+                    metric = metric,
+                    period = balancePeriod,
+                    label = label,
+                    value = value,
+                    count = heroCashflow.transactionCount,
+                    monthLabel = monthLabel,
+                    salaryDay = salaryDay,
+                    calendarCashflow = calendarCashflow,
+                    cycleCashflow = allocationCashflow,
+                    verifiedBalance = verifiedBalance,
+                    ledgerAccount = ledgerAccount,
+                    salarySource = heroSalarySource,
+                    annual = selectedYear != null,
+                    onPeriodChange = onBalancePeriodChange,
+                    onSalaryDayClick = onSalaryDayClick,
+                    onDetails = { onSelectTab(RootTab.CONSUMPTION) },
+                )
+            }
+            item {
+                WebReplicaBudgetCard(
+                    income = allocationCashflow.income,
+                    expense = allocationCashflow.expense,
+                    repayment = allocationCashflow.repayment,
+                    savings = allocationCashflow.savings,
+                    actualBalance = actualBalance,
+                    periodTitle = allocationTitle,
+                    periodDescription = allocationDescription,
+                    savingsPlanAllocation = savingsPlanAllocation,
+                    matchedSavingsExpenses = matchedSavingsExpenses,
+                    salaryPlanSource = nativeSalaryPlanSource,
+                    salaryPlanAvailable = salaryPlanAvailable,
+                    onManageBudget = { onOpenOverlay(HomeOverlay.BUDGET) },
+                    onOpenSavings = { onSelectTab(RootTab.SAVINGS) },
+                )
+            }
+            item { WebReplicaDiagnosticBanner(dashboardSummary) { onOpenOverlay(HomeOverlay.DIAGNOSTIC) } }
+            item { WebReplicaCompass(dashboardSummary, actualBalance, remoteAssets, remoteLoans, remoteSavings, onOpenOverlay, onSelectTab) }
+            item { WebReplicaExpenseStructure(reportingEntries, selectedYear != null) { onOpenOverlay(HomeOverlay.CATEGORIES) } }
+            item { WebReplicaAdvisoryCard(dashboardSummary) { onSelectTab(RootTab.SAVINGS) } }
+            item { WebReplicaCashflowTrend(entries, month, selectedYear) }
         }
-        item {
-            WebReplicaBudgetCard(
-                income = allocationCashflow.income,
-                expense = allocationCashflow.expense,
-                repayment = allocationCashflow.repayment,
-                savings = allocationCashflow.savings,
-                actualBalance = actualBalance,
-                periodTitle = allocationTitle,
-                periodDescription = allocationDescription,
-                savingsPlanAllocation = savingsPlanAllocation,
-                matchedSavingsExpenses = matchedSavingsExpenses,
-                salaryPlanSource = nativeSalaryPlanSource,
-                salaryPlanAvailable = salaryPlanAvailable,
-                onManageBudget = { onOpenOverlay(HomeOverlay.BUDGET) },
-                onOpenSavings = { onSelectTab(RootTab.SAVINGS) },
-            )
-        }
-        item { WebReplicaDiagnosticBanner(dashboardSummary) { onOpenOverlay(HomeOverlay.DIAGNOSTIC) } }
-        item { WebReplicaCompass(dashboardSummary, actualBalance, remoteAssets, remoteLoans, remoteSavings, onOpenOverlay, onSelectTab) }
-        item { WebReplicaExpenseStructure(reportingEntries, selectedYear != null) { onOpenOverlay(HomeOverlay.CATEGORIES) } }
-        item { WebReplicaAdvisoryCard(dashboardSummary) { onSelectTab(RootTab.SAVINGS) } }
-        item { WebReplicaCashflowTrend(entries, month, selectedYear) }
     }
 }
 
@@ -2606,7 +2611,7 @@ private fun WebReplicaExpenseStructure(entries: List<LedgerEntry>, annual: Boole
     WebReplicaCard(padding = 14.dp) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text(if (annual) "全年支出结构" else "本月支出结构", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (annual) "全年支出结构" else "本月支出结构", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Text("共 ${categories.size} 个分类", color = Color(0xFF94A3B8), fontSize = 10.sp)
             }
             Text("分类明细  ›", modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onCategoryDetails() }.padding(6.dp), color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -2647,7 +2652,7 @@ private fun WebReplicaAdvisoryCard(summary: NativeHomeDashboardSummary, onOpenSa
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Explore, contentDescription = null, tint = Blue, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("财务行动建议", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text("财务行动建议", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             Text(
                 if (healthy) "节律健康" else "需控制支出",
@@ -2702,8 +2707,8 @@ private fun AdvisoryRow(index: String, text: AnnotatedString, onClick: (() -> Un
             text = text,
             modifier = if (onClick == null) Modifier else Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onClick),
             color = Color(0xFF475569),
-            fontSize = nativeReadableFontSize(11.sp),
-            lineHeight = nativeReadableFontSize(16.sp),
+            fontSize = 11.sp,
+            lineHeight = 16.sp,
         )
     }
 }
@@ -2735,7 +2740,7 @@ private fun WebReplicaCashflowTrend(entries: List<LedgerEntry>, selectedMonth: Y
     WebReplicaCard(padding = 14.dp, radius = 22.dp) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
-                Text("收支动态走势", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text("收支动态走势", color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Text(if (annual) "全年按月对比" else "近 5 个月对比", color = Color(0xFF94A3B8), fontSize = 10.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3095,12 +3100,12 @@ private fun WebReplicaBudgetCard(
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BudgetAllocationTargetIcon()
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(periodTitle, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(periodTitle, color = Color(0xFF0F172A), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             Text(periodDescription, color = Color(0xFF7B8CA3), fontSize = 10.sp, lineHeight = 13.5.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("预算管理", color = Color(0xFF0060C0), fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text("预算管理", color = Color(0xFF0060C0), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                         Text("›", color = Color(0xFF0060C0), fontSize = 14.sp, lineHeight = 14.sp)
                     }
                 }
@@ -3281,7 +3286,7 @@ private fun BudgetAssetsSummary(actualBalance: Double, compact: Boolean) {
         if (compact) {
             Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("资产存量", color = Color(0xFF64748B), fontSize = 10.sp)
-                Text("¥ ${moneyFormat.format(actualBalance)}", modifier = Modifier.padding(start = 6.dp), color = Color(0xFF0F766E), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("¥ ${moneyFormat.format(actualBalance)}", modifier = Modifier.padding(start = 6.dp), color = Color(0xFF0F766E), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             Text(
                 "余额单独展示，不重复计入本月扣减",
@@ -3293,7 +3298,7 @@ private fun BudgetAssetsSummary(actualBalance: Double, compact: Boolean) {
         } else {
             Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("资产存量", color = Color(0xFF64748B), fontSize = 10.sp)
-                Text("¥ ${moneyFormat.format(actualBalance)}", modifier = Modifier.padding(start = 6.dp), color = Color(0xFF0F766E), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("¥ ${moneyFormat.format(actualBalance)}", modifier = Modifier.padding(start = 6.dp), color = Color(0xFF0F766E), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "余额单独展示，不重复计入本月扣减",
@@ -3498,7 +3503,7 @@ private fun BudgetSegment(label: String, value: Double, color: Color, modifier: 
                 else -> Color(0xFF1E293B)
             },
             fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Bold,
             lineHeight = 14.4.sp,
             maxLines = 1,
         )
@@ -3534,8 +3539,8 @@ private fun WebReplicaDiagnosticBanner(summary: NativeHomeDashboardSummary, onOp
         }
         Spacer(Modifier.width(9.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            Text(headline, color = Color(0xFF64748B), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(headline, color = Color(0xFF64748B), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text("查看  ›", color = Blue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
@@ -3636,7 +3641,7 @@ private fun CompassTile(
             Text(label, color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
         Spacer(Modifier.height(4.dp))
-        Text(value, color = Ink, fontSize = 17.sp, lineHeight = 20.4.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, color = Ink, fontSize = 17.sp, lineHeight = 20.4.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(3.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
             Text(badge, color = badgeColor, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)

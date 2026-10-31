@@ -58,16 +58,18 @@
 | --- | --- | --- |
 | Web 壳版（`com.wotty.stark.web`） | Capacitor WebView 与网页底栏 | 可以 |
 | KT 混合版（`com.wotty.stark.ktweb`） | 同一套网页页面与 Kotlin 原生底栏 | 可以 |
+| 纯 KT 原生版（`com.wotty.stark.nativeapp`） | Kotlin / Jetpack Compose 原生页面与导航 | 可以 |
 
-两个版本使用独立包名，可以同时安装。各版本的区别和构建命令见 [Android 安装包版本区分](docs/android-app-editions.md)。
+三个版本使用独立包名，可以同时安装。各版本的区别和构建命令见 [Android 安装包版本区分](docs/android-app-editions.md)。
 
-Android 本地模式将数据保存在当前应用的 IndexedDB 中，不需要登录或部署服务器。云端模式通过 API 将数据保存在 MySQL 中，适合在多个设备上访问。两种模式使用独立账本，切换模式不会自动迁移、合并或同步数据。浏览器只支持云端模式。
+Web 壳版和 KT 混合版的本地模式使用 IndexedDB；纯 KT 原生版的本地账本保存在应用私有存储中。各版均可通过 API 使用 MySQL 云端账本，模式之间不会自动迁移、合并或同步数据。浏览器只支持云端模式。
 
 ## 仓库结构
 
 | 目录 | 用途 |
 | --- | --- |
 | `app/` | 当前 Next.js 前端及 Capacitor Android 工程 |
+| `native-app/` | 独立纯 Kotlin / Jetpack Compose Android 工程 |
 | `server-go/` | Docker Compose 默认使用的 Go API |
 | `api-server/` | 本地 `pnpm dev` 使用的 Ktor API |
 | `docs/` | 开发、部署和版本说明 |
@@ -123,14 +125,15 @@ Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访�
 
 ## Android 打包
 
-在仓库根目录执行以下命令；打包过程会构建网页、同步 Capacitor 资源，再生成 APK：
+在仓库根目录执行以下命令。Web 壳版和 KT 混合版会先构建网页并同步 Capacitor 资源；纯 KT 版由根 Gradle 工程直接构建：
 
 | 版本 | Windows | Linux |
 | --- | --- | --- |
 | Web 壳版 | `pnpm --dir app apk` | `pnpm --dir app apk:linux` |
 | KT 混合版 | `pnpm --dir app apk:ktweb` | `pnpm --dir app apk:ktweb:linux` |
+| 纯 KT 原生版 | `.\gradlew.bat :native-app:assembleDebug` | `./gradlew :native-app:assembleDebug` |
 
-新 Web 壳和 KT 混合版 APK 会按版本和时间戳另存到 `releases/`，保留旧包。Android `versionCode` 随新安装包单独递增。
+新 APK 会按版本和时间戳另存到 `releases/`，保留旧包。各版 Android `versionCode` 随新安装包单独递增。
 
 ## 数据与凭据
 

@@ -2521,7 +2521,7 @@ private fun HomeScreen(
 
     CompositionLocalProvider(
         LocalNativeHomeTypography provides true,
-        androidx.compose.material3.LocalTextStyle provides androidx.compose.material3.LocalTextStyle.current.copy(fontWeight = FontWeight.Normal),
+        androidx.compose.material3.LocalTextStyle provides androidx.compose.material3.LocalTextStyle.current.copy(fontWeight = FontWeight.Medium),
     ) {
         LazyColumn(
             modifier = modifier.fillMaxSize(),
@@ -3031,7 +3031,7 @@ private fun WebReplicaHero(
                                 text,
                                 color = if (highlighted) heroBlue else Color(0xFF64748B),
                                 fontSize = 10.sp,
-                                fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Normal,
+                                fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Medium,
                             )
                         }
                     }

@@ -23,9 +23,15 @@ import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.json.JSONException;
 
 @CapacitorPlugin(name = "AppUpdate")
 public class AppUpdatePlugin extends Plugin {
@@ -38,6 +44,7 @@ public class AppUpdatePlugin extends Plugin {
     private final AtomicBoolean downloading = new AtomicBoolean(false);
     private volatile File downloadedFile;
     private volatile String downloadedUrl;
+    private volatile String approvedLanOrigin;
 
     @PluginMethod
     public void getInstalledVersion(PluginCall call) {
@@ -54,6 +61,63 @@ public class AppUpdatePlugin extends Plugin {
     }
 
     @PluginMethod
+    public void getLanUpdateManifest(PluginCall call) {
+        String source = call.getString("url");
+        final URL manifestUrl;
+        try {
+            manifestUrl = requirePrivateHttp(new URL(source == null ? "" : source));
+        } catch (Exception error) {
+            call.reject("请输入有效的局域网版本接口地址。");
+            return;
+        }
+
+        bridge.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) manifestUrl.openConnection();
+                connection.setInstanceFollowRedirects(false);
+                connection.setConnectTimeout(10_000);
+                connection.setReadTimeout(15_000);
+                connection.setRequestProperty("Accept", "application/json");
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("局域网版本接口返回 HTTP " + connection.getResponseCode() + "。");
+                }
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                try (InputStream input = connection.getInputStream()) {
+                    byte[] chunk = new byte[8192];
+                    int count;
+                    while ((count = input.read(chunk)) != -1) {
+                        if (buffer.size() + count > 64 * 1024) throw new IOException("版本信息过大。");
+                        buffer.write(chunk, 0, count);
+                    }
+                }
+                JSObject manifest = new JSObject(new String(buffer.toByteArray(), StandardCharsets.UTF_8));
+                Integer versionCode = manifest.getInteger("versionCode");
+                String versionName = manifest.getString("versionName");
+                String apkSource = manifest.getString("apkUrl");
+                if (versionCode == null || versionCode <= 0 || versionName == null || versionName.isEmpty() ||
+                        apkSource == null || apkSource.isEmpty()) {
+                    throw new IOException("局域网版本信息缺少版本号或安装包地址。");
+                }
+                URL apkUrl = requirePrivateHttp(new URL(apkSource));
+                if (!lanOrigin(manifestUrl).equals(lanOrigin(apkUrl))) {
+                    throw new IOException("安装包须与局域网版本接口位于同一地址和端口。");
+                }
+                approvedLanOrigin = lanOrigin(manifestUrl);
+                call.resolve(manifest);
+            } catch (JSONException error) {
+                call.reject("局域网版本信息不是有效 JSON。");
+            } catch (IOException error) {
+                call.reject(error.getMessage() == null ? "无法连接局域网版本接口。" : error.getMessage());
+            } catch (Exception error) {
+                call.reject("无法连接局域网版本接口，请检查手机网络和地址。");
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
+    }
+
+    @PluginMethod
     public void downloadAndInstall(PluginCall call) {
         String source = call.getString("url");
         Integer expectedVersionCode = call.getInt("versionCode");
@@ -63,7 +127,7 @@ public class AppUpdatePlugin extends Plugin {
         }
 
         try {
-            requireHttps(new URL(source));
+            requireUpdateUrl(new URL(source));
             PackageInfo installed = getContext().getPackageManager()
                     .getPackageInfo(getContext().getPackageName(), 0);
             if (expectedVersionCode <= versionCode(installed)) {
@@ -115,7 +179,7 @@ public class AppUpdatePlugin extends Plugin {
     public void openDownloadInBrowser(PluginCall call) {
         String source = call.getString("url");
         try {
-            requireHttps(new URL(source == null ? "" : source));
+            requireUpdateUrl(new URL(source == null ? "" : source));
             Intent browser = new Intent(Intent.ACTION_VIEW, Uri.parse(source));
             browser.addCategory(Intent.CATEGORY_BROWSABLE);
             getActivity().startActivity(browser);
@@ -264,6 +328,48 @@ public class AppUpdatePlugin extends Plugin {
             throw new IOException("更新地址必须是有效的 HTTPS 链接。");
         }
         return url;
+    }
+
+    private URL requirePrivateHttp(URL url) throws IOException {
+        String host = url.getHost();
+        if (!"http".equalsIgnoreCase(url.getProtocol()) || !isPrivateIpv4(host) ||
+                url.getUserInfo() != null || url.getRef() != null ||
+                (url.getPort() != -1 && (url.getPort() < 1 || url.getPort() > 65535))) {
+            throw new IOException("局域网地址须使用私有 IPv4 的 HTTP 链接。");
+        }
+        return url;
+    }
+
+    private URL requireUpdateUrl(URL url) throws IOException {
+        if ("https".equalsIgnoreCase(url.getProtocol())) return requireHttps(url);
+        requirePrivateHttp(url);
+        if (!lanOrigin(url).equals(approvedLanOrigin)) {
+            throw new IOException("请先从局域网版本接口检查更新。");
+        }
+        return url;
+    }
+
+    private String lanOrigin(URL url) {
+        return url.getProtocol().toLowerCase() + "://" + url.getHost() + ":" + (url.getPort() == -1 ? 80 : url.getPort());
+    }
+
+    private boolean isPrivateIpv4(String host) {
+        if (host == null) return false;
+        String[] parts = host.split("\\.", -1);
+        if (parts.length != 4) return false;
+        int[] octets = new int[4];
+        for (int index = 0; index < 4; index++) {
+            if (!parts[index].matches("0|[1-9][0-9]{0,2}")) return false;
+            try {
+                octets[index] = Integer.parseInt(parts[index]);
+            } catch (NumberFormatException error) {
+                return false;
+            }
+            if (octets[index] > 255) return false;
+        }
+        return octets[0] == 10 ||
+                (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
+                (octets[0] == 192 && octets[1] == 168);
     }
 
     private boolean isValidApk(File apk, int expectedVersionCode) {

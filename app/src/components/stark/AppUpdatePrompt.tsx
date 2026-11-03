@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
+import { readLanUpdateUrl } from "@/lib/stark/lan-update";
 import { setAppUpdateAvailable } from "@/lib/stark/app-update-status";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 
@@ -25,6 +26,7 @@ type NativeDownloadProgress = {
 };
 type NativeAppUpdate = {
   getInstalledVersion(): Promise<{ versionCode: number; versionName: string }>;
+  getLanUpdateManifest(options: { url: string }): Promise<AppVersionInfo>;
   downloadAndInstall(options: { url: string; versionCode: number }): Promise<{ installationStarted: boolean }>;
   openDownloadInBrowser(options: { url: string }): Promise<{ opened: boolean }>;
   addListener(eventName: "downloadProgress", listener: (progress: NativeDownloadProgress) => void): Promise<PluginListenerHandle>;
@@ -137,13 +139,16 @@ export function AppUpdatePrompt() {
           throw new Error("Invalid installed app version");
         }
         if (!cancelled && requestId === checkRequestIdRef.current) setInstalledVersionName(installed.versionName);
-        const response = await fetch(APP_UPDATE_URL, { signal: controller.signal, cache: "no-store" });
-        if (cancelled || requestId !== checkRequestIdRef.current) return;
-        if (!response.ok) {
-          if (manual && !cancelled) setNotice({ title: "版本检查失败", message: "暂时无法连接版本服务，请稍后重试。" });
-          return;
+        const lanUrl = readLanUpdateUrl();
+        let responseInfo: unknown;
+        if (lanUrl) {
+          responseInfo = await nativeAppUpdate.getLanUpdateManifest({ url: lanUrl });
+        } else {
+          const response = await fetch(APP_UPDATE_URL, { signal: controller.signal, cache: "no-store" });
+          if (!response.ok) throw new Error("版本服务暂时不可用。");
+          responseInfo = await response.json();
         }
-        const responseInfo: unknown = await response.json();
+        if (cancelled || requestId !== checkRequestIdRef.current) return;
         if (!isAppVersionInfo(responseInfo)) throw new Error("Invalid app version manifest");
         // A shared manifest must never offer another edition's APK.
         // Untagged legacy manifests are only eligible for the Web shell.
@@ -164,9 +169,15 @@ export function AppUpdatePrompt() {
         } else if (manual) {
           setNotice({ title: "已是最新版本", message: "当前 App 版本为 " + installed.versionName + "。" });
         }
-      } catch {
+      } catch (error) {
         if (cancelled || requestId !== checkRequestIdRef.current || silentCheckAbortRef.current.has(controller)) return;
-        if (manual && !cancelled) setNotice({ title: "版本检查失败", message: "暂时无法连接版本服务，请稍后重试。" });
+        setAppUpdateAvailable(false);
+        if (manual && !cancelled) setNotice({
+          title: "版本检查失败",
+          message: readLanUpdateUrl()
+            ? error instanceof Error && error.message ? error.message : "无法连接局域网版本服务，请检查手机网络和地址。"
+            : "暂时无法连接版本服务，请稍后重试。",
+        });
         // Version checks are optional and must never block the app.
       } finally {
         window.clearTimeout(timer);
@@ -178,8 +189,13 @@ export function AppUpdatePrompt() {
     function handleManualCheck() {
       void checkForUpdate(true);
     }
+    function handleSourceChange() {
+      setAppUpdateAvailable(false);
+      void checkForUpdate(false);
+    }
 
     window.addEventListener("stark:check-app-update", handleManualCheck);
+    window.addEventListener("stark:update-source-change", handleSourceChange);
     void checkForUpdate(false);
     return () => {
       cancelled = true;
@@ -191,6 +207,7 @@ export function AppUpdatePrompt() {
       }
       checkAbortRef.current = null;
       window.removeEventListener("stark:check-app-update", handleManualCheck);
+      window.removeEventListener("stark:update-source-change", handleSourceChange);
     };
   }, []);
 

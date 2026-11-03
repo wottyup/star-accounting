@@ -25,6 +25,7 @@ APK 属于临时测试包，可能没有对应的独立源码版本条目。
 
 ## [Unreleased]
 
+- 新增 Android 局域网更新来源，可从内网检查并下载安装包。
 - 恢复独立纯 Kotlin Android 版，并对齐首页汇总卡布局。
 - 优化 Docker 镜像包体积，部署时联网拉取通用基础镜像。
 - 新增可在 GitHub Actions 下载的 Docker 镜像包。

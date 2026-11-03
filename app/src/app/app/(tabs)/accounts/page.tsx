@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
 import packageInfo from "../../../../../package.json";
 import { PageTopBar } from "@/components/stark/PageTopBar";
 import type { DataMode, ImportErrorLog, ImportFailedRow, Transaction } from "@/lib/stark/models";
@@ -21,11 +22,12 @@ import { BottomSheet } from "@/components/stark/BottomSheet";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { applyUiSettings, defaultUiSettings, readUiSettings, saveUiSettings, type FontChoice, type LanguageChoice, type UiSettings } from "@/lib/stark/storage/ui-settings";
 import { getAppUpdateAvailable, subscribeAppUpdateAvailable } from "@/lib/stark/app-update-status";
+import { normalizeLanUpdateUrl, readLanUpdateUrl, saveLanUpdateUrl } from "@/lib/stark/lan-update";
 import type { BillImportSource } from "@/lib/stark/import/bill-csv";
 import { withAppBasePath } from "@/lib/stark/runtime";
 
 const manager = new DataModeManager();
-type PanelKey = "ACCOUNT" | "IMPORT" | "EXPORT" | "REMARK" | "SUBSCRIPTIONS" | "LANGUAGE" | "FONT" | "HELP" | "ABOUT" | "MODE";
+type PanelKey = "ACCOUNT" | "IMPORT" | "EXPORT" | "REMARK" | "SUBSCRIPTIONS" | "LANGUAGE" | "FONT" | "HELP" | "ABOUT" | "MODE" | "UPDATE_SOURCE";
 type SettingIconKey = PanelKey | "UPDATE";
 const languageLabels: Record<LanguageChoice, string> = { SYSTEM: "跟随系统", ZH_CN: "简体中文", EN_US: "English" };
 const fontLabels: Record<FontChoice, string> = { SMALL: "较小", STANDARD: "标准", LARGE: "较大" };
@@ -49,6 +51,7 @@ function SettingIcon({ type }: { type: SettingIconKey }) {
     ABOUT: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7h.01" /></>,
     MODE: <><path d="M7 7h10" /><path d="m13 3 4 4-4 4" /><path d="M17 17H7" /><path d="m11 13-4 4 4 4" /></>,
     UPDATE: <><path d="M20 7v5h-5" /><path d="M20 12a8 8 0 1 1-2.35-5.65L20 9" /></>,
+    UPDATE_SOURCE: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4M7 9h3m-3 4h6" /></>,
   };
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
 }
@@ -72,6 +75,10 @@ export default function AccountsPage() {
   const router = useRouter();
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [nativeApp, setNativeApp] = useState(false);
+  const [lanUpdateUrl, setLanUpdateUrl] = useState<string | null>(null);
+  const [lanUpdateDraft, setLanUpdateDraft] = useState("");
+  const [lanUpdateError, setLanUpdateError] = useState("");
   const [mode, setMode] = useState<DataMode>("CLOUD");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -117,6 +124,37 @@ export default function AccountsPage() {
     setUpdateAvailable(getAppUpdateAvailable());
     return subscribeAppUpdateAvailable(() => setUpdateAvailable(getAppUpdateAvailable()));
   }, []);
+
+  useEffect(() => {
+    setNativeApp(Capacitor.isNativePlatform());
+    const saved = readLanUpdateUrl();
+    setLanUpdateUrl(saved);
+    setLanUpdateDraft(saved ?? "");
+  }, []);
+
+  function saveUpdateSource() {
+    try {
+      const normalized = normalizeLanUpdateUrl(lanUpdateDraft);
+      saveLanUpdateUrl(normalized);
+      setLanUpdateUrl(normalized);
+      setLanUpdateError("");
+      setActivePanel(null);
+    } catch (error) {
+      setLanUpdateError(error instanceof Error ? error.message : "无法保存局域网更新地址。");
+    }
+  }
+
+  function useOfficialUpdateSource() {
+    try {
+      saveLanUpdateUrl(null);
+      setLanUpdateUrl(null);
+      setLanUpdateDraft("");
+      setLanUpdateError("");
+      setActivePanel(null);
+    } catch {
+      setLanUpdateError("无法保存更新来源，请稍后重试。");
+    }
+  }
 
   function updateUiSetting<K extends keyof UiSettings>(key: K, value: UiSettings[K]) {
     setUiSettings((current) => {
@@ -375,6 +413,7 @@ export default function AccountsPage() {
 
       <section className="settings-center-group">
         <SettingsRow type="HELP" title="帮助与反馈" onClick={() => setActivePanel("HELP")} />
+        {nativeApp ? <SettingsRow type="UPDATE_SOURCE" title="更新来源" value={lanUpdateUrl ? "局域网" : "官网"} onClick={() => { setLanUpdateDraft(lanUpdateUrl ?? ""); setLanUpdateError(""); setActivePanel("UPDATE_SOURCE"); }} /> : null}
         <SettingsRow type="UPDATE" title="检查更新" value={`v${packageInfo.version}`} updateAvailable={updateAvailable} onClick={() => window.dispatchEvent(new Event("stark:check-app-update"))} />
         <SettingsRow type="ABOUT" title="关于" value={`v${packageInfo.version}`} onClick={() => setActivePanel("ABOUT")} />
       </section>
@@ -401,7 +440,7 @@ export default function AccountsPage() {
 
       {activePanel ? (
         <BottomSheet
-          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
+          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "UPDATE_SOURCE" ? "更新来源" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
           className="settings-sheet"
           overlayClassName="settings-sheet-overlay"
           onClose={() => setActivePanel(null)}
@@ -454,6 +493,13 @@ export default function AccountsPage() {
 
             {activePanel === "LANGUAGE" ? <div className="settings-option-list">{(["SYSTEM", "ZH_CN", "EN_US"] as LanguageChoice[]).map((item) => <button type="button" key={item} className={uiSettings.language === item ? "active" : ""} onClick={() => updateUiSetting("language", item)}><span><strong>{languageLabels[item]}</strong><small>{item === "SYSTEM" ? "使用设备的语言偏好" : item === "ZH_CN" ? "固定使用简体中文" : "固定使用英文"}</small></span><em>{uiSettings.language === item ? "✓" : ""}</em></button>)}</div> : null}
             {activePanel === "FONT" ? <div className="settings-font-options">{(["SMALL", "STANDARD", "LARGE"] as FontChoice[]).map((item) => <button type="button" key={item} className={uiSettings.font === item ? "active" : ""} onClick={() => updateUiSetting("font", item)}><span style={{ fontSize: item === "SMALL" ? 13 : item === "LARGE" ? 19 : 16 }}>Aa</span><strong>{fontLabels[item]}</strong></button>)}</div> : null}
+            {activePanel === "UPDATE_SOURCE" ? <div className="settings-sheet-body">
+              <p className="settings-sheet-note">填写局域网版本接口后，“检查更新”会从该地址读取版本。手机需要能连接这台设备。</p>
+              <label className="settings-url-field"><span>局域网版本接口</span><input type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" value={lanUpdateDraft} onChange={(event) => { setLanUpdateDraft(event.target.value); setLanUpdateError(""); }} placeholder="http://10.126.126.3:18767/version.json" /></label>
+              {lanUpdateError ? <div className="cloud-test-status error" role="alert">{lanUpdateError}</div> : null}
+              <button type="button" className="settings-sheet-primary" onClick={saveUpdateSource}>使用局域网地址</button>
+              <button type="button" className="settings-confirm-button" onClick={useOfficialUpdateSource}>改用官网更新</button>
+            </div> : null}
             {activePanel === "HELP" ? <div className="settings-sheet-body help-sheet-body"><div><strong>数据没有加载出来怎么办？</strong><p>请返回根登录入口确认云端服务与数据库状态，再重新登录。</p></div><div><strong>账单导入支持什么格式？</strong><p>支持微信和支付宝官方导出的 CSV、XLS、XLSX 文件，也支持本应用导出的 CSV 账单。</p></div><div><strong>Web 端和 App 有何不同？</strong><p>目前暂时只开发安卓客户端，Web 端适用于 PC、iOS、鸿蒙等设备。</p></div><a href="https://github.com/sevencnup/wotty-StarAccounting/issues" target="_blank" rel="noreferrer">国际站点端反馈 <ChevronIcon /></a><a href="https://sevencn.com/software/staraccounting" target="_blank" rel="noreferrer">国内站点端反馈 <ChevronIcon /></a></div> : null}
             {activePanel === "ABOUT" ? <div className="settings-about"><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><strong>星会计</strong><p>版本 {packageInfo.version}</p><small>本地优先、可连接云端的个人财务管理工具</small><div>Next.js · Capacitor · Kotlin</div><nav className="settings-about-links" aria-label="相关网站"><a href="https://sevencn.com" target="_blank" rel="noreferrer"><span>博客</span><strong>sevencn.com</strong><ChevronIcon /></a><a href="https://s.wotty.app" target="_blank" rel="noreferrer"><span>项目网站</span><strong>s.wotty.app</strong><ChevronIcon /></a><a href="https://github.com/sevencnup/wotty-StarAccounting" target="_blank" rel="noreferrer"><span>开源地址</span><strong>github.com/sevencnup/wotty-StarAccounting</strong><ChevronIcon /></a></nav></div> : null}
         </BottomSheet>

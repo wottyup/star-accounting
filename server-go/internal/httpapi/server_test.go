@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/config"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/config"
 )
 
 type fakeDatabase bool

@@ -1,4 +1,4 @@
-module github.com/sevencnup/wotty-StarAccounting/server-go
+module github.com/wottyup/star-accounting/server-go
 
 go 1.18
 

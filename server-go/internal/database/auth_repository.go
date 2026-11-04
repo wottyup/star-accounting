@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
 )
 
 const registrationEnabledSetting = "registration-enabled"

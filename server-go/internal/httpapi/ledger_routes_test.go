@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/ledger"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/ledger"
 )
 
 func TestLedgerAccountRoutesReturnOwnedAccountsAndScopeWrites(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/ledger"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/ledger"
 )
 
 var reportingMonthPattern = regexp.MustCompile(`^\d{4}-(0[1-9]|1[0-2])$`)

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/ledger"
+	"github.com/wottyup/star-accounting/server-go/internal/ledger"
 )
 
 type fieldKind uint8

@@ -8,9 +8,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/config"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/ledger"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/config"
+	"github.com/wottyup/star-accounting/server-go/internal/ledger"
 )
 
 type HealthChecker interface {

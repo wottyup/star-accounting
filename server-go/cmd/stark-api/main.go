@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/config"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/database"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/httpapi"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/ledger"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/config"
+	"github.com/wottyup/star-accounting/server-go/internal/database"
+	"github.com/wottyup/star-accounting/server-go/internal/httpapi"
+	"github.com/wottyup/star-accounting/server-go/internal/ledger"
 )
 
 func main() {

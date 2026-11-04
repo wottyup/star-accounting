@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/config"
+	"github.com/wottyup/star-accounting/server-go/internal/config"
 )
 
 type Store struct {

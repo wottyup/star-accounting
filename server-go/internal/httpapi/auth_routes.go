@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/sevencnup/wotty-StarAccounting/server-go/internal/auth"
+	"github.com/wottyup/star-accounting/server-go/internal/auth"
 )
 
 type authenticatedUserContextKey struct{}

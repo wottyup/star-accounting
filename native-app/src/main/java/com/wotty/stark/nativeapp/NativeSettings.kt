@@ -547,7 +547,7 @@ private fun NativeHelpSheet(onDismiss: () -> Unit) {
             }
             SettingsPanel {
                 Text("反馈与帮助", color = SettingsInk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                ExternalSettingsLink("国际站点端反馈", "github.com/sevencnup/wotty-StarAccounting/issues", "https://github.com/sevencnup/wotty-StarAccounting/issues")
+                ExternalSettingsLink("国际站点端反馈", "github.com/wottyup/star-accounting/issues", "https://github.com/wottyup/star-accounting/issues")
                 HorizontalDivider(color = SettingsLine)
                 ExternalSettingsLink("国内站点端反馈", "sevencn.com/software/staraccounting", "https://sevencn.com/software/staraccounting")
             }
@@ -592,7 +592,7 @@ private fun NativeAboutSheet(onDismiss: () -> Unit) {
                 HorizontalDivider(color = SettingsLine)
                 ExternalSettingsLink("项目网站", "s.wotty.app", "https://s.wotty.app")
                 HorizontalDivider(color = SettingsLine)
-                ExternalSettingsLink("开源地址", "github.com/sevencnup/wotty-StarAccounting", "https://github.com/sevencnup/wotty-StarAccounting")
+                ExternalSettingsLink("开源地址", "github.com/wottyup/star-accounting", "https://github.com/wottyup/star-accounting")
             }
             Spacer(Modifier.height(8.dp))
         }

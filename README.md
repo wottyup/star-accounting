@@ -3,11 +3,11 @@
 <p align="center"><img src="app/src/app/icon.svg" alt="星会计 Logo" width="96"></p>
 
 <p align="center">
-  <a href="https://github.com/sevencnup/wotty-StarAccounting/blob/master/LICENSE"><img src="https://img.shields.io/github/license/sevencnup/wotty-StarAccounting?style=flat-square" alt="许可证"></a>
-  <a href="https://github.com/sevencnup/wotty-StarAccounting/releases"><img src="https://img.shields.io/github/v/release/sevencnup/wotty-StarAccounting?style=flat-square" alt="最新发布版本"></a>
-  <a href="https://github.com/sevencnup/wotty-StarAccounting/releases"><img src="https://img.shields.io/github/downloads/sevencnup/wotty-StarAccounting/total?style=flat-square" alt="安装包下载量"></a>
-  <a href="https://github.com/sevencnup/wotty-StarAccounting/stargazers"><img src="https://img.shields.io/github/stars/sevencnup/wotty-StarAccounting?style=flat-square" alt="GitHub 星标数"></a>
-  <a href="https://github.com/sevencnup/wotty-StarAccounting/issues"><img src="https://img.shields.io/github/issues/sevencnup/wotty-StarAccounting?style=flat-square" alt="未关闭的问题数"></a>
+  <a href="https://github.com/wottyup/star-accounting/blob/main/LICENSE"><img src="https://img.shields.io/github/license/wottyup/star-accounting?style=flat-square" alt="许可证"></a>
+  <a href="https://github.com/wottyup/star-accounting/releases"><img src="https://img.shields.io/github/v/release/wottyup/star-accounting?style=flat-square" alt="最新发布版本"></a>
+  <a href="https://github.com/wottyup/star-accounting/releases"><img src="https://img.shields.io/github/downloads/wottyup/star-accounting/total?style=flat-square" alt="安装包下载量"></a>
+  <a href="https://github.com/wottyup/star-accounting/stargazers"><img src="https://img.shields.io/github/stars/wottyup/star-accounting?style=flat-square" alt="GitHub 星标数"></a>
+  <a href="https://github.com/wottyup/star-accounting/issues"><img src="https://img.shields.io/github/issues/wottyup/star-accounting?style=flat-square" alt="未关闭的问题数"></a>
 </p>
 <p align="center">
   <a href="docs/android-app-editions.md"><img src="https://img.shields.io/badge/Android-5.1%2B%20%28API%2022%29-3DDC84?logo=android&amp;logoColor=white&amp;style=flat-square" alt="Android 5.1 及以上"></a>
@@ -21,9 +21,9 @@
 
 在线体验：[打开 Web 演示](https://s.wotty.app/web-demo/app/)。
 
-**Android 公测版下载：**[星会计 0.8.0-beta.1 APK](https://github.com/sevencnup/wotty-StarAccounting/releases/download/v0.8.0-beta.1/star-accounting-v0.8.0-beta.1.apk)（KT 混合版）。[查看全部发布版本](https://github.com/sevencnup/wotty-StarAccounting/releases)。
+**Android 公测版下载：**请在 [GitHub 发布页面](https://github.com/wottyup/star-accounting/releases) 查看可用安装包。
 
-**Docker 镜像包：**发布 Android 公测版时会同步构建，也可[在 GitHub Actions 单独构建并下载](https://github.com/sevencnup/wotty-StarAccounting/actions/workflows/docker-image-package.yml)（Linux amd64，仅包含 Web 和 Go API；部署机器需联网拉取 MySQL 和 Alpine）。
+**Docker 镜像包：**发布 Android 公测版时会同步构建，也可[在 GitHub Actions 单独构建并下载](https://github.com/wottyup/star-accounting/actions/workflows/docker-image-package.yml)（Linux amd64，仅包含 Web 和 Go API；部署机器需联网拉取 MySQL 和 Alpine）。
 
 ## 主要功能
 

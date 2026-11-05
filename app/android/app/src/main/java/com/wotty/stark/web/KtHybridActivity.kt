@@ -119,20 +119,20 @@ class KtHybridActivity : MainActivity() {
                 val barTop = 32f * density
                 val corner = 7f * density
                 val bumpWidth = (width * 0.19f).coerceIn(74f * density, 84f * density)
-                val bumpHeight = bumpWidth * 112f / 440f
+                val bumpHeight = bumpWidth * 104f / 440f
                 val bumpLeft = (width - bumpWidth) / 2f
                 val bumpTop = barTop - bumpHeight
                 fun x(value: Float) = bumpLeft + value * bumpWidth / 440f
-                fun y(value: Float) = bumpTop + value * bumpHeight / 112f
+                fun y(value: Float) = bumpTop + value * bumpHeight / 104f
                 val outline = Path().apply {
                     moveTo(0f, height.toFloat())
                     lineTo(0f, barTop + corner)
                     quadTo(0f, barTop, corner, barTop)
-                    lineTo(x(0f), y(112f))
-                    cubicTo(x(64f), y(112f), x(79f), y(95f), x(112f), y(54f))
-                    cubicTo(x(145f), y(14f), x(177f), y(0f), x(220f), y(0f))
-                    cubicTo(x(263f), y(0f), x(295f), y(14f), x(328f), y(54f))
-                    cubicTo(x(361f), y(95f), x(376f), y(112f), x(440f), y(112f))
+                    lineTo(x(0f), y(104f))
+                    cubicTo(x(52f), y(104f), x(78f), y(97f), x(116f), y(56f))
+                    cubicTo(x(151f), y(20f), x(184f), y(0f), x(220f), y(0f))
+                    cubicTo(x(256f), y(0f), x(289f), y(20f), x(324f), y(56f))
+                    cubicTo(x(362f), y(97f), x(388f), y(104f), x(440f), y(104f))
                     lineTo(width.toFloat() - corner, barTop)
                     quadTo(width.toFloat(), barTop, width.toFloat(), barTop + corner)
                     lineTo(width.toFloat(), height.toFloat())

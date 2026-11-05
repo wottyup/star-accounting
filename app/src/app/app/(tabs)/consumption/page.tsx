@@ -612,12 +612,13 @@ export default function ConsumptionPage() {
 
       <section className="consumption-detail-card">
         <div className="consumption-detail-head">
-          <div>
-            <h2>{locale === "en-US" ? "Transaction details" : "流水明细"}</h2>
-            <span>{locale === "en-US" ? `${filteredTransactions.length} filtered results · showing the latest ${Math.min(detailMatchedTransactions.length, 5)}` : `${filteredTransactions.length} 笔筛选结果 · 显示最近 ${Math.min(detailMatchedTransactions.length, 5)} 笔`}</span>
-          </div>
-          <span className="consumption-top-category">{locale === "en-US" ? (viewMode === "income" ? "Top income category" : "Top category") : (viewMode === "income" ? "最高收入分类" : "最高分类")} {translateValue(monthSummary.topCategory, locale)} · ¥{formatMoney(monthSummary.topCategoryAmount)}</span>
+          <h2>{locale === "en-US" ? "Transaction details" : "流水明细"}</h2>
+          <span className="consumption-top-category">
+            <span className="consumption-top-category-label">{locale === "en-US" ? (viewMode === "income" ? "Top income category" : "Top category") : (viewMode === "income" ? "最高收入分类" : "最高分类")} {translateValue(monthSummary.topCategory, locale)} ·</span>
+            <strong>¥{formatMoney(monthSummary.topCategoryAmount)}</strong>
+          </span>
         </div>
+        <p className="consumption-detail-count">{locale === "en-US" ? `${filteredTransactions.length} filtered results · showing the latest ${Math.min(detailMatchedTransactions.length, 5)}` : `${filteredTransactions.length} 笔筛选结果 · 显示最近 ${Math.min(detailMatchedTransactions.length, 5)} 笔`}</p>
         <label className="detail-search-wrap">
           <SearchIcon />
           <input value={detailQuery} onChange={(event) => setDetailQuery(event.target.value)} placeholder={locale === "en-US" ? "Search within filtered results" : "在当前筛选结果中搜索"} />
@@ -631,11 +632,13 @@ export default function ConsumptionPage() {
                 <span className="recent-icon"><img src={categoryIconSrc(display)} alt="" /></span>
                 <strong className="recent-title">{translateValue(display.category, locale)}</strong>
                 <span className="recent-category">{transferred ? `${locale === "en-US" ? "Transfer recategorized" : "转账归类"} · ${translateValue(item.remarkCategory || item.category, locale)} · ` : ""}{item.merchant || item.description || translateValue(item.platform, locale)}</span>
-                <span className="recent-time">{recentTimeLabel(item.date)}</span>
                 <strong className={`recent-amount ${display.type === "INCOME" ? "income" : display.type === "EXPENSE" ? "expense" : "transfer"}`}>
                   {display.type === "INCOME" ? "+¥ " : display.type === "EXPENSE" ? "-¥ " : "±¥ "}{formatMoney(item.amount)}
                 </strong>
-                <div className="finance-item-actions"><button type="button" onClick={() => setEditingTransaction(item)}>编辑</button><button type="button" onClick={() => void deleteTransaction(item)}>删除</button></div>
+                <div className="recent-meta">
+                  <span className="recent-time">{recentTimeLabel(item.date)}</span>
+                  <div className="finance-item-actions"><button type="button" onClick={() => setEditingTransaction(item)}>编辑</button><button type="button" onClick={() => void deleteTransaction(item)}>删除</button></div>
+                </div>
               </div>
             );
           }) : <div className="consumption-empty-state">{locale === "en-US" ? "No transactions match the current filters" : "当前筛选下暂无流水"}</div>}

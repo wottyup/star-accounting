@@ -1201,11 +1201,11 @@ html.kt-hybrid-shell .tabs-shell {
   overflow: hidden;
   border-radius: 20px;
   min-height: 146px;
-  padding: 16px 18px 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
@@ -1247,8 +1247,8 @@ html.kt-hybrid-shell .tabs-shell {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: start;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
 }
 
@@ -1258,6 +1258,8 @@ html.kt-hybrid-shell .tabs-shell {
 }
 
 .stark-card-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: #64748b;
   font-size: calc(13px * var(--user-font-scale));
   font-weight: 500;
@@ -1333,15 +1335,22 @@ html.kt-hybrid-shell .tabs-shell {
 
 .stark-hero-footer-left {
   display: grid;
-  gap: 3px;
-  justify-items: start;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 10px;
   min-width: 0;
+  width: 100%;
 }
 
 .stark-tx-count,
 .stark-cycle-range {
   color: #94a3b8;
   font-size: calc(11px * var(--user-font-scale));
+}
+
+.stark-cycle-range {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 .stark-detail-arrow,
@@ -1361,7 +1370,9 @@ html.kt-hybrid-shell .tabs-shell {
 
 .stark-detail-arrow,
 .stark-setting-pill {
-  justify-self: start;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
 }
 
 /* Stark AI Diagnostic Banner */
@@ -5029,8 +5040,8 @@ button.stark-compass-card {
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-  margin-top: 6px;
+  gap: 5px 10px;
+  margin-top: 4px;
   color: #64748b;
   font-size: calc(10px * var(--user-font-scale));
   font-variant-numeric: tabular-nums;
@@ -5045,13 +5056,14 @@ button.stark-compass-card {
 
 .stark-cycle-metric {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 4px;
   min-width: 0;
 }
 
 .stark-cycle-metric-value {
-  margin-top: auto;
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 

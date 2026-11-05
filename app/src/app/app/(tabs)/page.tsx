@@ -374,11 +374,11 @@ function StarkCrystalHero({
               </span>
             ) : null}
             <span className="stark-cycle-metric">
-              <span>{translateValue(balanceMode === "salary" ? "收入" : "月收入", locale)}</span>
+              <span>{translateValue("收入", locale)}</span>
               <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleIncome : summary.income)}</span>
             </span>
             <span className="stark-cycle-metric">
-              <span>{translateValue(balanceMode === "salary" ? "消费" : "月消费", locale)}</span>
+              <span>{translateValue("消费", locale)}</span>
               <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleExpense : summary.expense)}</span>
             </span>
             <span className="stark-cycle-metric">

@@ -6460,6 +6460,31 @@ button.stark-compass-card {
   min-width: 66px;
 }
 
+.journal-panel.savings .savings-plan-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  width: 100%;
+  gap: 6px;
+}
+
+.journal-panel.savings .savings-plan-actions .savings-year-picker,
+.journal-panel.savings .savings-plan-actions .savings-month-restorer {
+  width: 100%;
+  min-width: 0;
+}
+
+.journal-panel.savings .savings-plan-actions .savings-month-restorer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
+.journal-panel.savings .savings-plan-actions .savings-month-restorer > button {
+  width: 100%;
+  min-width: 0;
+}
+
 /* Keep the compact savings editor readable on phone screens. Rem follows the
    user's font-size setting through the root font size. */
 .journal-panel.savings .savings-panel-summary span,

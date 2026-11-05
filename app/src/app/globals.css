@@ -4458,11 +4458,11 @@ button.stark-compass-card {
 
 .mobile-bottom-nav-hump {
   position: absolute;
-  top: -30px;
+  bottom: env(safe-area-inset-bottom);
   left: 50%;
-  width: 154px;
-  height: 48px;
-  fill: #ffffff;
+  width: clamp(390px, 100vw, 430px);
+  height: 94px;
+  background: url("./2437dc98422bcec86ca70b2058920807.svg") center bottom / 100% 100% no-repeat;
   transform: translateX(-50%);
   pointer-events: none;
 }

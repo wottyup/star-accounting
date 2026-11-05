@@ -146,9 +146,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
 
   return (
     <nav className="mobile-bottom-nav" aria-label="主导航" aria-busy={pendingTarget !== null}>
-      <svg className="mobile-bottom-nav-hump" viewBox="0 0 154 48" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0 30 C27 30 33 28 48 13 C63 -4 91 -4 106 13 C121 28 127 30 154 30 V48 H0 Z" />
-      </svg>
+      <span className="mobile-bottom-nav-hump" aria-hidden="true" />
       <div className="mobile-bottom-nav-inner">
         {NAV_ITEMS.map((item, index) => {
           const target = appRoute(item.href);

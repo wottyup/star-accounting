@@ -87,7 +87,6 @@ class KtHybridActivity : MainActivity() {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.WHITE)
         }
         val icons = mutableListOf<ImageView>()
         val labels = mutableListOf<TextView>()
@@ -135,23 +134,42 @@ class KtHybridActivity : MainActivity() {
         tabIcons = icons
         tabLabels = labels
 
-        val humpPath = Path().apply {
-            moveTo(0f, 30f)
-            cubicTo(27f, 30f, 33f, 28f, 48f, 13f)
-            cubicTo(63f, -4f, 91f, -4f, 106f, 13f)
-            cubicTo(121f, 28f, 127f, 30f, 154f, 30f)
-            lineTo(154f, 48f)
-            lineTo(0f, 48f)
-            close()
-        }
-        val humpPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-        val hump = object : View(this) {
+        val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        val barBackground = object : View(this) {
             override fun onDraw(canvas: Canvas) {
                 super.onDraw(canvas)
-                canvas.save()
-                canvas.scale(width / 154f, height / 48f)
-                canvas.drawPath(humpPath, humpPaint)
-                canvas.restore()
+                val density = resources.displayMetrics.density
+                val assetWidth = width.toFloat().coerceIn(390f * density, 430f * density)
+                val humpScale = assetWidth * (467f / 2011f) / 100f
+                val humpStart = width / 2f - 50f * humpScale
+                fun x(value: Float) = humpStart + value * humpScale
+                fun y(value: Float) = value * density
+                val outline = Path().apply {
+                    moveTo(0f, height.toFloat())
+                    lineTo(0f, y(37f))
+                    quadTo(0f, y(30f), y(7f), y(30f))
+                    lineTo(x(0f), y(30f))
+                    lineTo(x(1.9f), y(29.8f))
+                    quadTo(x(8.2f), y(28.5f), x(12.3f), y(25f))
+                    lineTo(x(13.8f), y(23.7f))
+                    lineTo(x(17f), y(20.1f))
+                    lineTo(x(23.8f), y(11.3f))
+                    quadTo(x(26.9f), y(7.9f), x(30.9f), y(5.2f))
+                    quadTo(x(37.2f), y(1f), x(46.5f), y(0f))
+                    lineTo(x(51.8f), y(0f))
+                    quadTo(x(61.3f), y(0.9f), x(67.7f), y(5f))
+                    lineTo(x(72.1f), y(8.1f))
+                    lineTo(x(75.8f), y(11.8f))
+                    lineTo(x(83f), y(21f))
+                    lineTo(x(86.4f), y(24.5f))
+                    quadTo(x(90.7f), y(28.5f), x(97.4f), y(29.8f))
+                    lineTo(x(100f), y(30f))
+                    lineTo(width.toFloat() - y(7f), y(30f))
+                    quadTo(width.toFloat(), y(30f), width.toFloat(), y(37f))
+                    lineTo(width.toFloat(), height.toFloat())
+                    close()
+                }
+                canvas.drawPath(outline, barPaint)
             }
         }
 
@@ -186,14 +204,11 @@ class KtHybridActivity : MainActivity() {
             clipChildren = false
             clipToPadding = false
             visibility = View.GONE
-            addView(View(this@KtHybridActivity).apply { setBackgroundColor(Color.WHITE) }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
-                topMargin = dp(30)
-            })
+            addView(barBackground, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             addView(
                 row,
                 FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64), Gravity.TOP).apply { topMargin = dp(30) },
             )
-            addView(hump, FrameLayout.LayoutParams(dp(154), dp(48), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
             addView(action, FrameLayout.LayoutParams(dp(66), dp(66), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
         }
         bottomBar = bar

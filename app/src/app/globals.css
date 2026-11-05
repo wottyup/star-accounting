@@ -4464,7 +4464,8 @@ button.stark-compass-card {
   width: clamp(78px, 21vw, 90px);
   aspect-ratio: 440 / 136;
   background: url("./bottom-nav-bump.svg") center bottom / 100% 100% no-repeat;
-  transform: translateX(-50%);
+  transform-origin: center bottom;
+  transform: translateX(-50%) scaleY(0.88);
   pointer-events: none;
 }
 

@@ -8307,7 +8307,7 @@ img[src$="/qita.webp"] {
   gap: 6px;
 }
 
-.savings-goal-field span {
+.savings-goal-field > span {
   color: #70809a;
   font-size: calc(11px * var(--user-font-scale));
   line-height: 1;

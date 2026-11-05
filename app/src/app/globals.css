@@ -9964,28 +9964,27 @@ img[src$="/qita.webp"] {
   width: 38px;
   height: 38px;
   border-radius: 11px;
-  color: #ffffff;
-  background: #4989ea;
+  background: #eaf2ff;
 }
 
 .settings-center-icon svg {
-  width: 21px;
-  height: 21px;
+  display: block;
+  width: 30px;
+  height: 30px;
 }
 
-.settings-center-icon.import { background: #14b8a6; }
-.settings-center-icon.export { background: #0f9f91; }
-.settings-center-icon.account { background: #397fe8; }
-.settings-center-icon.theme { background: #a855f7; }
-.settings-center-icon.language { background: #f59e0b; }
-.settings-center-icon.font { background: #06b6d4; }
-.settings-center-icon.help { background: #d946ef; }
-.settings-center-icon.about { background: #64748b; }
-.settings-center-icon.remark { background: #f97316; }
-.settings-center-icon.subscriptions { background: #7c5ce5; }
-.settings-center-icon.reconciliation { background: #0d8a5f; }
-.settings-center-icon.update { background: #0ea5e9; }
-.settings-center-icon.mode { background: #475569; }
+.settings-center-icon.import { background: #e9f4ff; }
+.settings-center-icon.export { background: #e7f8f1; }
+.settings-center-icon.account { background: #eaf1ff; }
+.settings-center-icon.language { background: #e8f7f7; }
+.settings-center-icon.font { background: #eef0ff; }
+.settings-center-icon.help { background: #fceef4; }
+.settings-center-icon.about { background: #edeff6; }
+.settings-center-icon.remark { background: #fff1e8; }
+.settings-center-icon.subscriptions { background: #f1edff; }
+.settings-center-icon.update { background: #e8f5fc; }
+.settings-center-icon.update_source { background: #e8f4fa; }
+.settings-center-icon.mode { background: #e9f4f6; }
 
 /* ── 账单归类（账户设置页） ── */
 .bill-remark-sheet {

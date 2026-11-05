@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import packageInfo from "../../../../../package.json";
 import { PageTopBar } from "@/components/stark/PageTopBar";
+import { SettingsPictogram, type SettingPictogramType } from "@/components/stark/SettingsPictogram";
 import type { DataMode, ImportErrorLog, ImportFailedRow, Transaction } from "@/lib/stark/models";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
 import { getCloudApiUrl, getCurrentAccountId, getCurrentDataMode } from "@/lib/stark/storage/local-config";
@@ -27,8 +28,8 @@ import type { BillImportSource } from "@/lib/stark/import/bill-csv";
 import { withAppBasePath } from "@/lib/stark/runtime";
 
 const manager = new DataModeManager();
-type PanelKey = "ACCOUNT" | "IMPORT" | "EXPORT" | "REMARK" | "SUBSCRIPTIONS" | "LANGUAGE" | "FONT" | "HELP" | "ABOUT" | "MODE" | "UPDATE_SOURCE";
-type SettingIconKey = PanelKey | "UPDATE";
+type PanelKey = Exclude<SettingPictogramType, "UPDATE">;
+type SettingIconKey = SettingPictogramType;
 const languageLabels: Record<LanguageChoice, string> = { SYSTEM: "跟随系统", ZH_CN: "简体中文", EN_US: "English" };
 const fontLabels: Record<FontChoice, string> = { SMALL: "较小", STANDARD: "标准", LARGE: "较大" };
 
@@ -38,24 +39,6 @@ type PendingBillImport = {
   transactions: Transaction[];
 };
 
-function SettingIcon({ type }: { type: SettingIconKey }) {
-  const paths: Record<SettingIconKey, React.ReactNode> = {
-    ACCOUNT: <><circle cx="12" cy="8" r="3.5" /><path d="M5 21c.5-4 3.1-6 7-6s6.5 2 7 6" /><path d="M18 5v4M16 7h4" /></>,
-    IMPORT: <><path d="M12 3v12" /><path d="m8 11 4 4 4-4" /><path d="M5 18v2h14v-2" /></>,
-    EXPORT: <><path d="M12 15V3" /><path d="m8 7 4-4 4 4" /><path d="M5 20h14" /></>,
-    REMARK: <><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1Z" /><path d="M9 8h6" /><path d="M9 12h4" /></>,
-    SUBSCRIPTIONS: <><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" /><path d="M8 7h8M8 11h5M8 15h3" /><path d="M16 16h.01" /></>,
-    LANGUAGE: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.2 2.4 3.3 5.4 3.3 9S14.2 18.6 12 21c-2.2-2.4-3.3-5.4-3.3-9S9.8 5.4 12 3Z" /></>,
-    FONT: <><path d="M4 6V4h10v2M9 4v16M6 20h6" /><path d="M15 10h5M17.5 10v10M15.5 20h4" /></>,
-    HELP: <><circle cx="12" cy="12" r="9" /><path d="M9.7 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.2.9-1.2 1.7" /><path d="M12 17h.01" /></>,
-    ABOUT: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7h.01" /></>,
-    MODE: <><path d="M7 7h10" /><path d="m13 3 4 4-4 4" /><path d="M17 17H7" /><path d="m11 13-4 4 4 4" /></>,
-    UPDATE: <><path d="M20 7v5h-5" /><path d="M20 12a8 8 0 1 1-2.35-5.65L20 9" /></>,
-    UPDATE_SOURCE: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4M7 9h3m-3 4h6" /></>,
-  };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
-}
-
 function ChevronIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>;
 }
@@ -63,7 +46,7 @@ function ChevronIcon() {
 function SettingsRow({ type, title, value, onClick, disabled = false, updateAvailable = false }: { type: SettingIconKey; title: string; value?: string; onClick: () => void; disabled?: boolean; updateAvailable?: boolean }) {
   return (
     <button type="button" className={`settings-center-row${disabled ? " disabled" : ""}`} onClick={onClick} disabled={disabled} aria-disabled={disabled}>
-      <span className={`settings-center-icon ${type.toLowerCase()}`}><SettingIcon type={type} /></span>
+      <span className={`settings-center-icon ${type.toLowerCase()}`}><SettingsPictogram type={type} /></span>
       <strong><span className="settings-center-label">{title}</span>{updateAvailable ? <span className="settings-update-dot" role="img" aria-label="有新版本可用" /> : null}</strong>
       {value ? <span className="settings-center-value">{value}</span> : null}
       <span className="settings-center-chevron"><ChevronIcon /></span>

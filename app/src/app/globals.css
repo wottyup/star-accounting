@@ -6491,7 +6491,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 .journal-panel.savings .savings-goal-field > span,
 .journal-panel.savings .savings-edit-scope > span {
   color: #53657b;
-  font-size: 0.875rem;
+  font-size: var(--sheet-font-label);
   line-height: 1.35;
   font-weight: 600;
 }
@@ -6499,7 +6499,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 .journal-panel.savings .savings-template-import-trigger > span,
 .journal-panel.savings .savings-template-picker-head strong,
 .journal-panel.savings .savings-template-option strong {
-  font-size: 0.875rem;
+  font-size: var(--sheet-font-label);
 }
 
 .journal-panel.savings .savings-template-import-trigger > small,
@@ -6510,7 +6510,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 .journal-panel.savings .savings-edit-scope small,
 .journal-panel.savings .savings-plan-footer span,
 .journal-panel.savings .savings-goal-danger-zone p {
-  font-size: 0.8rem;
+  font-size: var(--sheet-font-caption);
   line-height: 1.45;
   font-weight: 500;
 }
@@ -6525,7 +6525,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 .journal-panel.savings .savings-goal-field input,
 .journal-panel.savings .savings-column-adder input,
 .journal-panel.savings .savings-goal-field .savings-date-picker {
-  font-size: 0.933rem;
+  font-size: var(--sheet-font-field);
 }
 
 .journal-panel.savings .savings-deposit-switch button,
@@ -6535,7 +6535,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 .journal-panel.savings .savings-column-adder button,
 .journal-panel.savings .stark-choice-picker-trigger,
 .journal-panel.savings .savings-goal-danger-zone button {
-  font-size: 0.875rem;
+  font-size: var(--sheet-font-label);
 }
 
 .journal-panel.savings .savings-deposit-switch button,
@@ -6552,7 +6552,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 
 .journal-panel.savings .savings-plan-table,
 .journal-panel.savings .savings-plan-table input {
-  font-size: 0.875rem;
+  font-size: var(--sheet-font-label);
 }
 
 .journal-panel.savings .savings-plan-table input {
@@ -6561,7 +6561,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 }
 
 .journal-panel.savings .savings-plan-table th small {
-  font-size: 0.8rem;
+  font-size: var(--sheet-font-caption);
   line-height: 1.2;
 }
 .modern-journal-shell {
@@ -10217,7 +10217,7 @@ img[src$="/qita.webp"] {
 
 .settings-sheet .bottom-sheet-handle { width: 64px; background: #d9dee7; }
 .settings-sheet .bottom-sheet-header { min-height: 44px; }
-.settings-sheet .bottom-sheet-header strong { color: #151e31; font-size: calc(16px * var(--user-font-scale)); font-weight: 650; }
+.settings-sheet .bottom-sheet-header strong { color: #151e31; font-size: var(--sheet-font-title); font-weight: 650; }
 .settings-sheet .bottom-sheet-header button { color: #768096; font-size: calc(23px * var(--user-font-scale)); }
 .settings-sheet-body { display: grid; gap: 12px; }
 
@@ -10757,30 +10757,30 @@ img[src$="/qita.webp"] {
   color: #94a3b8;
 }
 
-/* Settings sheets use the same readable type scale as the settings page. */
+/* Settings sheets reuse the shared bottom-sheet type scale. */
 .settings-sheet .bottom-sheet-body {
-  font-size: calc(13px * var(--user-font-scale));
+  font-size: var(--sheet-font-label);
   font-weight: 500;
 }
 
 .settings-sheet .bottom-sheet-body strong {
-  font-size: calc(13px * var(--user-font-scale));
+  font-size: var(--sheet-font-label);
   font-weight: 650;
 }
 
 .settings-sheet .bottom-sheet-body :is(p, small) {
-  font-size: calc(12px * var(--user-font-scale));
+  font-size: var(--sheet-font-caption);
   font-weight: 500;
   line-height: 1.55;
 }
 
 .settings-sheet .bottom-sheet-body button {
-  font-size: calc(12px * var(--user-font-scale));
+  font-size: var(--sheet-font-label);
   font-weight: 600;
 }
 
 .settings-sheet .bottom-sheet-body :is(input, select, textarea) {
-  font-size: calc(13px * var(--user-font-scale));
+  font-size: var(--sheet-font-field);
   font-weight: 500;
 }
 
@@ -10791,7 +10791,7 @@ img[src$="/qita.webp"] {
   .account-registration-button,
   .category-rule-preview button
 ) {
-  font-size: calc(13px * var(--user-font-scale));
+  font-size: var(--sheet-font-label);
   font-weight: 650;
 }
 
@@ -10800,7 +10800,7 @@ img[src$="/qita.webp"] {
   .category-rule-field > span,
   .reconciliation-fields label > span
 ) {
-  font-size: calc(12px * var(--user-font-scale));
+  font-size: var(--sheet-font-caption);
   font-weight: 600;
 }
 
@@ -10809,7 +10809,7 @@ img[src$="/qita.webp"] {
   .bill-import-message,
   .subscription-empty
 ) {
-  font-size: calc(12px * var(--user-font-scale));
+  font-size: var(--sheet-font-caption);
   font-weight: 500;
   line-height: 1.5;
 }
@@ -10819,7 +10819,7 @@ img[src$="/qita.webp"] {
   .category-rule-target,
   .category-rule-preview span
 ) {
-  font-size: calc(12px * var(--user-font-scale));
+  font-size: var(--sheet-font-caption);
   font-weight: 600;
 }
 
@@ -10827,12 +10827,12 @@ img[src$="/qita.webp"] {
   .category-rule-badge,
   .subscription-row-title span
 ) {
-  font-size: calc(10px * var(--user-font-scale));
+  font-size: var(--sheet-font-caption);
   font-weight: 600;
 }
 
 .settings-sheet .help-sheet-body a {
-  font-size: calc(13px * var(--user-font-scale));
+  font-size: var(--sheet-font-label);
   font-weight: 600;
 }
 
@@ -10847,7 +10847,7 @@ img[src$="/qita.webp"] {
 
 .settings-sheet .bottom-sheet-body .settings-about > div,
 .settings-sheet .settings-about-links a > span {
-  font-size: calc(12px * var(--user-font-scale));
+  font-size: var(--sheet-font-caption);
   font-weight: 500;
 }
 
@@ -15906,6 +15906,159 @@ body .reporting-year-menu-grid button {
 body .reporting-year-menu-grid button.selected {
   background: #dfeeff;
   color: #2267ac;
+}
+
+/* All bottom-entry surfaces share the readable type scale of the savings editor.
+   Component rules below only map existing text roles to these shared sizes. */
+:is(.bottom-sheet, .journal-panel, .stark-date-picker-dialog, .reporting-month-picker-dialog) {
+  --sheet-font-caption: 0.8rem;
+  --sheet-font-label: 0.875rem;
+  --sheet-font-field: 0.933rem;
+  --sheet-font-title: 1.067rem;
+}
+
+body :is(.bottom-sheet, .journal-panel) :is(.bottom-sheet-body, .journal-panel-body) {
+  font-size: var(--sheet-font-label);
+}
+
+body .bottom-sheet .bottom-sheet-header strong,
+body .journal-panel .journal-header-title {
+  font-size: var(--sheet-font-title);
+}
+
+body :is(.bottom-sheet, .journal-panel) :is(.bottom-sheet-body, .journal-panel-body) :is(p, small) {
+  font-size: var(--sheet-font-caption);
+}
+
+body :is(.bottom-sheet, .journal-panel) :is(.bottom-sheet-body, .journal-panel-body) :is(label, label > span) {
+  font-size: var(--sheet-font-label);
+}
+
+body :is(.bottom-sheet, .journal-panel) :is(.bottom-sheet-body, .journal-panel-body) button:where(:not(.amount-clear-btn, .action-main-btn, .modern-primary-submit, .salary-batch-submit)) {
+  font-size: var(--sheet-font-label);
+}
+
+body :is(.bottom-sheet, .journal-panel) :is(.bottom-sheet-body, .journal-panel-body) :is(input, select, textarea):where(:not([type="range"], .amount-huge-input, .modern-amount-field)) {
+  font-size: var(--sheet-font-field);
+}
+
+body .journal-panel .journal-panel-body .stark-date-picker-trigger {
+  font-size: var(--sheet-font-field);
+}
+
+body .bottom-sheet .bottom-sheet-body span {
+  font-size: var(--sheet-font-label);
+}
+
+body .bottom-sheet .bottom-sheet-body :is(
+  .budget-management-overview-head span,
+  .budget-management-editor-head span,
+  .budget-management-row > div:first-child span,
+  .diagnostic-sheet-metrics span,
+  .diagnostic-sheet-budget small,
+  .expense-category-total span,
+  .choice-picker-current span,
+  .settings-choice-grid span,
+  .settings-about-links a > span,
+  .category-rule-example,
+  .reconciliation-message
+) {
+  font-size: var(--sheet-font-caption);
+}
+
+body .bottom-sheet .bottom-sheet-body :is(
+  .diagnostic-sheet-section h3,
+  .diagnostic-sheet-metrics strong,
+  .diagnostic-sheet-insight strong,
+  .diagnostic-sheet-budget-head strong,
+  .expense-category-detail-name,
+  .expense-category-detail-head strong,
+  .budget-management-row > div:first-child strong
+) {
+  font-size: var(--sheet-font-label);
+}
+
+body .journal-panel .journal-panel-body :is(
+  .section-mini-title,
+  .account-pill,
+  .salary-batch-year-field,
+  .salary-batch-merchant-field,
+  .salary-batch-section-head,
+  .savings-record-context span,
+  .savings-record-form .modern-form-group > span,
+  .loan-command-progress strong,
+  .loan-command-metrics strong,
+  .loan-next-copy strong,
+  .loan-schedule-main strong,
+  .loan-schedule-amount strong,
+  .loan-portfolio-title > strong,
+  .loan-balance,
+  .asset-sheet-side strong,
+  .asset-allocation-row span,
+  .asset-allocation-row strong,
+  .asset-health-ring strong,
+  .asset-health-grid article > span,
+  .asset-ledger-title strong,
+  .asset-ledger-list span strong
+) {
+  font-size: var(--sheet-font-label);
+}
+
+body .journal-panel .journal-panel-body :is(
+  .tile-label,
+  .finance-section-head > span,
+  .finance-eyebrow,
+  .finance-state-chip,
+  .finance-empty,
+  .loan-command-caption,
+  .loan-command-progress,
+  .loan-command-metrics span,
+  .loan-date-tile span,
+  .loan-next-copy span,
+  .loan-pressure-card p,
+  .loan-schedule-main span,
+  .loan-schedule-amount span,
+  .loan-portfolio-meta,
+  .loan-portfolio-foot,
+  .loan-status,
+  .asset-net-block > span,
+  .asset-sheet-side span,
+  .asset-allocation-row em,
+  .asset-health-grid article p,
+  .asset-ledger-title span,
+  .asset-ledger-list i,
+  .asset-ledger-list span small,
+  .asset-ledger-list em
+) {
+  font-size: var(--sheet-font-caption);
+}
+
+body .stark-date-picker-dialog :is(
+  .stark-date-picker-header span,
+  .stark-date-picker-year-menu-head strong,
+  .stark-date-picker-weekdays span,
+  .stark-date-picker-time > span
+),
+body .reporting-month-picker-dialog :is(
+  .reporting-month-picker-current small,
+  .reporting-year-menu-head strong
+) {
+  font-size: var(--sheet-font-caption);
+}
+
+body .stark-date-picker-dialog :is(
+  .stark-date-picker-year-grid button,
+  .stark-date-picker-day-grid button,
+  .stark-date-picker-time select,
+  .stark-date-picker-actions button
+),
+body .reporting-month-picker-dialog :is(
+  .reporting-year-menu-grid button,
+  .reporting-year-option,
+  .reporting-month-grid button,
+  .reporting-month-picker-cancel
+) {
+  font-size: var(--sheet-font-label);
 }
 
 /* Fit the App itself inside the promotional device frame without scaling it. */

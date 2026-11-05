@@ -4461,7 +4461,7 @@ button.stark-compass-card {
   bottom: calc(100% - 1px);
   left: 50%;
   display: block;
-  width: clamp(90px, 24vw, 103px);
+  width: clamp(78px, 21vw, 90px);
   aspect-ratio: 440 / 136;
   background: url("./bottom-nav-bump.svg") center bottom / 100% 100% no-repeat;
   transform: translateX(-50%);
@@ -4512,20 +4512,19 @@ button.stark-compass-card {
   place-items: center;
   width: 54px;
   height: 54px;
-  margin: -24px auto 0;
+  margin: -18px auto 0;
   padding: 0;
-  border: 4px solid #ffffff;
+  border: 0;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 96, 192, 0.24);
+  background: transparent;
   color: #ffffff;
   transition: transform 150ms ease;
 }
 
 .mobile-bottom-nav-action svg {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
 }
 

@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -119,7 +118,7 @@ class KtHybridActivity : MainActivity() {
                 val density = resources.displayMetrics.density
                 val barTop = 32f * density
                 val corner = 7f * density
-                val bumpWidth = (width * 0.24f).coerceIn(90f * density, 103f * density)
+                val bumpWidth = (width * 0.21f).coerceIn(78f * density, 90f * density)
                 val bumpHeight = bumpWidth * 136f / 440f
                 val bumpLeft = (width - bumpWidth) / 2f
                 val bumpTop = barTop - bumpHeight
@@ -147,16 +146,11 @@ class KtHybridActivity : MainActivity() {
             isClickable = true
             isFocusable = true
             contentDescription = "记账"
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-            }
-            elevation = dp(4).toFloat()
             val circle = object : View(this@KtHybridActivity) {
                 val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = activeColor }
                 val plusPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = Color.WHITE
-                    strokeWidth = dp(4).toFloat()
+                    strokeWidth = dp(3).toFloat()
                     strokeCap = Paint.Cap.ROUND
                 }
 
@@ -165,12 +159,12 @@ class KtHybridActivity : MainActivity() {
                     val centerX = width / 2f
                     val centerY = height / 2f
                     canvas.drawCircle(centerX, centerY, minOf(width, height) / 2f, fillPaint)
-                    val arm = dp(10).toFloat()
+                    val arm = dp(8).toFloat()
                     canvas.drawLine(centerX - arm, centerY, centerX + arm, centerY, plusPaint)
                     canvas.drawLine(centerX, centerY - arm, centerX, centerY + arm, plusPaint)
                 }
             }
-            addView(circle, FrameLayout.LayoutParams(dp(46), dp(46), Gravity.CENTER))
+            addView(circle, FrameLayout.LayoutParams(dp(38), dp(38), Gravity.CENTER))
             setOnClickListener { openJournalFromNative() }
         }
         journalAction = action
@@ -185,7 +179,7 @@ class KtHybridActivity : MainActivity() {
                 FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64), Gravity.TOP).apply { topMargin = dp(32) },
             )
             addView(action, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                topMargin = dp(8)
+                topMargin = dp(14)
             })
         }
         bottomBar = bar

@@ -323,13 +323,6 @@ function StarkCrystalHero({
 
       {/* 极简通透卡片 */}
       <div className="stark-hero-card">
-        {/* 背景轻淡月份水印 */}
-        <div className="stark-card-watermark">
-          {isReportingYearKey(reportingMonth)
-            ? locale === "en-US" ? reportingMonth : `${reportingMonth}年`
-            : new Intl.DateTimeFormat(locale, { month: "short" }).format(reportingMonthDate(reportingMonth))}
-        </div>
-
         <div className="stark-hero-meta-row">
           <span className="stark-card-label">{translateValue(displayTitle, locale)}</span>
           {activeMetric === "balance" ? (
@@ -356,6 +349,11 @@ function StarkCrystalHero({
           <strong className={`stark-big-amount ${isNegative ? "negative" : ""}`}>
             {isNegative ? "-¥ " : "¥ "}{formatMoney(Math.abs(displayAmount))}
           </strong>
+          <span className="stark-card-watermark" aria-hidden="true">
+            {isReportingYearKey(reportingMonth)
+              ? locale === "en-US" ? reportingMonth : `${reportingMonth}年`
+              : new Intl.DateTimeFormat(locale, { month: "short" }).format(reportingMonthDate(reportingMonth))}
+          </span>
         </div>
         {activeMetric === "balance" ? (
           <div className="stark-cycle-breakdown" aria-label={translateValue("发薪周期资金明细", locale)}>

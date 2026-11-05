@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
+import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 import {
   datePickerDisplayLabel,
   datePickerMonthGrid,
@@ -19,7 +20,8 @@ import {
 const MIN_YEAR = 1900;
 const MAX_YEAR = 2100;
 const YEAR_PAGE_SIZE = 12;
-const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKDAYS_ZH = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKDAYS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const MINUTES = Array.from({ length: 60 }, (_, minute) => minute);
 
@@ -81,6 +83,7 @@ export function DateTimePicker({
   placeholder?: string;
   disabled?: boolean;
 }) {
+  const locale = useAppLocale();
   const parsedValue = parseDatePickerValue(value, mode);
   const now = todayDatePickerValue();
   const [open, setOpen] = useState(false);
@@ -94,7 +97,10 @@ export function DateTimePicker({
   const titleId = useId();
   const yearMenuId = useId();
   const calendarDays = useMemo(() => datePickerMonthGrid(visibleYear, visibleMonth), [visibleMonth, visibleYear]);
-  const triggerLabel = datePickerDisplayLabel(parsedValue, mode, placeholder ?? (mode === "datetime" ? "选择日期和时间" : "选择日期"));
+  const triggerLabel = datePickerDisplayLabel(parsedValue, mode, locale, translateValue(placeholder ?? (mode === "datetime" ? "选择日期和时间" : "选择日期"), locale));
+  const visibleMonthLabel = locale === "en-US"
+    ? `${new Intl.DateTimeFormat("en-US", { month: "long" }).format(new Date(2024, visibleMonth - 1, 1))} ${visibleYear}`
+    : `${visibleYear} 年 ${visibleMonth} 月`;
   const currentDay = todayDatePickerValue();
   const selectedTime = draft ?? currentValueForView({ year: visibleYear, month: visibleMonth }, parsedValue);
 
@@ -235,7 +241,7 @@ export function DateTimePicker({
             <header className="stark-date-picker-header">
               <div>
                 <span>{mode === "datetime" ? "日期与时间" : "日期"}</span>
-                <strong id={titleId}>{draft ? datePickerDisplayLabel(draft, mode) : "请选择日期"}</strong>
+                <strong id={titleId}>{draft ? datePickerDisplayLabel(draft, mode, locale) : "请选择日期"}</strong>
               </div>
               <button type="button" className="stark-date-picker-close" aria-label="关闭日期选择" onClick={closePicker}>×</button>
             </header>
@@ -249,7 +255,7 @@ export function DateTimePicker({
                 aria-controls={yearMenuId}
                 onClick={toggleYearMenu}
               >
-                {visibleYear} 年 {visibleMonth} 月 {chevronIcon("down")}
+                {visibleMonthLabel} {chevronIcon("down")}
               </button>
               <button type="button" aria-label="下一个月" disabled={!canMoveForward} onClick={() => moveMonth(1)}>{chevronIcon("right")}</button>
             </div>
@@ -258,21 +264,21 @@ export function DateTimePicker({
               <section id={yearMenuId} className="stark-date-picker-year-menu" aria-label="选择年份">
                 <div className="stark-date-picker-year-menu-head">
                   <button type="button" aria-label="更早年份" disabled={yearMenuStart <= MIN_YEAR} onClick={() => setYearMenuStart((year) => clampYearPageStart(year - YEAR_PAGE_SIZE))}>{chevronIcon("left")}</button>
-                  <strong>{yearMenuStart} - {yearOptions.at(-1)} 年</strong>
+                  <strong>{locale === "en-US" ? `${yearMenuStart} - ${yearOptions.at(-1)}` : `${yearMenuStart} - ${yearOptions.at(-1)} 年`}</strong>
                   <button type="button" aria-label="更晚年份" disabled={yearOptions.at(-1) === MAX_YEAR} onClick={() => setYearMenuStart((year) => clampYearPageStart(year + YEAR_PAGE_SIZE))}>{chevronIcon("right")}</button>
                 </div>
                 <div className="stark-date-picker-year-grid">
                   {yearOptions.map((year) => (
-                    <button key={year} type="button" className={year === visibleYear ? "selected" : ""} aria-pressed={year === visibleYear} onClick={() => selectYear(year)}>{year}年</button>
+                    <button key={year} type="button" className={year === visibleYear ? "selected" : ""} aria-pressed={year === visibleYear} onClick={() => selectYear(year)}>{locale === "en-US" ? year : `${year}年`}</button>
                   ))}
                 </div>
               </section>
             ) : null}
 
             <div className="stark-date-picker-weekdays" aria-hidden="true">
-              {WEEKDAYS.map((weekday) => <span key={weekday}>{weekday}</span>)}
+              {(locale === "en-US" ? WEEKDAYS_EN : WEEKDAYS_ZH).map((weekday) => <span key={weekday}>{weekday}</span>)}
             </div>
-            <div className="stark-date-picker-day-grid" role="grid" aria-label={`${visibleYear}年${visibleMonth}月`}>
+            <div className="stark-date-picker-day-grid" role="grid" aria-label={visibleMonthLabel}>
               {calendarDays.map((day) => {
                 const selected = sameDate(draft, day);
                 const isToday = sameDate(currentDay, day);
@@ -286,7 +292,7 @@ export function DateTimePicker({
                     role="gridcell"
                     className={`${selected ? "selected " : ""}${isToday ? "today " : ""}${day.inCurrentMonth ? "" : "outside"}`.trim()}
                     aria-selected={selected}
-                    aria-label={`${day.year}年${day.month}月${day.day}日${isToday ? "，今天" : ""}`}
+                    aria-label={`${datePickerDisplayLabel(day, "date", locale)}${isToday ? (locale === "en-US" ? ", today" : "，今天") : ""}`}
                     disabled={outOfRange}
                     onClick={() => selectDay(day)}
                   >
@@ -301,11 +307,11 @@ export function DateTimePicker({
                 <span>时间</span>
                 <div>
                   <select aria-label="小时" value={selectedTime.hour} onChange={(event) => updateTime("hour", Number(event.target.value))}>
-                    {HOURS.map((hour) => <option key={hour} value={hour}>{pad(hour)} 时</option>)}
+                    {HOURS.map((hour) => <option key={hour} value={hour}>{pad(hour)}{locale === "en-US" ? "" : " 时"}</option>)}
                   </select>
                   <i>:</i>
                   <select aria-label="分钟" value={selectedTime.minute} onChange={(event) => updateTime("minute", Number(event.target.value))}>
-                    {MINUTES.map((minute) => <option key={minute} value={minute}>{pad(minute)} 分</option>)}
+                    {MINUTES.map((minute) => <option key={minute} value={minute}>{pad(minute)}{locale === "en-US" ? "" : " 分"}</option>)}
                   </select>
                 </div>
               </section>

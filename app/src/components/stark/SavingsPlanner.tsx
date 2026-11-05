@@ -14,6 +14,7 @@ import { useConfirmDialog } from "@/components/stark/ConfirmDialogProvider";
 import { DateTimePicker } from "@/components/stark/DateTimePicker";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { JournalActionDock } from "@/components/stark/JournalActionDock";
+import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 
 const repo = new DataModeManager().getRepository();
 const DEFAULT_COLUMNS = ["房租", "水电", "其他", "购物"];
@@ -185,6 +186,7 @@ export function SavingsPlanner({
   savingsGoalId?: string;
 }) {
   const confirm = useConfirmDialog();
+  const locale = useAppLocale();
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [goal, setGoal] = useState<SavingsGoal>(() => createDefaultGoal(year));
   const [goalName, setGoalName] = useState(() => `${year} 年度储蓄`);
@@ -796,7 +798,7 @@ export function SavingsPlanner({
           <label className="savings-goal-field">
             <span>储蓄名称</span>
             <input
-              value={goalName}
+              value={/^\d{4} 年度储蓄$/.test(goalName) ? translateValue(goalName, locale) : goalName}
               onChange={(event) => setGoalName(event.target.value)}
               maxLength={24}
             />

@@ -1,3 +1,5 @@
+import type { AppLocale } from "@/lib/stark/i18n";
+
 export type DatePickerMode = "date" | "datetime";
 
 export type DatePickerValue = {
@@ -15,6 +17,7 @@ export type DatePickerCalendarDay = DatePickerValue & {
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s])/;
 const DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2})?$/;
+const ENGLISH_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -74,9 +77,11 @@ export function formatDatePickerValue(value: DatePickerValue, mode: DatePickerMo
   return mode === "datetime" ? `${date}T${pad(value.hour)}:${pad(value.minute)}` : date;
 }
 
-export function datePickerDisplayLabel(value: DatePickerValue | null, mode: DatePickerMode, emptyLabel = "选择日期") {
+export function datePickerDisplayLabel(value: DatePickerValue | null, mode: DatePickerMode, locale: AppLocale = "zh-CN", emptyLabel = "选择日期") {
   if (!value) return emptyLabel;
-  const date = `${value.year}年${value.month}月${value.day}日`;
+  const date = locale === "en-US"
+    ? ENGLISH_DATE_FORMATTER.format(new Date(value.year, value.month - 1, value.day))
+    : `${value.year}年${value.month}月${value.day}日`;
   return mode === "datetime" ? `${date} ${pad(value.hour)}:${pad(value.minute)}` : date;
 }
 

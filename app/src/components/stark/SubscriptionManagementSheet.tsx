@@ -10,6 +10,7 @@ import { createId } from "@/lib/stark/utils/id";
 import { formatMoney, nowText } from "@/lib/stark/utils/format";
 import { expenseCategoryOptions } from "@/lib/stark/utils/category-icon";
 import { syncDueSubscriptionTransactions } from "@/lib/stark/subscriptions/recurring";
+import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 
 const manager = new DataModeManager();
 const platforms = ["支付宝", "微信", "银行卡", "现金", "其他"];
@@ -57,6 +58,7 @@ function formFromSubscription(subscription: Subscription): FormState {
 
 export function SubscriptionManagementSheet() {
   const confirm = useConfirmDialog();
+  const locale = useAppLocale();
   const accountId = getCurrentAccountId();
   const [items, setItems] = useState<Subscription[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -212,7 +214,9 @@ export function SubscriptionManagementSheet() {
           <div key={subscription.id} className={`subscription-row${subscription.isActive ? "" : " disabled"}`}>
             <div className="subscription-row-main">
               <div className="subscription-row-title"><strong>{subscription.name}</strong><span>{subscription.isActive ? "自动记账中" : "已停用"}</span></div>
-              <small>每月 {subscription.billingDay} 日 · {subscription.category} · {subscription.platform}</small>
+              <small>{locale === "en-US"
+                ? `Day ${subscription.billingDay} of each month · ${translateValue(subscription.category, locale)} · ${translateValue(subscription.platform, locale)}`
+                : `每月 ${subscription.billingDay} 日 · ${subscription.category} · ${subscription.platform}`}</small>
             </div>
             <strong className="subscription-row-amount">¥ {formatMoney(subscription.amount)}</strong>
             <div className="subscription-row-actions">

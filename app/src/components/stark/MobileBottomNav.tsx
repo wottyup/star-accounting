@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { appRoute, planBackgroundResume } from "@/lib/stark/navigation/routes";
 import { createTabNavigation } from "@/lib/stark/navigation/tab-navigation";
 import { isNativeAppRuntime } from "@/lib/stark/storage/local-config";
 import { SHOWCASE_DEMO_MODE, withAppBasePath } from "@/lib/stark/runtime";
+import { preloadJournalPanel } from "@/components/stark/LazyJournalPanel";
 
 const BACKGROUNDED_AT_STORAGE_KEY = SHOWCASE_DEMO_MODE
   ? "wotty:showcase:navigation-backgrounded-at"
@@ -42,7 +43,7 @@ export const NAV_ITEMS = [
   { href: "/app/accounts", label: "设置", icon: "/nav-icons/setup.png" },
 ] as const;
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal: () => void; journalLabel: string }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
@@ -145,36 +146,55 @@ export function MobileBottomNav() {
 
   return (
     <nav className="mobile-bottom-nav" aria-label="主导航" aria-busy={pendingTarget !== null}>
+      <svg className="mobile-bottom-nav-hump" viewBox="0 0 154 48" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 30 C27 30 33 28 48 13 C63 -4 91 -4 106 13 C121 28 127 30 154 30 V48 H0 Z" />
+      </svg>
       <div className="mobile-bottom-nav-inner">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item, index) => {
           const target = appRoute(item.href);
           const active = item.href === "/app"
             ? pathname === "/app" || pathname === "/app/" || pathname.startsWith("/app/budgets")
             : pathname.startsWith(item.href);
           return (
-            <Link
-              key={item.href}
-              href={target}
-              // Main tabs are peers. Do not make an edge-back gesture walk
-              // through each prior tab; overlays and detail routes retain
-              // their own history entries.
-              replace
-              // Forced full prefetch uses dynamic RSC requests in Next 16.
-              // Auto prefetch reads the files emitted by our static export.
-              prefetch="auto"
-              className={`mobile-bottom-nav-item${active ? " active" : ""}${pendingTarget === target ? " is-pending" : ""}`}
-              aria-label={item.label}
-              aria-current={active ? "page" : undefined}
-              onNavigate={(event) => {
-                // Next invokes this only for same-tab client navigation;
-                // modified clicks and opening a new tab keep native behavior.
-                event.preventDefault();
-                // A first tap can arrive before passive mount effects run.
-                getNavigation().select(target, pathname);
-              }}
-            >
-              <img src={withAppBasePath(item.icon)} alt="" width={24} height={24} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
-            </Link>
+            <Fragment key={item.href}>
+              {index === 3 ? (
+                <button
+                  type="button"
+                  className="mobile-bottom-nav-action"
+                  aria-label={journalLabel}
+                  title={journalLabel}
+                  onPointerDown={() => void preloadJournalPanel()}
+                  onClick={onOpenJournal}
+                >
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" aria-hidden="true">
+                    <path d="M16 5v22M5 16h22" />
+                  </svg>
+                </button>
+              ) : null}
+              <Link
+                href={target}
+                // Main tabs are peers. Do not make an edge-back gesture walk
+                // through each prior tab; overlays and detail routes retain
+                // their own history entries.
+                replace
+                // Forced full prefetch uses dynamic RSC requests in Next 16.
+                // Auto prefetch reads the files emitted by our static export.
+                prefetch="auto"
+                className={`mobile-bottom-nav-item${active ? " active" : ""}${pendingTarget === target ? " is-pending" : ""}`}
+                aria-label={item.label}
+                aria-current={active ? "page" : undefined}
+                onNavigate={(event) => {
+                  // Next invokes this only for same-tab client navigation;
+                  // modified clicks and opening a new tab keep native behavior.
+                  event.preventDefault();
+                  // A first tap can arrive before passive mount effects run.
+                  getNavigation().select(target, pathname);
+                }}
+              >
+                <img src={withAppBasePath(item.icon)} alt="" width={24} height={24} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
+                <span className="mobile-bottom-nav-label">{item.label}</span>
+              </Link>
+            </Fragment>
           );
         })}
       </div>

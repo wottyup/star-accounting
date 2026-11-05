@@ -1,8 +1,13 @@
 package com.wotty.stark.web
 
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PorterDuff
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -14,6 +19,7 @@ import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.json.JSONObject
@@ -37,6 +43,8 @@ class KtHybridActivity : MainActivity() {
     private var webView: WebView? = null
     private var bottomBar: FrameLayout? = null
     private var tabIcons: List<ImageView> = emptyList()
+    private var tabLabels: List<TextView> = emptyList()
+    private var journalAction: View? = null
     private var pendingPath: String? = null
     private var fallbackNavigation: Runnable? = null
     private val routeTracker = object : Runnable {
@@ -81,12 +89,33 @@ class KtHybridActivity : MainActivity() {
             gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(Color.WHITE)
         }
-        tabIcons = tabs.mapIndexed { index, tab ->
+        val icons = mutableListOf<ImageView>()
+        val labels = mutableListOf<TextView>()
+        tabs.forEachIndexed { index, tab ->
+            if (index == 3) {
+                row.addView(View(this), LinearLayout.LayoutParams(dp(70), dp(64)))
+            }
             val image = ImageView(this).apply {
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 contentDescription = tab.description
                 setImageBitmap(loadNavigationIcon(tab.iconAsset))
                 setColorFilter(inactiveColor, PorterDuff.Mode.SRC_IN)
+            }
+            val label = TextView(this).apply {
+                text = tab.description
+                textSize = 11f
+                setTextColor(inactiveColor)
+                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+                includeFontPadding = false
+                gravity = Gravity.CENTER
+            }
+            val content = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                addView(image, LinearLayout.LayoutParams(dp(24), dp(24)))
+                addView(label, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = dp(3)
+                })
             }
             val item = FrameLayout(this).apply {
                 isClickable = true
@@ -96,32 +125,87 @@ class KtHybridActivity : MainActivity() {
                 if (theme.resolveAttribute(android.R.attr.selectableItemBackground, selectableBackground, true)) {
                     setBackgroundResource(selectableBackground.resourceId)
                 }
-                addView(image, FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER))
+                addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
                 setOnClickListener { navigateToTab(index, tab) }
             }
-            row.addView(item, LinearLayout.LayoutParams(0, dp(56), 1f))
-            image
+            row.addView(item, LinearLayout.LayoutParams(0, dp(64), 1f))
+            icons.add(image)
+            labels.add(label)
+        }
+        tabIcons = icons
+        tabLabels = labels
+
+        val humpPath = Path().apply {
+            moveTo(0f, 30f)
+            cubicTo(27f, 30f, 33f, 28f, 48f, 13f)
+            cubicTo(63f, -4f, 91f, -4f, 106f, 13f)
+            cubicTo(121f, 28f, 127f, 30f, 154f, 30f)
+            lineTo(154f, 48f)
+            lineTo(0f, 48f)
+            close()
+        }
+        val humpPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        val hump = object : View(this) {
+            override fun onDraw(canvas: Canvas) {
+                super.onDraw(canvas)
+                canvas.save()
+                canvas.scale(width / 154f, height / 48f)
+                canvas.drawPath(humpPath, humpPaint)
+                canvas.restore()
+            }
         }
 
+        fun plusLine() = GradientDrawable().apply {
+            setColor(Color.WHITE)
+            cornerRadius = dp(3).toFloat()
+        }
+
+        val action = FrameLayout(this).apply {
+            isClickable = true
+            isFocusable = true
+            contentDescription = "记账"
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+            }
+            elevation = dp(4).toFloat()
+            val circle = FrameLayout(this@KtHybridActivity).apply {
+                background = GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    intArrayOf(Color.rgb(118, 87, 255), Color.rgb(83, 57, 228)),
+                ).apply { shape = GradientDrawable.OVAL }
+                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(28), dp(4), Gravity.CENTER))
+                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(4), dp(28), Gravity.CENTER))
+            }
+            addView(circle, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER))
+            setOnClickListener { openJournalFromNative() }
+        }
+        journalAction = action
+
         val bar = FrameLayout(this).apply {
-            setBackgroundColor(Color.WHITE)
-            elevation = dp(8).toFloat()
+            clipChildren = false
+            clipToPadding = false
             visibility = View.GONE
+            addView(View(this@KtHybridActivity).apply { setBackgroundColor(Color.WHITE) }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
+                topMargin = dp(30)
+            })
             addView(
                 row,
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56), Gravity.TOP),
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64), Gravity.TOP).apply { topMargin = dp(30) },
             )
+            addView(hump, FrameLayout.LayoutParams(dp(154), dp(48), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+            addView(action, FrameLayout.LayoutParams(dp(66), dp(66), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
         }
         bottomBar = bar
         val content = findViewById<ViewGroup>(android.R.id.content)
         content.addView(
             bar,
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56), Gravity.BOTTOM),
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(94), Gravity.BOTTOM),
         )
         ViewCompat.setOnApplyWindowInsetsListener(bar) { view, insets ->
             val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             val params = view.layoutParams
-            params.height = dp(56) + bottomInset
+            params.height = dp(94) + bottomInset
             view.layoutParams = params
             insets
         }
@@ -132,6 +216,10 @@ class KtHybridActivity : MainActivity() {
         assets.open("public/nav-icons/$name").use { BitmapFactory.decodeStream(it) }
     } catch (_: Exception) {
         null
+    }
+
+    private fun openJournalFromNative() {
+        webView?.evaluateJavascript("window.dispatchEvent(new Event('stark:kt-hybrid-journal'));", null)
     }
 
     private fun navigateToTab(index: Int, tab: HybridTab) {
@@ -179,6 +267,12 @@ class KtHybridActivity : MainActivity() {
         val index = path?.let(::tabIndexForPath) ?: -1
         if (index >= 0) {
             setSelectedTab(index)
+            journalAction?.contentDescription = when (index) {
+                2 -> "添加储蓄"
+                3 -> "新增贷款"
+                4 -> "新增资产"
+                else -> "记账"
+            }
             activeWebView.evaluateJavascript("document.querySelector('.journal-overlay, .bottom-sheet-overlay') !== null") { result ->
                 if (webView == activeWebView) {
                     bottomBar?.visibility = if (result == "true") View.GONE else View.VISIBLE
@@ -211,12 +305,15 @@ class KtHybridActivity : MainActivity() {
                 PorterDuff.Mode.SRC_IN,
             )
         }
+        tabLabels.forEachIndexed { tabIndex, label ->
+            label.setTextColor(if (tabIndex == index) activeColor else inactiveColor)
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    private val activeColor = Color.rgb(0, 96, 192)
-    private val inactiveColor = Color.rgb(154, 165, 181)
+    private val activeColor = Color.rgb(96, 68, 237)
+    private val inactiveColor = Color.rgb(129, 138, 152)
 
     private companion object {
         const val ROUTE_FALLBACK_DELAY_MS = 1_500L

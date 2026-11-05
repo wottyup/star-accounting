@@ -40,8 +40,6 @@ html[data-app-theme] .finance-primary-action {
   background: var(--primary);
 }
 
-html[data-app-theme] .mobile-bottom-nav-item.active,
-html[data-app-theme] .global-journal-trigger,
 html[data-app-theme] .app-list-value {
   color: var(--primary);
 }
@@ -4455,56 +4453,102 @@ button.stark-compass-card {
   bottom: 0;
   z-index: 50;
   padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid var(--border-faint);
-  box-shadow: none;
-  backdrop-filter: blur(18px);
+  background: #ffffff;
+}
+
+.mobile-bottom-nav-hump {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 154px;
+  height: 48px;
+  fill: #ffffff;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .mobile-bottom-nav-inner {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 70px repeat(3, minmax(0, 1fr));
   width: min(100%, 430px);
   margin: 0 auto;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 
 .mobile-bottom-nav-item {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 55px;
+  gap: 3px;
+  min-height: 64px;
   min-width: 0;
-  color: #9aa5b5;
+  color: #818a98;
+  font-size: calc(11px * var(--user-font-scale));
+  font-weight: 600;
+  line-height: 1.1;
   text-decoration: none;
 }
 
 .mobile-bottom-nav-icon {
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
-  opacity: 0.48;
+  opacity: 0.56;
   filter: grayscale(1);
 }
 
 .mobile-bottom-nav-icon.active {
   opacity: 1;
-  filter: none;
-  transform: translateY(-1px);
+  filter: brightness(0) saturate(100%) invert(29%) sepia(78%) saturate(3039%) hue-rotate(236deg) brightness(96%) contrast(100%);
 }
 
 .mobile-bottom-nav-item.active {
-  color: #0060c0;
+  color: #6044ed;
+}
+
+.mobile-bottom-nav-label {
+  white-space: nowrap;
+}
+
+.mobile-bottom-nav-action {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  margin: -30px auto 0;
+  padding: 0;
+  border: 5px solid #ffffff;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #7657ff, #5339e4);
+  box-shadow: 0 5px 18px rgba(89, 64, 218, 0.28);
+  color: #ffffff;
+  transition: transform 150ms ease;
+}
+
+.mobile-bottom-nav-action:active {
+  transform: scale(0.94);
+}
+
+.mobile-bottom-nav-action:focus-visible,
+.mobile-bottom-nav-item:focus-visible {
+  outline: 2px solid #6044ed;
+  outline-offset: 2px;
 }
 
 .mobile-bottom-nav-item.is-pending::after {
   content: "";
   position: absolute;
+  top: 8px;
+  left: calc(50% - 17px);
   width: 34px;
   height: 34px;
-  border: 2px solid rgba(0, 96, 192, 0.15);
-  border-top-color: #0060c0;
+  border: 2px solid rgba(96, 68, 237, 0.15);
+  border-top-color: #6044ed;
   border-radius: 50%;
   pointer-events: none;
   animation: nav-pending-spin 900ms linear infinite;
@@ -7687,62 +7731,6 @@ img[src$="/qita.webp"] {
   font-size: calc(13px * var(--user-font-scale));
   font-weight: 500;
   white-space: nowrap;
-}
-
-.global-journal-trigger {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(74px + env(safe-area-inset-bottom));
-  z-index: 60;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 42px;
-  padding: 0 18px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 15px;
-  background: #ffffff;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
-  color: #0060c0;
-  font-size: calc(13px * var(--user-font-scale));
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease;
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-}
-
-.global-journal-trigger::before {
-  content: "+";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 19px;
-  height: 19px;
-  border-radius: 7px;
-  background: #0060c0;
-  color: #ffffff;
-  font-size: calc(17px * var(--user-font-scale));
-  font-weight: 400;
-  line-height: 1;
-}
-
-.global-journal-trigger svg {
-  display: none;
-}
-
-.global-journal-trigger:active {
-  transform: translateX(-50%) scale(0.96);
-  box-shadow: 0 4px 12px rgba(0, 96, 192, 0.12);
-}
-
-@media (max-width: 360px) {
-  .global-journal-trigger {
-    bottom: calc(72px + env(safe-area-inset-bottom));
-    height: 40px;
-    padding: 0 15px;
-  }
 }
 
 .calendar-chart {
@@ -16666,42 +16654,18 @@ html.showcase-demo .stark-budget-allocation-plan-details ul {
   max-height: 108px;
 }
 
-html.showcase-demo .global-journal-trigger {
-  left: auto;
-  right: 10px;
-  bottom: calc(64px + env(safe-area-inset-bottom));
-  width: auto;
-  height: 36px;
-  gap: 5px;
-  padding: 0 10px;
-  border-radius: 12px;
-  font-size: calc(11px * var(--user-font-scale));
-  transform: none;
-}
-
-html.showcase-demo .global-journal-trigger::before {
-  width: 17px;
-  height: 17px;
-  border-radius: 6px;
-  font-size: 15px;
-}
-
-html.showcase-demo .global-journal-trigger:active {
-  transform: scale(.96);
-}
-
 html.showcase-demo .mobile-bottom-nav-inner {
-  padding-right: 8px;
-  padding-left: 8px;
+  padding-right: 4px;
+  padding-left: 4px;
 }
 
 html.showcase-demo .mobile-bottom-nav-item {
-  min-height: 55px;
+  min-height: 64px;
 }
 
 html.showcase-demo .mobile-bottom-nav-icon {
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
 }
 
 @media (max-width: 370px) {

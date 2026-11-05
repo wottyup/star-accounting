@@ -87,7 +87,7 @@ class KtHybridActivity : MainActivity() {
         val icons = mutableListOf<ImageView>()
         tabs.forEachIndexed { index, tab ->
             if (index == 3) {
-                row.addView(View(this), LinearLayout.LayoutParams(dp(70), dp(60)))
+                row.addView(View(this), LinearLayout.LayoutParams(dp(60), dp(60)))
             }
             val image = ImageView(this).apply {
                 scaleType = ImageView.ScaleType.FIT_CENTER

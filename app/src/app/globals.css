@@ -4472,7 +4472,7 @@ button.stark-compass-card {
 .mobile-bottom-nav-inner {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) 70px repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 60px repeat(3, minmax(0, 1fr));
   width: min(100%, 430px);
   margin: 0 auto;
   padding: 0 4px;

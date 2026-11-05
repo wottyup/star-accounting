@@ -4824,6 +4824,7 @@ button.stark-compass-card {
 .savings-dashboard-page {
   --saving-ink: #142036;
   --saving-muted: #5b6b82;
+  --saving-label: #68768a;
   --saving-blue: #397fe8;
   --saving-green: #0d8a5f;
   --saving-coral: #e87962;
@@ -4899,20 +4900,20 @@ button.stark-compass-card {
 
 .savings-section-head h2 {
   margin: 0;
-  color: var(--saving-ink);
+  color: var(--saving-muted);
   font-size: var(--saving-font-title);
   font-weight: 700;
 }
 
 .savings-section-head > div > span {
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 600;
   line-height: 1.35;
 }
 
 .savings-dashboard-page .mini-section-note {
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 600;
   line-height: 1.35;
@@ -4956,10 +4957,10 @@ button.stark-compass-card {
   display: inline-flex;
   width: fit-content;
   padding: 5px 9px;
-  border: 1px solid rgba(13, 138, 95, 0.14);
+  border: 1px solid rgba(104, 118, 138, 0.16);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.46);
-  color: #0d6f50 !important;
+  background: #f7f9fc;
+  color: var(--saving-label) !important;
   font-weight: 650;
   letter-spacing: 0.08em;
 }
@@ -4967,7 +4968,7 @@ button.stark-compass-card {
 .savings-vault-copy span,
 .savings-metric-grid span,
 .savings-goal-card span {
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-label);
   font-weight: 600;
   line-height: 1.3;
@@ -4987,7 +4988,7 @@ button.stark-compass-card {
 .savings-vault-copy p {
   margin: 9px 0 0;
   overflow: hidden;
-  color: #52627a;
+  color: var(--saving-label);
   font-size: var(--saving-font-label);
   font-weight: 600;
   line-height: 1.4;
@@ -5342,7 +5343,7 @@ button.stark-compass-card {
 .savings-hero-meta span {
   min-width: 0;
   overflow: hidden;
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 600;
   line-height: 1.35;
@@ -5378,7 +5379,7 @@ button.stark-compass-card {
 
 .savings-vault-ring span {
   margin-top: 5px;
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 600;
   line-height: 1.2;
@@ -5417,7 +5418,7 @@ button.stark-compass-card {
 }
 
 .savings-metric-grid small {
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 600;
   line-height: 1.4;
@@ -6131,7 +6132,7 @@ button.stark-compass-card {
 
 .savings-recent-year h3 {
   margin: 2px 2px 0;
-  color: #65718a;
+  color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 650;
   line-height: 1.35;

@@ -2126,6 +2126,16 @@ html.kt-hybrid-shell .tabs-shell {
   font-variant-numeric: tabular-nums;
 }
 
+.stark-budget-allocation-plan-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+
+.stark-budget-allocation-plan-progress > span {
+  white-space: nowrap;
+}
+
 .stark-budget-allocation-plan-details {
   display: grid;
   gap: 6px;
@@ -2527,10 +2537,23 @@ html.kt-hybrid-shell .tabs-shell {
   }
 
   .stark-budget-allocation-plan-totals > div:last-child {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 4px 8px;
+    grid-column: 1 / -1;
+  }
+
+  .stark-budget-allocation-plan-totals > div:last-child > span,
+  .stark-budget-allocation-plan-totals > div:last-child > strong {
+    white-space: nowrap;
+  }
+
+  .stark-budget-allocation-plan-totals > div:last-child > strong {
+    justify-self: end;
+  }
+
+  .stark-budget-allocation-plan-totals > div:last-child > small {
     grid-column: 1 / -1;
   }
 

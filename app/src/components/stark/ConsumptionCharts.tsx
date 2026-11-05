@@ -416,7 +416,7 @@ export function buildSankeyOption(transactions: Transaction[], locale: AppLocale
   const allCategories = [...new Set(Object.values(flow).flatMap((categories) => Object.keys(categories)))];
   const layout = sankeyLayoutOptions(Math.max(allPlatforms.length, allCategories.length));
 
-  const nodes: { id: string; name: string; label?: { show: boolean; position?: "right"; offset?: [number, number] }; itemStyle?: { color: string } }[] = [];
+  const nodes: { id: string; name: string; label?: { show?: boolean; position?: "right"; offset?: [number, number]; formatter: () => string }; itemStyle?: { color: string } }[] = [];
   const links: { source: string; target: string; value: number }[] = [];
   const nodeLabels = new Map<string, string>();
 
@@ -439,7 +439,7 @@ export function buildSankeyOption(transactions: Transaction[], locale: AppLocale
     nodes.push({
       id,
       name,
-      label: { show: true, position: "right", offset: [0, -4] },
+      label: { show: true, position: "right", offset: [0, -4], formatter: () => name },
       itemStyle: { color: PLATFORM_COLORS[plat] || PLATFORM_COLORS["其他"] },
     });
   });
@@ -447,7 +447,7 @@ export function buildSankeyOption(transactions: Transaction[], locale: AppLocale
     const id = categoryId(cat);
     const name = displayCategory(cat);
     nodeLabels.set(id, name);
-    nodes.push({ id, name, itemStyle: { color: catColors[cat] || "#bfbfbf" } });
+    nodes.push({ id, name, label: { formatter: () => name }, itemStyle: { color: catColors[cat] || "#bfbfbf" } });
   });
 
   allPlatforms.forEach((plat) => {

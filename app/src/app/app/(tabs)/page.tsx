@@ -692,9 +692,10 @@ function StarkBudgetAllocationCard({ summary, reportingMonth, transactions, onMa
               <div>
                 <span>{translateValue("预计存", locale)}</span>
                 <strong>¥ {formatMoney(planAllocation.plannedDeposit)}</strong>
-                <small>{locale === "en-US"
-                  ? `Saved ¥${formatMoney(planAllocation.recordedDeposit)} · Pending ¥${formatMoney(planAllocation.pendingDeposit)}`
-                  : `已存 ¥ ${formatMoney(planAllocation.recordedDeposit)} · 待存 ¥ ${formatMoney(planAllocation.pendingDeposit)}`}</small>
+                <small className="stark-budget-allocation-plan-progress">
+                  <span>{locale === "en-US" ? "Saved" : "已存"} ¥ {formatMoney(planAllocation.recordedDeposit)}</span>
+                  <span>{locale === "en-US" ? "Pending" : "待存"} ¥ {formatMoney(planAllocation.pendingDeposit)}</span>
+                </small>
               </div>
             </div>
             {planAllocation.planSources.length > 0 ? (

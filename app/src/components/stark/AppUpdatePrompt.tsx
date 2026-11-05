@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import { usePathname } from "next/navigation";
 import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
 import { readLanUpdateUrl } from "@/lib/stark/lan-update";
 import { setAppUpdateAvailable } from "@/lib/stark/app-update-status";
@@ -65,36 +66,50 @@ function formatDownloadSpeed(bytesPerSecond: number) {
 }
 
 export function AppUpdatePrompt() {
+  const pathname = usePathname() ?? "";
   const [update, setUpdate] = useState<UpdateState>(null);
   const [notice, setNotice] = useState<NoticeState>(null);
   const [checking, setChecking] = useState(false);
   const [download, setDownload] = useState<DownloadState>(initialDownload);
   const [installedVersionName, setInstalledVersionName] = useState(CURRENT_APP_VERSION_NAME);
+  const [manualPromptPath, setManualPromptPath] = useState<string | null>(null);
   const downloadRunningRef = useRef(false);
   const checkAbortRef = useRef<AbortController | null>(null);
   const checkRequestIdRef = useRef(0);
   const silentCheckAbortRef = useRef(new WeakSet<AbortController>());
+  const manualPromptPathRef = useRef<string | null>(null);
   const downloadBusy = download.status === "downloading" || download.status === "permission";
   const dismissibleUpdate = Boolean(update && (!update.info.forceUpdate || update.unavailable) && !downloadBusy);
+  const cancelPendingCheck = useCallback(() => {
+    checkRequestIdRef.current += 1;
+    const controller = checkAbortRef.current;
+    if (controller) {
+      silentCheckAbortRef.current.add(controller);
+      controller.abort();
+      checkAbortRef.current = null;
+    }
+  }, []);
   const dismissPrompt = useCallback(() => {
     if (checking) {
-      const controller = checkAbortRef.current;
-      if (controller) {
-        silentCheckAbortRef.current.add(controller);
-        controller.abort();
-      }
+      cancelPendingCheck();
+      manualPromptPathRef.current = null;
+      setManualPromptPath(null);
       setChecking(false);
       return;
     }
     if (notice) {
+      manualPromptPathRef.current = null;
+      setManualPromptPath(null);
       setNotice(null);
       return;
     }
     if (update) {
       if (!dismissibleUpdate) return false;
+      manualPromptPathRef.current = null;
+      setManualPromptPath(null);
       setUpdate(null);
     }
-  }, [checking, dismissibleUpdate, notice, update]);
+  }, [cancelPendingCheck, checking, dismissibleUpdate, notice, update]);
   const consumePromptHistory = useLayeredHistoryMarker(
     checking || Boolean(notice) || Boolean(update),
     "starkUpdatePrompt",
@@ -106,6 +121,22 @@ export function AppUpdatePrompt() {
   }, [consumePromptHistory, dismissPrompt]);
 
   useEffect(() => {
+    if (manualPromptPathRef.current === null || pathname === manualPromptPathRef.current) return;
+    if (downloadRunningRef.current) {
+      manualPromptPathRef.current = null;
+      setManualPromptPath(null);
+      return;
+    }
+    cancelPendingCheck();
+    manualPromptPathRef.current = null;
+    setManualPromptPath(null);
+    setChecking(false);
+    setNotice(null);
+    setUpdate(null);
+    setDownload(initialDownload);
+  }, [cancelPendingCheck, pathname]);
+
+  useEffect(() => {
     let cancelled = false;
     const native = Capacitor.isNativePlatform();
     const isKtHybrid = navigator.userAgent.includes("WottyStarkKtHybrid");
@@ -113,8 +144,13 @@ export function AppUpdatePrompt() {
 
     async function checkForUpdate(manual: boolean) {
       const manualPath = manual ? window.location.pathname : null;
+      if (manual) {
+        manualPromptPathRef.current = manualPath;
+        setManualPromptPath(manualPath);
+      }
       const canShowManualResult = () => manual
         && document.visibilityState === "visible"
+        && manualPromptPathRef.current === manualPath
         && window.location.pathname === manualPath
         && document.querySelector(".settings-center-page") !== null;
       if (!native) {
@@ -196,6 +232,14 @@ export function AppUpdatePrompt() {
       void checkForUpdate(true);
     }
     function handleSourceChange() {
+      if (manualPromptPathRef.current !== null) {
+        cancelPendingCheck();
+        manualPromptPathRef.current = null;
+        setManualPromptPath(null);
+        setChecking(false);
+        setNotice(null);
+        setUpdate(null);
+      }
       setAppUpdateAvailable(false);
       void checkForUpdate(false);
     }
@@ -215,7 +259,9 @@ export function AppUpdatePrompt() {
       window.removeEventListener("stark:check-app-update", handleManualCheck);
       window.removeEventListener("stark:update-source-change", handleSourceChange);
     };
-  }, []);
+  }, [cancelPendingCheck]);
+
+  if (manualPromptPath !== null && pathname !== manualPromptPath) return null;
 
   if (checking) {
     return (
@@ -267,6 +313,8 @@ export function AppUpdatePrompt() {
       const result = await nativeAppUpdate.downloadAndInstall({ url: info.apkUrl, versionCode: info.versionCode });
       if (!result.installationStarted) throw new Error("无法打开系统安装界面，请稍后重试。");
       consumePromptHistory();
+      manualPromptPathRef.current = null;
+      setManualPromptPath(null);
       setUpdate(null);
       setDownload(initialDownload);
     } catch (error) {

@@ -491,9 +491,9 @@ export default function AccountsPage() {
               <small>本地优先、可连接云端的个人财务管理工具</small>
               <div>Next.js · Capacitor · Kotlin</div>
               <nav className="settings-about-links" aria-label="相关网站">
-                <a href="https://sevencn.com" target="_blank" rel="noreferrer"><span>博客</span><strong>sevencn.com</strong><ChevronIcon /></a>
-                <a href="https://s.wotty.app" target="_blank" rel="noreferrer"><span>项目网站</span><strong>s.wotty.app</strong><ChevronIcon /></a>
-                <a href="https://github.com/wottyup/star-accounting" target="_blank" rel="noreferrer"><span>开源地址</span><strong>github.com/wottyup/star-accounting</strong><ChevronIcon /></a>
+                <a href="https://sevencn.com" target="_blank" rel="noreferrer"><span className="settings-about-link-copy"><strong>博客</strong><span className="settings-about-link-url">sevencn.com</span></span><ChevronIcon /></a>
+                <a href="https://s.wotty.app" target="_blank" rel="noreferrer"><span className="settings-about-link-copy"><strong>项目网站</strong><span className="settings-about-link-url">s.wotty.app</span></span><ChevronIcon /></a>
+                <a href="https://github.com/wottyup/star-accounting" target="_blank" rel="noreferrer"><span className="settings-about-link-copy"><strong>开源地址</strong><span className="settings-about-link-url">github.com/wottyup/star-accounting</span></span><ChevronIcon /></a>
               </nav>
               <blockquote className="settings-about-verse" lang="zh-CN">
                 星点毫厘入小屏，<br />会收云本地双清，<br />计来出入自分明——心安。

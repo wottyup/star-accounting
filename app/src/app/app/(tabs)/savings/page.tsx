@@ -170,7 +170,7 @@ export default function SavingsPage() {
         </div>
         <div className="savings-vault-ring" style={{ "--progress": heroProgress } as CSSProperties}>
           <strong>{summary.progress}%</strong>
-          <span>{translateValue("总进度", locale)}</span>
+          <span>{locale === "en-US" ? "Progress" : "总进度"}</span>
         </div>
       </section>
 

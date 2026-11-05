@@ -5525,9 +5525,10 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   --progress: 0%;
   position: relative;
   z-index: 1;
-  display: grid;
-  place-items: center;
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   justify-self: end;
   width: 88px;
   height: 88px;
@@ -5548,11 +5549,14 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
 }
 
 .savings-vault-ring span {
+  width: calc(100% - 12px);
   margin-top: 5px;
   color: var(--saving-label);
   font-size: var(--saving-font-caption);
   font-weight: 500;
   line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .savings-metric-grid {

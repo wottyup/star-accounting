@@ -190,7 +190,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                   getNavigation().select(target, pathname);
                 }}
               >
-                <img src={withAppBasePath(item.icon)} alt="" width={27} height={27} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
+                <img src={withAppBasePath(item.icon)} alt="" width={29} height={29} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
               </Link>
             </Fragment>
           );

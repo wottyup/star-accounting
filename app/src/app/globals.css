@@ -4490,8 +4490,8 @@ button.stark-compass-card {
 }
 
 .mobile-bottom-nav-icon {
-  width: 27px;
-  height: 27px;
+  width: 29px;
+  height: 29px;
   object-fit: contain;
   opacity: 0.56;
   filter: grayscale(1);
@@ -16664,8 +16664,8 @@ html.showcase-demo .mobile-bottom-nav-item {
 }
 
 html.showcase-demo .mobile-bottom-nav-icon {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
 
 @media (max-width: 370px) {

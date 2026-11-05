@@ -103,7 +103,7 @@ class KtHybridActivity : MainActivity() {
                 if (theme.resolveAttribute(android.R.attr.selectableItemBackground, selectableBackground, true)) {
                     setBackgroundResource(selectableBackground.resourceId)
                 }
-                addView(image, FrameLayout.LayoutParams(dp(27), dp(27), Gravity.CENTER))
+                addView(image, FrameLayout.LayoutParams(dp(29), dp(29), Gravity.CENTER))
                 setOnClickListener { navigateToTab(index, tab) }
             }
             row.addView(item, LinearLayout.LayoutParams(0, dp(64), 1f))

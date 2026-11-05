@@ -17,11 +17,22 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onBackPressed() {
         WebView webView = this.bridge != null ? this.bridge.getWebView() : null;
-        if (webView != null && shouldNavigateWebHistoryBack(webView)) {
-            webView.goBack();
+        if (webView == null) {
+            super.onBackPressed();
             return;
         }
-        super.onBackPressed();
+        webView.evaluateJavascript(
+                "(function(){var event=new Event('stark:android-back',{cancelable:true});"
+                        + "window.dispatchEvent(event);return event.defaultPrevented;})()",
+                result -> {
+                    if (isFinishing() || isDestroyed() || bridge == null || bridge.getWebView() != webView) return;
+                    if ("true".equals(result)) return;
+                    if (shouldNavigateWebHistoryBack(webView)) {
+                        webView.goBack();
+                    } else {
+                        MainActivity.super.onBackPressed();
+                    }
+                });
     }
 
     private boolean shouldNavigateWebHistoryBack(WebView webView) {

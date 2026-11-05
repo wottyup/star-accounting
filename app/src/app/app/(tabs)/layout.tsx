@@ -6,6 +6,7 @@ import { MobileBottomNav } from "@/components/stark/MobileBottomNav";
 import { LazyJournalPanel as JournalPanel, preloadJournalPanel } from "@/components/stark/LazyJournalPanel";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { usePrimaryTabBackGuard } from "@/components/stark/usePrimaryTabBackGuard";
+import { hasActiveLayerHistoryMarker } from "@/lib/stark/navigation/layered-history";
 
 const KT_HYBRID_TAB_PATHS = new Set([
   "/app",
@@ -38,6 +39,17 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => () => {
     document.documentElement.removeAttribute("data-stark-journal-opening");
   }, []);
+
+  useEffect(() => {
+    const closePendingJournal = (event: Event) => {
+      if (event.defaultPrevented || hasActiveLayerHistoryMarker()
+        || !document.documentElement.hasAttribute("data-stark-journal-opening")) return;
+      event.preventDefault();
+      dismissJournal();
+    };
+    window.addEventListener("stark:android-back", closePendingJournal);
+    return () => window.removeEventListener("stark:android-back", closePendingJournal);
+  }, [dismissJournal]);
 
   useEffect(() => {
     if (journalOpenPathRef.current !== null && pathname !== journalOpenPathRef.current) dismissJournal();

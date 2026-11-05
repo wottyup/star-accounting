@@ -29,6 +29,12 @@ export function hasActiveLayerHistoryMarker() {
   return activeLayerHistoryMarkers().size > 0;
 }
 
+export function isTopLayerHistoryMarker(markerId: string) {
+  let topMarkerId: string | undefined;
+  for (const activeMarkerId of activeLayerHistoryMarkers()) topMarkerId = activeMarkerId;
+  return topMarkerId === markerId;
+}
+
 export function createLayerHistoryState(currentState: unknown, markerName: string, markerId: string) {
   const parentState = currentState && typeof currentState === "object" && !Array.isArray(currentState)
     ? currentState as Record<string, unknown>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef } from "react";
 import {
   createLayerHistoryState,
   createLayerMarkerUrl,
+  isTopLayerHistoryMarker,
   releaseLayerHistoryEntry,
   setLayerHistoryMarkerActive,
   shouldDismissLayerFromHistory,
@@ -26,12 +27,6 @@ export function useLayeredHistoryMarker(open: boolean, markerName: string, onHis
   useEffect(() => {
     onHistoryBackRef.current = onHistoryBack;
   }, [onHistoryBack]);
-
-  useEffect(() => {
-    if (!open) return;
-    setLayerHistoryMarkerActive(markerId, true);
-    return () => setLayerHistoryMarkerActive(markerId, false);
-  }, [markerId, open]);
 
   const consumeHistoryEntry = useCallback(() => {
     const release = releaseLayerHistoryEntry(historyEntryRef.current);
@@ -56,6 +51,7 @@ export function useLayeredHistoryMarker(open: boolean, markerName: string, onHis
     if (!open) return;
 
     pushHistoryEntry();
+    setLayerHistoryMarkerActive(markerId, true);
 
     function dismissFromHistory() {
       const historyEntry = historyEntryRef.current;
@@ -64,13 +60,22 @@ export function useLayeredHistoryMarker(open: boolean, markerName: string, onHis
       if (onHistoryBackRef.current() === false) pushHistoryEntry();
     }
 
+    function dismissFromNativeBack(event: Event) {
+      if (!isTopLayerHistoryMarker(markerId)) return;
+      event.preventDefault();
+      if (onHistoryBackRef.current() !== false) consumeHistoryEntry();
+    }
+
     window.addEventListener("popstate", dismissFromHistory);
     window.addEventListener("hashchange", dismissFromHistory);
+    window.addEventListener("stark:android-back", dismissFromNativeBack);
     return () => {
       window.removeEventListener("popstate", dismissFromHistory);
       window.removeEventListener("hashchange", dismissFromHistory);
+      window.removeEventListener("stark:android-back", dismissFromNativeBack);
+      setLayerHistoryMarkerActive(markerId, false);
     };
-  }, [open, pushHistoryEntry]);
+  }, [consumeHistoryEntry, markerId, open, pushHistoryEntry]);
 
   return consumeHistoryEntry;
 }

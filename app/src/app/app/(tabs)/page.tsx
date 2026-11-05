@@ -870,7 +870,7 @@ function buildHomeExpenseRoseOption(
         bleedMargin: 0,
         overflow: "none",
         formatter: "{b}",
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 500,
       },
       labelLine: {
@@ -1050,7 +1050,7 @@ function buildHomeCashflowTrendOption(history: HomeCashflowPoint[], locale: AppL
       data: history.map((item) => item.month),
       axisLine: { lineStyle: { color: "#e8eef5" } },
       axisTick: { show: false },
-      axisLabel: { color: "#94a3b8", fontSize: 10, margin: 8 },
+      axisLabel: { color: "#94a3b8", fontSize: 12, margin: 8 },
     },
     yAxis: {
       type: "value",

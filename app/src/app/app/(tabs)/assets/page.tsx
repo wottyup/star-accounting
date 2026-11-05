@@ -40,7 +40,7 @@ function buildAssetDonutOption(groups: Array<{ label: string; amount: number; co
       borderColor: "rgba(13, 138, 95, 0.2)",
       textStyle: { color: "#142036", fontSize: 12 },
       formatter: (params: any) => {
-        return `<div style="font-size:11px;color:#64748b;">${params.name}</div><strong style="color:#142036;">¥ ${formatMoney(params.value)}</strong> <span style="color:#0d8a5f;">(${params.percent}%)</span>`;
+        return `<div style="font-size:12px;color:#64748b;">${params.name}</div><strong style="color:#142036;">¥ ${formatMoney(params.value)}</strong> <span style="color:#0d8a5f;">(${params.percent}%)</span>`;
       },
     },
     series: [

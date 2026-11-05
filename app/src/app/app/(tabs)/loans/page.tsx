@@ -90,7 +90,7 @@ function buildForecastChartOption(activeLoans: Loan[], locale: AppLocale): EChar
       textStyle: { color: "#142036", fontSize: 12 },
       formatter: (params: any) => {
         const item = Array.isArray(params) ? params[0] : params;
-        return `<div style="font-size:11px;color:#64748b;">${item.name}${locale === "en-US" ? " due" : "应还"}</div><strong style="color:#0d8a5f;font-size:13px;">¥ ${formatMoney(Number(item.value))}</strong>`;
+        return `<div style="font-size:12px;color:#64748b;">${item.name}${locale === "en-US" ? " due" : "应还"}</div><strong style="color:#0d8a5f;font-size:13px;">¥ ${formatMoney(Number(item.value))}</strong>`;
       },
     },
     xAxis: {
@@ -98,14 +98,14 @@ function buildForecastChartOption(activeLoans: Loan[], locale: AppLocale): EChar
       data: months,
       axisLine: { lineStyle: { color: "#e2ecf2" } },
       axisTick: { show: false },
-      axisLabel: { color: "#64748b", fontSize: 11 },
+      axisLabel: { color: "#64748b", fontSize: 12 },
     },
     yAxis: {
       type: "value",
       splitLine: { lineStyle: { color: "rgba(226, 236, 242, 0.6)", type: "dashed" } },
       axisLabel: {
         color: "#94a3b8",
-        fontSize: 10,
+        fontSize: 12,
         formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`),
       },
     },
@@ -152,7 +152,7 @@ function buildDonutChartOption(loans: Loan[], locale: AppLocale): EChartsCoreOpt
       borderColor: "rgba(13, 138, 95, 0.2)",
       textStyle: { color: "#142036", fontSize: 12 },
       formatter: (params: any) => {
-        return `<div style="font-size:11px;color:#64748b;">${params.name}</div><strong style="color:#142036;">¥ ${formatMoney(params.value)}</strong> <span style="color:#0d8a5f;">(${params.percent}%)</span>`;
+        return `<div style="font-size:12px;color:#64748b;">${params.name}</div><strong style="color:#142036;">¥ ${formatMoney(params.value)}</strong> <span style="color:#0d8a5f;">(${params.percent}%)</span>`;
       },
     },
     series: [

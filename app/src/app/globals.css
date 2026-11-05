@@ -15979,6 +15979,294 @@ body .reporting-year-menu-grid button.selected {
   color: #2267ac;
 }
 
+/* Main tab pages use the same readable type roles as the savings dashboard.
+   Keep these rules scoped so the editor sheets and navigation retain their own scale. */
+.stark-home-layout :is(
+  .stark-metric-switcher button,
+  .stark-scope-selector button,
+  .stark-tx-count,
+  .stark-detail-arrow,
+  .stark-setting-pill,
+  .stark-cycle-breakdown,
+  .stark-budget-allocation-title small,
+  .stark-budget-allocation-entry,
+  .stark-budget-allocation-main span,
+  .stark-budget-allocation-main small,
+  .stark-budget-allocation-track-meta,
+  .stark-budget-allocation-grid span,
+  .stark-budget-allocation-assets span,
+  .stark-budget-allocation-assets small,
+  .stark-budget-allocation-plan-title small,
+  .stark-budget-allocation-plan-toggle-label,
+  .stark-budget-allocation-plan-link,
+  .stark-budget-allocation-plan-source,
+  .stark-budget-allocation-plan-totals span,
+  .stark-budget-allocation-plan-totals small,
+  .stark-budget-allocation-plan-details li small,
+  .stark-budget-allocation-plan-expense-amount > small,
+  .stark-budget-allocation-plan-available small,
+  .stark-budget-allocation-plan-pending,
+  .compass-badge,
+  .trend-sub,
+  .stark-trend-legend,
+  .stark-trend-detail,
+  .category-sub,
+  .category-all-link,
+  .advisory-status-tag
+) {
+  font-size: var(--ui-font-caption);
+}
+
+.stark-home-layout :is(
+  .stark-card-label,
+  .diag-content strong,
+  .diag-content p,
+  .diag-link,
+  .stark-budget-allocation-title strong,
+  .stark-budget-allocation-grid strong,
+  .stark-budget-allocation-plan-title strong,
+  .stark-budget-allocation-plan-source strong,
+  .stark-budget-allocation-plan-details li > span,
+  .stark-budget-allocation-plan-expense-amount > strong,
+  .stark-budget-allocation-plan-available > span strong,
+  .compass-label,
+  .advisory-tip-row p
+) {
+  font-size: var(--ui-font-label);
+}
+
+.stark-home-layout :is(.stark-budget-allocation-title strong, .trend-title-block strong, .category-title-block strong, .advisory-title-block strong) {
+  font-size: var(--ui-font-body);
+}
+
+.stark-home-layout .stark-metric-switcher button {
+  height: 28px;
+}
+
+.stark-home-layout .stark-scope-selector button {
+  height: 24px;
+}
+
+.stark-home-layout .stark-budget-allocation-grid span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.stark-home-layout .stark-budget-allocation-plan-totals small,
+.stark-home-layout .stark-budget-allocation-plan-expense-amount > small {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.stark-home-layout .stark-budget-allocation-plan-details li {
+  flex-wrap: wrap;
+}
+
+.consumption-analysis-page :is(
+  .consumption-overview-head span,
+  .consumption-period-button,
+  .consumption-overview-stats span,
+  .consumption-select-wrap > span,
+  .consumption-category-menu-head span,
+  .consumption-category-option-copy small,
+  .consumption-chart-title span,
+  .consumption-detail-head span,
+  .consumption-deep-summary span,
+  .consumption-deep-summary small,
+  .remark-consumption-categories span,
+  .recent-category,
+  .recent-time
+) {
+  font-size: var(--ui-font-caption);
+}
+
+.consumption-analysis-page :is(
+  .consumption-mode-tabs button,
+  .consumption-category-trigger-value,
+  .consumption-search-wrap input,
+  .detail-search-wrap input,
+  .consumption-category-menu-head strong,
+  .consumption-category-option-copy strong,
+  .consumption-empty-state,
+  .recent-title,
+  .finance-item-actions button
+) {
+  font-size: var(--ui-font-label);
+}
+
+.consumption-analysis-page :is(.consumption-chart-title h2, .consumption-overview-stats strong, .recent-amount) {
+  font-size: var(--ui-font-body);
+}
+
+.consumption-analysis-page .consumption-period-button {
+  height: 30px;
+}
+
+.consumption-analysis-page .consumption-mode-tabs button {
+  height: 32px;
+}
+
+.consumption-analysis-page :is(.consumption-select-wrap, .consumption-search-wrap, .detail-search-wrap) {
+  height: 38px;
+}
+
+.consumption-category-menu :is(.consumption-category-menu-head span, .consumption-category-option-copy small) {
+  font-size: var(--ui-font-caption);
+}
+
+.consumption-category-menu :is(.consumption-category-menu-head strong, .consumption-category-option-copy strong) {
+  font-size: var(--ui-font-label);
+}
+
+.consumption-category-menu .consumption-category-option {
+  min-height: 44px;
+}
+
+.finance-page {
+  font-size: var(--ui-font-body);
+}
+
+.finance-page .finance-section-head h2 {
+  font-size: var(--ui-font-title);
+}
+
+.finance-page :is(.finance-section-head > span, .mini-section-note, .finance-eyebrow, .finance-state-chip, .finance-empty, .finance-form-grid label > span) {
+  font-size: var(--ui-font-caption);
+}
+
+.finance-page .finance-section-head > span,
+.finance-page .mini-section-note {
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.finance-page .financial-planning-notice strong {
+  font-size: var(--ui-font-body);
+}
+
+.finance-page .financial-planning-notice p {
+  font-size: var(--ui-font-label);
+  font-weight: 500;
+}
+
+.assets-page :is(
+  .asset-sub-val span,
+  .asset-balance-bar-labels,
+  .asset-metric-tile span,
+  .asset-metric-tile small,
+  .asset-donut-pct,
+  .pane-tag,
+  .asset-item-name small,
+  .asset-allocation-row em,
+  .asset-inline-head span,
+  .asset-health-grid article p,
+  .asset-ledger-list span small
+) {
+  font-size: var(--ui-font-caption);
+}
+
+.assets-page :is(
+  .asset-cockpit-net > span,
+  .asset-cockpit-net > p,
+  .asset-donut-lead strong,
+  .asset-donut-amount,
+  .asset-item-name strong,
+  .asset-item-val,
+  .asset-net-total > span,
+  .asset-net-total p,
+  .asset-net-side span,
+  .asset-statement-head span,
+  .asset-allocation-row span,
+  .asset-ledger-list span strong
+) {
+  font-size: var(--ui-font-label);
+}
+
+.loans-page :is(
+  .loan-cockpit-ring span,
+  .loan-metric-card span,
+  .loan-metric-card small,
+  .loan-status-chip,
+  .loan-balance-label,
+  .loan-portfolio-meta,
+  .loan-portfolio-foot,
+  .loan-structure-pct,
+  .loan-schedule-main span,
+  .loan-due-tag,
+  .finance-section-head > div > span
+) {
+  font-size: var(--ui-font-caption);
+}
+
+.loans-page :is(
+  .loan-cockpit-balance > span,
+  .loan-cockpit-balance > p,
+  .loan-structure-val,
+  .loan-schedule-main strong,
+  .loan-portfolio-title > strong,
+  .loan-portfolio-foot strong
+) {
+  font-size: var(--ui-font-label);
+}
+
+.settings-center-page .settings-center-row > strong {
+  font-size: var(--ui-font-body);
+  font-weight: 500;
+}
+
+.settings-center-page .settings-center-value {
+  font-size: var(--ui-font-caption);
+}
+
+@media (max-width: 600px) {
+  .consumption-detail-list .recent-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "icon title amount"
+      "icon category time"
+      ". actions actions";
+    gap: 4px 8px;
+    padding: 10px 0;
+  }
+
+  .consumption-detail-list .recent-icon { grid-area: icon; }
+  .consumption-detail-list .recent-title { grid-area: title; }
+  .consumption-detail-list .recent-amount { grid-area: amount; }
+  .consumption-detail-list .recent-category { grid-area: category; }
+  .consumption-detail-list .recent-time { grid-area: time; }
+  .consumption-detail-list .finance-item-actions {
+    grid-area: actions;
+    min-width: 0;
+    margin-left: 0;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 370px) {
+  .stark-home-layout .stark-hero-toolbar,
+  .stark-home-layout .stark-hero-meta-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .assets-page .asset-donut-row,
+  .loans-page .loan-structure-item-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name percent" "name amount";
+  }
+
+  .assets-page .asset-donut-lead,
+  .loans-page .loan-structure-lead { grid-area: name; }
+  .assets-page .asset-donut-pct,
+  .loans-page .loan-structure-pct { grid-area: percent; }
+  .assets-page .asset-donut-amount,
+  .loans-page .loan-structure-val { grid-area: amount; }
+
+  .assets-page .positive-ledger .asset-ledger-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* All bottom-entry surfaces share the readable type scale of the savings editor.
    Component rules below only map existing text roles to these shared sizes. */
 :is(.bottom-sheet, .journal-panel, .stark-date-picker-dialog, .reporting-month-picker-dialog) {

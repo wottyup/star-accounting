@@ -79,7 +79,7 @@ function buildTrendOption(trend: HomeTrend, locale: AppLocale): EChartsCoreOptio
       data: trend.labels,
       axisLine: { lineStyle: { color: "#e1e8f2" } },
       axisTick: { show: false },
-      axisLabel: { color: "#74819a", fontSize: 10, margin: 8 },
+      axisLabel: { color: "#74819a", fontSize: 11, margin: 8 },
     },
     yAxis: {
       type: "value",
@@ -90,7 +90,7 @@ function buildTrendOption(trend: HomeTrend, locale: AppLocale): EChartsCoreOptio
       axisTick: { show: false },
       axisLabel: {
         color: "#74819a",
-        fontSize: 10,
+        fontSize: 11,
         formatter: (value: number) => (value === 0 ? "0" : `${Math.round(value / 1000)}K`),
       },
       splitLine: { lineStyle: { color: "#eef2f7", type: "dashed" } },
@@ -281,13 +281,13 @@ function buildBarOption(transactions: Transaction[], monthKey: string, locale: A
         data: months.map((month) => `${month}${locale === "en-US" ? "" : "月"}`),
         axisLine: { lineStyle: { color: "#e1e8f2" } },
         axisTick: { show: false },
-        axisLabel: { color: "#74819a", fontSize: 9 },
+        axisLabel: { color: "#74819a", fontSize: 11 },
       },
       yAxis: {
         type: "value",
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: "#74819a", fontSize: 9, formatter: (v: number) => v === 0 ? "0" : `${Math.round(v / 1000)}K` },
+        axisLabel: { color: "#74819a", fontSize: 11, formatter: (v: number) => v === 0 ? "0" : `${Math.round(v / 1000)}K` },
         splitLine: { lineStyle: { color: "#eef2f7", type: "dashed" } },
       },
       series: activePlatforms.map((platform) => ({
@@ -334,13 +334,13 @@ function buildBarOption(transactions: Transaction[], monthKey: string, locale: A
       data: days,
       axisLine: { lineStyle: { color: "#e1e8f2" } },
       axisTick: { show: false },
-      axisLabel: { color: "#74819a", fontSize: 9 },
+      axisLabel: { color: "#74819a", fontSize: 11 },
     },
     yAxis: {
       type: "value",
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: "#74819a", fontSize: 9, formatter: (v: number) => v === 0 ? "0" : `${Math.round(v / 1000)}K` },
+      axisLabel: { color: "#74819a", fontSize: 11, formatter: (v: number) => v === 0 ? "0" : `${Math.round(v / 1000)}K` },
       splitLine: { lineStyle: { color: "#eef2f7", type: "dashed" } },
     },
     series: activePlatforms.map((platform) => ({
@@ -382,7 +382,7 @@ function buildMerchantRankingOption(transactions: Transaction[], locale: AppLoca
       splitNumber: 4,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: "#74819a", fontSize: 9, formatter: (value: number) => value === 0 ? "0" : `${Math.round(value / 1000)}K` },
+      axisLabel: { color: "#74819a", fontSize: 11, formatter: (value: number) => value === 0 ? "0" : `${Math.round(value / 1000)}K` },
       splitLine: { lineStyle: { color: "#eef2f7", type: "dashed" } },
     },
     yAxis: {
@@ -390,7 +390,7 @@ function buildMerchantRankingOption(transactions: Transaction[], locale: AppLoca
       data: displayRows.map((item) => item.merchant),
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: "#405268", fontSize: 10, formatter: truncateLabel },
+      axisLabel: { color: "#405268", fontSize: 11, formatter: truncateLabel },
     },
     series: [
       {
@@ -468,7 +468,7 @@ export function buildSankeyOption(transactions: Transaction[], locale: AppLocale
         nodeWidth: 14,
         nodeGap: layout.nodeGap,
         lineStyle: { color: "gradient", opacity: 0.35 },
-        label: { color: "#11182d", fontSize: 10, distance: layout.labelDistance, lineHeight: 14, overflow: "truncate", width: 58 },
+        label: { color: "#11182d", fontSize: 12, distance: layout.labelDistance, lineHeight: 16, overflow: "truncate", width: 58 },
         labelLayout: layout.labelLayout,
         data: nodes,
         links,

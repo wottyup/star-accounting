@@ -1,4 +1,6 @@
 const STORAGE_KEY = "wotty:stark:lan-update-url";
+const OFFICIAL_SOURCE = "official";
+const BUILD_LAN_UPDATE_URL = process.env.NEXT_PUBLIC_STARK_LAN_UPDATE_URL?.trim() ?? "";
 
 function isPrivateIpv4(host: string) {
   const parts = host.split(".");
@@ -30,14 +32,20 @@ export function readLanUpdateUrl() {
   if (typeof window === "undefined") return null;
   try {
     const value = window.localStorage.getItem(STORAGE_KEY);
-    return value ? normalizeLanUpdateUrl(value) : null;
+    if (value === OFFICIAL_SOURCE) return null;
+    const source = value || BUILD_LAN_UPDATE_URL;
+    return source ? normalizeLanUpdateUrl(source) : null;
   } catch {
     return null;
   }
 }
 
 export function saveLanUpdateUrl(value: string | null) {
-  if (value === null) window.localStorage.removeItem(STORAGE_KEY);
-  else window.localStorage.setItem(STORAGE_KEY, normalizeLanUpdateUrl(value));
+  if (value === null) {
+    if (BUILD_LAN_UPDATE_URL) window.localStorage.setItem(STORAGE_KEY, OFFICIAL_SOURCE);
+    else window.localStorage.removeItem(STORAGE_KEY);
+  } else {
+    window.localStorage.setItem(STORAGE_KEY, normalizeLanUpdateUrl(value));
+  }
   window.dispatchEvent(new Event("stark:update-source-change"));
 }

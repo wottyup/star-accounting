@@ -16288,6 +16288,10 @@ body .reporting-year-menu-grid button.selected {
     gap: 8px;
   }
 
+  .stark-home-layout .stark-hero-toolbar .stark-metric-switcher {
+    justify-self: end;
+  }
+
   .assets-page .asset-donut-row,
   .loans-page .loan-structure-item-row {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -16643,7 +16647,7 @@ html.showcase-demo .mobile-bottom-nav-icon {
   }
 
   html.showcase-demo .stark-metric-switcher {
-    justify-self: start;
+    justify-self: end;
   }
 
   html.showcase-demo .stark-period-badge {

@@ -16127,7 +16127,8 @@ body .reporting-year-menu-grid button.selected {
 }
 
 .finance-page .finance-section-head h2 {
-  font-size: var(--ui-font-title);
+  font-size: var(--ui-font-body);
+  font-weight: 600;
 }
 
 .finance-page :is(.finance-section-head > span, .mini-section-note, .finance-eyebrow, .finance-state-chip, .finance-empty, .finance-form-grid label > span) {

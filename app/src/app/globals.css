@@ -4480,22 +4480,17 @@ button.stark-compass-card {
 .mobile-bottom-nav-item {
   position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
   min-height: 64px;
   min-width: 0;
   color: #818a98;
-  font-size: calc(11px * var(--user-font-scale));
-  font-weight: 600;
-  line-height: 1.1;
   text-decoration: none;
 }
 
 .mobile-bottom-nav-icon {
-  width: 24px;
-  height: 24px;
+  width: 27px;
+  height: 27px;
   object-fit: contain;
   opacity: 0.56;
   filter: grayscale(1);
@@ -4503,15 +4498,11 @@ button.stark-compass-card {
 
 .mobile-bottom-nav-icon.active {
   opacity: 1;
-  filter: brightness(0) saturate(100%) invert(29%) sepia(78%) saturate(3039%) hue-rotate(236deg) brightness(96%) contrast(100%);
+  filter: brightness(0) saturate(100%) invert(25%) sepia(92%) saturate(2644%) hue-rotate(190deg) brightness(94%) contrast(104%);
 }
 
 .mobile-bottom-nav-item.active {
-  color: #6044ed;
-}
-
-.mobile-bottom-nav-label {
-  white-space: nowrap;
+  color: #0060c0;
 }
 
 .mobile-bottom-nav-action {
@@ -4526,7 +4517,7 @@ button.stark-compass-card {
   border: 4px solid #ffffff;
   border-radius: 50%;
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(89, 64, 218, 0.24);
+  box-shadow: 0 4px 12px rgba(0, 96, 192, 0.24);
   color: #ffffff;
   transition: transform 150ms ease;
 }
@@ -4544,7 +4535,7 @@ button.stark-compass-card {
 
 .mobile-bottom-nav-action:focus-visible,
 .mobile-bottom-nav-item:focus-visible {
-  outline: 2px solid #6044ed;
+  outline: 2px solid #0060c0;
   outline-offset: 2px;
 }
 
@@ -4555,8 +4546,8 @@ button.stark-compass-card {
   left: calc(50% - 17px);
   width: 34px;
   height: 34px;
-  border: 2px solid rgba(96, 68, 237, 0.15);
-  border-top-color: #6044ed;
+  border: 2px solid rgba(0, 96, 192, 0.15);
+  border-top-color: #0060c0;
   border-radius: 50%;
   pointer-events: none;
   animation: nav-pending-spin 900ms linear infinite;

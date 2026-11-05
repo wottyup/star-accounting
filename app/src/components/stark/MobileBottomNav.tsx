@@ -165,13 +165,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                   onClick={onOpenJournal}
                 >
                   <svg viewBox="0 0 46 46" aria-hidden="true">
-                    <defs>
-                      <linearGradient id="journal-action-gradient" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#7657ff" />
-                        <stop offset="100%" stopColor="#5339e4" />
-                      </linearGradient>
-                    </defs>
-                    <circle cx="23" cy="23" r="23" fill="url(#journal-action-gradient)" />
+                    <circle cx="23" cy="23" r="23" fill="#0060c0" />
                     <path d="M23 13v20M13 23h20" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" />
                   </svg>
                 </button>
@@ -196,8 +190,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                   getNavigation().select(target, pathname);
                 }}
               >
-                <img src={withAppBasePath(item.icon)} alt="" width={24} height={24} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
-                <span className="mobile-bottom-nav-label">{item.label}</span>
+                <img src={withAppBasePath(item.icon)} alt="" width={27} height={27} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
               </Link>
             </Fragment>
           );

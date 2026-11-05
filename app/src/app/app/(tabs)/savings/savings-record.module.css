@@ -19,7 +19,7 @@
 .progressSummary small {
   color: var(--saving-muted);
   font-size: var(--saving-font-caption);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }

@@ -18,7 +18,7 @@
   --ui-font-label: 0.875rem;
   --ui-font-body: 0.933rem;
   --ui-font-title: 1.067rem;
-  --stark-bottom-nav-clearance: calc(56px + env(safe-area-inset-bottom));
+  --stark-bottom-nav-clearance: calc(60px + env(safe-area-inset-bottom));
 }
 
 html[data-app-theme="green"] {
@@ -109,12 +109,12 @@ nextjs-portal {
 .tabs-shell {
   width: min(100%, 430px);
   margin: 0 auto;
-  padding: 2px 8px 96px;
+  padding: 2px 8px 92px;
   overflow-x: hidden;
 }
 
 html.kt-hybrid-shell .tabs-shell {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
 }
 
 .tabs-liquid-shell {
@@ -4483,7 +4483,7 @@ button.stark-compass-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
+  min-height: 60px;
   min-width: 0;
   color: #818a98;
   text-decoration: none;
@@ -16524,7 +16524,7 @@ html.showcase-demo {
 
 html.showcase-demo .tabs-shell {
   padding-top: 24px;
-  padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  padding-bottom: calc(78px + env(safe-area-inset-bottom));
 }
 
 html.showcase-demo .home-topbar {
@@ -16660,7 +16660,7 @@ html.showcase-demo .mobile-bottom-nav-inner {
 }
 
 html.showcase-demo .mobile-bottom-nav-item {
-  min-height: 64px;
+  min-height: 60px;
 }
 
 html.showcase-demo .mobile-bottom-nav-icon {

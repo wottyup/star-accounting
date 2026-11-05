@@ -157,10 +157,16 @@ class KtHybridActivity : MainActivity() {
 
     private fun loadTabDirectly(activeWebView: WebView, path: String) {
         val currentUri = runCatching { Uri.parse(activeWebView.url.orEmpty()) }.getOrNull() ?: return
-        val host = currentUri.host
-        if (currentUri.scheme != "http" || (host != "localhost" && host != "127.0.0.1")) return
+        if (!isAppPage(currentUri)) return
         val targetUri = currentUri.buildUpon().path(path).clearQuery().fragment(null).build()
         activeWebView.loadUrl(targetUri.toString())
+    }
+
+    private fun isAppPage(uri: Uri?): Boolean {
+        val pageUri = uri ?: return false
+        val appUrl = bridge?.serverUrl ?: bridge?.localUrl ?: return false
+        val appUri = runCatching { Uri.parse(appUrl) }.getOrNull() ?: return false
+        return pageUri.scheme == appUri.scheme && pageUri.authority == appUri.authority
     }
 
     private fun currentWebPath(activeWebView: WebView): String? =
@@ -169,8 +175,7 @@ class KtHybridActivity : MainActivity() {
     private fun synchronizeRoute() {
         val activeWebView = webView ?: return
         val uri = runCatching { Uri.parse(activeWebView.url.orEmpty()) }.getOrNull()
-        val isLocalPage = uri?.scheme == "http" && (uri.host == "localhost" || uri.host == "127.0.0.1")
-        val path = if (isLocalPage) uri?.path?.trimEnd('/') else null
+        val path = if (isAppPage(uri)) uri?.path?.trimEnd('/') else null
         val index = path?.let(::tabIndexForPath) ?: -1
         if (index >= 0) {
             setSelectedTab(index)

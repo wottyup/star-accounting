@@ -51,6 +51,9 @@ const {
   apiPort,
   excludedRanges,
 } = await findDevelopmentPorts();
+if (process.env.DEV_STRICT_PORTS === "true" && (webPort !== requestedWebPort || apiPort !== requestedApiPort)) {
+  throw new Error(`Requested development ports ${requestedWebPort}/${requestedApiPort} are unavailable.`);
+}
 process.env.WEB_PORT = String(webPort);
 process.env.API_PORT = String(apiPort);
 // Next.js inlines NEXT_PUBLIC_* values into the browser bundle. Keep the

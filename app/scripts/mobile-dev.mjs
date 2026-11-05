@@ -4,17 +4,20 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { canListen, findDevelopmentPorts } from "./dev-ports.mjs";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const webDirectory = path.resolve(scriptDirectory, "..");
-const port = Number.parseInt(getOption("--port") ?? process.env.CAP_LIVE_RELOAD_PORT ?? "12366", 10);
+const portOption = getOption("--port") ?? process.env.CAP_LIVE_RELOAD_PORT;
+const requestedPort = Number.parseInt(portOption ?? "12366", 10);
 const target = getOption("--target") ?? process.env.CAP_LIVE_RELOAD_TARGET ?? detectAdbTarget();
 const host = getOption("--host") ?? process.env.CAP_LIVE_RELOAD_HOST ?? detectHost(target);
+const flavor = getOption("--flavor") ?? process.env.CAP_LIVE_RELOAD_FLAVOR ?? "ktweb";
 const pnpmCommand = process.platform === "win32" ? (process.env.ComSpec || "cmd.exe") : "pnpm";
 const pnpmPrefixArgs = process.platform === "win32" ? ["/d", "/c", "pnpm.cmd"] : [];
 
-if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  throw new Error(`Invalid live reload port: ${port}`);
+if (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65535) {
+  throw new Error(`Invalid live reload port: ${portOption}`);
 }
 if (!target) {
   throw new Error("No ADB device found. Connect a phone first, then run this command again.");
@@ -22,6 +25,21 @@ if (!target) {
 if (!host) {
   throw new Error("Could not determine the computer LAN address. Pass --host <电脑IP> explicitly.");
 }
+if (flavor !== "web" && flavor !== "ktweb") {
+  throw new Error(`Unsupported Android flavor: ${flavor}`);
+}
+if (portOption !== undefined && !(await canListen(requestedPort))) {
+  throw new Error(`Live reload port ${requestedPort} is already in use.`);
+}
+
+const { webPort: port, apiPort } = await findDevelopmentPorts({ webStartPort: requestedPort });
+if (portOption !== undefined && port !== requestedPort) {
+  throw new Error(`Live reload port ${requestedPort} became unavailable.`);
+}
+process.env.WEB_PORT = String(port);
+process.env.API_PORT = String(apiPort);
+process.env.NEXT_PUBLIC_API_PORT = String(apiPort);
+process.env.DEV_STRICT_PORTS = "true";
 
 let webProcess;
 let capacitorProcess;
@@ -172,8 +190,8 @@ process.once("SIGINT", () => void shutdown(0));
 process.once("SIGTERM", () => void shutdown(0));
 process.once("SIGBREAK", () => void shutdown(0));
 
-process.stdout.write(`Live Reload target: ${target}\n`);
-process.stdout.write(`Live Reload URL: http://${host}:${port}\n`);
+process.stdout.write(`Live Reload target: ${target} (${flavor})\n`);
+process.stdout.write(`Live Reload URL: http://${host}:${port} (API: ${apiPort})\n`);
 process.stdout.write("Preparing the initial Web build for Capacitor sync...\n");
 rmSync(path.join(webDirectory, ".next", "dev"), { recursive: true, force: true });
 try {
@@ -200,7 +218,7 @@ try {
   await waitForPort(port);
   if (shuttingDown) process.exit(0);
   process.stdout.write("Starting Capacitor Android Live Reload...\n");
-  capacitorProcess = spawn(pnpmCommand, [...pnpmPrefixArgs, "exec", "cap", "run", "android", "--live-reload", "--host", host, "--port", String(port), "--target", target], {
+  capacitorProcess = spawn(pnpmCommand, [...pnpmPrefixArgs, "exec", "cap", "run", "android", "--flavor", flavor, "--live-reload", "--host", host, "--port", String(port), "--target", target], {
     cwd: webDirectory,
     stdio: "inherit",
     windowsHide: false,

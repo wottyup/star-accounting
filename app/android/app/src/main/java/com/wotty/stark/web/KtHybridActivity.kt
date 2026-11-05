@@ -192,10 +192,10 @@ class KtHybridActivity : MainActivity() {
                     GradientDrawable.Orientation.TL_BR,
                     intArrayOf(Color.rgb(118, 87, 255), Color.rgb(83, 57, 228)),
                 ).apply { shape = GradientDrawable.OVAL }
-                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(28), dp(4), Gravity.CENTER))
-                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(4), dp(28), Gravity.CENTER))
+                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(22), dp(4), Gravity.CENTER))
+                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(4), dp(22), Gravity.CENTER))
             }
-            addView(circle, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER))
+            addView(circle, FrameLayout.LayoutParams(dp(46), dp(46), Gravity.CENTER))
             setOnClickListener { openJournalFromNative() }
         }
         journalAction = action
@@ -209,7 +209,9 @@ class KtHybridActivity : MainActivity() {
                 row,
                 FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64), Gravity.TOP).apply { topMargin = dp(30) },
             )
-            addView(action, FrameLayout.LayoutParams(dp(66), dp(66), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+            addView(action, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                topMargin = dp(6)
+            })
         }
         bottomBar = bar
         val content = findViewById<ViewGroup>(android.R.id.content)

@@ -164,8 +164,8 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                   onPointerDown={() => void preloadJournalPanel()}
                   onClick={onOpenJournal}
                 >
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" aria-hidden="true">
-                    <path d="M16 5v22M5 16h22" />
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" aria-hidden="true">
+                    <path d="M12 3v18M3 12h18" />
                   </svg>
                 </button>
               ) : null}

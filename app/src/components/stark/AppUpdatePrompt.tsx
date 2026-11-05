@@ -112,8 +112,13 @@ export function AppUpdatePrompt() {
     const edition = isKtHybrid ? "ktweb" : "web";
 
     async function checkForUpdate(manual: boolean) {
+      const manualPath = manual ? window.location.pathname : null;
+      const canShowManualResult = () => manual
+        && document.visibilityState === "visible"
+        && window.location.pathname === manualPath
+        && document.querySelector(".settings-center-page") !== null;
       if (!native) {
-        if (manual && !cancelled) setNotice({ title: "版本检查", message: "浏览器版不提供 APK 更新检查，请在 Android App 中使用。" });
+        if (canShowManualResult() && !cancelled) setNotice({ title: "版本检查", message: "浏览器版不提供 APK 更新检查，请在 Android App 中使用。" });
         return;
       }
 
@@ -162,17 +167,17 @@ export function AppUpdatePrompt() {
         const hasUpdate = hasNewerAppVersion(installed.versionCode, info);
         setAppUpdateAvailable(hasUpdate);
         if (hasUpdate) {
-          if (manual || !isKtHybrid) {
+          if (canShowManualResult() || (!manual && !isKtHybrid)) {
             setDownload(initialDownload);
             setUpdate({ info, unavailable: !info.apkUrl });
           }
-        } else if (manual) {
+        } else if (canShowManualResult()) {
           setNotice({ title: "已是最新版本", message: "当前 App 版本为 " + installed.versionName + "。" });
         }
       } catch (error) {
         if (cancelled || requestId !== checkRequestIdRef.current || silentCheckAbortRef.current.has(controller)) return;
         setAppUpdateAvailable(false);
-        if (manual && !cancelled) setNotice({
+        if (canShowManualResult() && !cancelled) setNotice({
           title: "版本检查失败",
           message: readLanUpdateUrl()
             ? error instanceof Error && error.message ? error.message : "无法连接局域网版本服务，请检查手机网络和地址。"
@@ -187,6 +192,7 @@ export function AppUpdatePrompt() {
     }
 
     function handleManualCheck() {
+      if (document.querySelector(".settings-center-page") === null) return;
       void checkForUpdate(true);
     }
     function handleSourceChange() {
@@ -258,8 +264,11 @@ export function AppUpdatePrompt() {
           message: null,
         });
       });
-      await nativeAppUpdate.downloadAndInstall({ url: info.apkUrl, versionCode: info.versionCode });
-      setDownload({ ...initialDownload, status: "ready", percent: 100 });
+      const result = await nativeAppUpdate.downloadAndInstall({ url: info.apkUrl, versionCode: info.versionCode });
+      if (!result.installationStarted) throw new Error("无法打开系统安装界面，请稍后重试。");
+      consumePromptHistory();
+      setUpdate(null);
+      setDownload(initialDownload);
     } catch (error) {
       setDownload({
         status: "error",

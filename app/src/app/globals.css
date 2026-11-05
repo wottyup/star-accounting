@@ -7992,6 +7992,15 @@ img[src$="/qita.webp"] {
   overflow: hidden;
 }
 
+.sankey-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: #64748b;
+  font-size: var(--ui-font-label);
+  text-align: center;
+}
+
 .savings-planner-page {
   --planner-line: #e7edf5;
   --planner-blue: #2f76e8;

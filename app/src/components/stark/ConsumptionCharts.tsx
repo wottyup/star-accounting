@@ -406,14 +406,19 @@ function buildMerchantRankingOption(transactions: Transaction[], locale: AppLoca
 
 /* ────────── 桑基图 ────────── */
 
+function isSankeyExpense(transaction: Transaction) {
+  return transaction.type === "EXPENSE" && Number.isFinite(transaction.amount) && transaction.amount > 0;
+}
+
 export function buildSankeyOption(transactions: Transaction[], locale: AppLocale): EChartsCoreOption {
-  const layout = sankeyLayoutOptions();
-  const expenseFiltered = transactions.filter((t) => t.type === "EXPENSE");
+  const expenseFiltered = transactions.filter(isSankeyExpense);
   const { activePlatforms: allPlatforms, flow } = buildPlatformCategoryFlow(expenseFiltered);
   const allCategories = [...new Set(Object.values(flow).flatMap((categories) => Object.keys(categories)))];
+  const layout = sankeyLayoutOptions(Math.max(allPlatforms.length, allCategories.length));
 
-  const nodes: { name: string; label?: { show: boolean; position?: "right"; offset?: [number, number] }; itemStyle?: { color: string } }[] = [];
+  const nodes: { id: string; name: string; label?: { show: boolean; position?: "right"; offset?: [number, number] }; itemStyle?: { color: string } }[] = [];
   const links: { source: string; target: string; value: number }[] = [];
+  const nodeLabels = new Map<string, string>();
 
   const catColors: Record<string, string> = {
     "餐饮": "#ff7a32", "购物": "#ff4d6a", "交通": "#57b3ff", "住房": "#7c5cfc",
@@ -424,21 +429,30 @@ export function buildSankeyOption(transactions: Transaction[], locale: AppLocale
 
   const displayPlatform = (value: string) => translateValue(value, locale);
   const displayCategory = (value: string) => translateValue(value, locale);
+  const platformId = (value: string) => `platform:${value}`;
+  const categoryId = (value: string) => `category:${value}`;
 
   allPlatforms.forEach((plat) => {
+    const id = platformId(plat);
+    const name = displayPlatform(plat);
+    nodeLabels.set(id, name);
     nodes.push({
-      name: displayPlatform(plat),
+      id,
+      name,
       label: { show: true, position: "right", offset: [0, -4] },
       itemStyle: { color: PLATFORM_COLORS[plat] || PLATFORM_COLORS["其他"] },
     });
   });
   allCategories.forEach((cat) => {
-    nodes.push({ name: displayCategory(cat), itemStyle: { color: catColors[cat] || "#bfbfbf" } });
+    const id = categoryId(cat);
+    const name = displayCategory(cat);
+    nodeLabels.set(id, name);
+    nodes.push({ id, name, itemStyle: { color: catColors[cat] || "#bfbfbf" } });
   });
 
   allPlatforms.forEach((plat) => {
     Object.entries(flow[plat] || {}).forEach(([cat, value]) => {
-       links.push({ source: displayPlatform(plat), target: displayCategory(cat), value: Math.round(value) });
+      links.push({ source: platformId(plat), target: categoryId(cat), value });
     });
   });
 
@@ -451,7 +465,9 @@ export function buildSankeyOption(transactions: Transaction[], locale: AppLocale
       textStyle: { color: "#ffffff", fontSize: 12 },
       formatter: (params: { name?: string; value?: number; dataType?: string; data?: { source?: string; target?: string } }) => {
         if (params.dataType === "edge") {
-          return `${params.data?.source ?? ""} → ${params.data?.target ?? ""}<br/>¥ ${formatMoney(params.value ?? 0)}`;
+          const source = nodeLabels.get(params.data?.source ?? "") ?? "";
+          const target = nodeLabels.get(params.data?.target ?? "") ?? "";
+          return `${source} → ${target}<br/>¥ ${formatMoney(params.value ?? 0)}`;
         }
         return `${params.name ?? ""}`;
       },
@@ -508,6 +524,7 @@ export function ConsumptionCharts({
   const merchantRanking = useMemo(() => buildMerchantRanking(transactions), [transactions]);
   const merchantRankingOption = useMemo(() => buildMerchantRankingOption(transactions, locale), [locale, transactions]);
   const sankeyOption = useMemo(() => buildSankeyOption(transactions, locale), [locale, transactions]);
+  const hasSankeyData = useMemo(() => transactions.some(isSankeyExpense), [transactions]);
 
   return (
     <div className="consumption-chart-stack">
@@ -602,9 +619,17 @@ export function ConsumptionCharts({
                   <span>{translateValue("账户到分类", locale)}</span>
                 </div>
               </div>
-              <div className="sankey-scroll">
-                <EChartView option={sankeyOption} className="sankey-chart" />
-              </div>
+              {hasSankeyData ? (
+                <div className="sankey-scroll">
+                  <EChartView option={sankeyOption} className="sankey-chart" />
+                </div>
+              ) : (
+                <div className="sankey-empty">
+                  {locale === "en-US"
+                    ? incomeMode ? "No income in the current filters" : "No spending in the current filters"
+                    : incomeMode ? "当前筛选下暂无收入流向" : "当前筛选下暂无消费流向"}
+                </div>
+              )}
             </div>
           </section>
       </>

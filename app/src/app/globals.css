@@ -16036,7 +16036,8 @@ body .reporting-year-menu-grid button.selected {
 }
 
 .stark-home-layout :is(.stark-budget-allocation-title strong, .trend-title-block strong, .category-title-block strong, .advisory-title-block strong) {
-  font-size: var(--ui-font-body);
+  font-size: var(--ui-font-title);
+  font-weight: 500;
 }
 
 .stark-home-layout .stark-metric-switcher button {
@@ -16094,8 +16095,13 @@ body .reporting-year-menu-grid button.selected {
   font-size: var(--ui-font-label);
 }
 
-.consumption-analysis-page :is(.consumption-chart-title h2, .consumption-overview-stats strong, .recent-amount) {
+.consumption-analysis-page :is(.consumption-overview-stats strong, .recent-amount) {
   font-size: var(--ui-font-body);
+}
+
+.consumption-analysis-page :is(.consumption-chart-title h2, .consumption-detail-head h2, .remark-consumption-head h2) {
+  font-size: var(--ui-font-title);
+  font-weight: 500;
 }
 
 .consumption-analysis-page .consumption-period-button {
@@ -16127,8 +16133,8 @@ body .reporting-year-menu-grid button.selected {
 }
 
 .finance-page .finance-section-head h2 {
-  font-size: var(--ui-font-body);
-  font-weight: 600;
+  font-size: var(--ui-font-title);
+  font-weight: 500;
 }
 
 .finance-page :is(.finance-section-head > span, .mini-section-note, .finance-eyebrow, .finance-state-chip, .finance-empty, .finance-form-grid label > span) {

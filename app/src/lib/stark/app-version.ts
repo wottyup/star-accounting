@@ -1,5 +1,5 @@
-export const CURRENT_APP_VERSION_CODE = 178;
-export const CURRENT_APP_VERSION_NAME = "0.9.1-dev.4";
+export const CURRENT_APP_VERSION_CODE = 179;
+export const CURRENT_APP_VERSION_NAME = "0.9.1-dev.5";
 export const APP_UPDATE_URL = "https://s.wotty.app/version.json";
 
 export type AppVersionInfo = {

@@ -4480,7 +4480,6 @@ button.stark-compass-card {
 }
 
 html[data-stark-journal-opening] .mobile-bottom-nav {
-  visibility: hidden;
   pointer-events: none;
 }
 

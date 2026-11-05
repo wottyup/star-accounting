@@ -41,8 +41,8 @@ class KtHybridActivity : MainActivity() {
     private var bottomBar: FrameLayout? = null
     private var tabIcons: List<ImageView> = emptyList()
     private var journalAction: View? = null
-    private var journalOpening = false
     private var bottomBarVisibilityEpoch = 0
+    private var pendingJournalPoll: Runnable? = null
     private var pendingPath: String? = null
     private var fallbackNavigation: Runnable? = null
     private val routeTracker = object : Runnable {
@@ -66,6 +66,7 @@ class KtHybridActivity : MainActivity() {
     override fun onDestroy() {
         mainHandler.removeCallbacks(routeTracker)
         fallbackNavigation?.let(mainHandler::removeCallbacks)
+        stopPendingJournalPoll()
         webView = null
         super.onDestroy()
     }
@@ -78,6 +79,8 @@ class KtHybridActivity : MainActivity() {
 
     override fun onPause() {
         mainHandler.removeCallbacks(routeTracker)
+        stopPendingJournalPoll()
+        bottomBarVisibilityEpoch += 1
         super.onPause()
     }
 
@@ -208,21 +211,78 @@ class KtHybridActivity : MainActivity() {
 
     private fun openJournalFromNative() {
         val activeWebView = webView ?: return
-        journalOpening = true
         bottomBarVisibilityEpoch += 1
-        bottomBar?.visibility = View.GONE
+        stopPendingJournalPoll()
+        journalAction?.isEnabled = false
+        val openingEpoch = bottomBarVisibilityEpoch
         activeWebView.evaluateJavascript(
             "window.dispatchEvent(new Event('stark:kt-hybrid-journal')); document.documentElement.hasAttribute('data-stark-journal-opening')",
         ) { result ->
-            if (webView != activeWebView) return@evaluateJavascript
-            journalOpening = false
-            bottomBarVisibilityEpoch += 1
-            if (result != "true") synchronizeRoute()
+            if (webView != activeWebView || openingEpoch != bottomBarVisibilityEpoch) return@evaluateJavascript
+            if (result == "true") waitForJournalPanel(activeWebView) else {
+                journalAction?.isEnabled = true
+                synchronizeRoute()
+            }
         }
+    }
+
+    private fun stopPendingJournalPoll() {
+        pendingJournalPoll?.let(mainHandler::removeCallbacks)
+        pendingJournalPoll = null
+        journalAction?.isEnabled = true
+    }
+
+    private fun journalPanelStateScript(): String {
+        val bottomBarHeightCssPx = (bottomBar?.height ?: dp(88)) / resources.displayMetrics.density
+        return """(() => {
+            const panel = document.querySelector('.journal-overlay .journal-panel.ready');
+            if (panel && (!panel.classList.contains('visible') || panel.getBoundingClientRect().top <= window.innerHeight - $bottomBarHeightCssPx)) return 2;
+            return document.documentElement.hasAttribute('data-stark-journal-opening') ? 1 : 0;
+        })()"""
+    }
+
+    private fun waitForJournalPanel(activeWebView: WebView) {
+        stopPendingJournalPoll()
+        journalAction?.isEnabled = false
+        val openingPath = currentWebPath(activeWebView)
+        var attempts = 0
+        val poll = object : Runnable {
+            override fun run() {
+                if (webView != activeWebView || currentWebPath(activeWebView) != openingPath) {
+                    stopPendingJournalPoll()
+                    synchronizeRoute()
+                    return
+                }
+                activeWebView.evaluateJavascript(
+                    journalPanelStateScript(),
+                ) { result ->
+                    if (webView != activeWebView || pendingJournalPoll !== this) return@evaluateJavascript
+                    when (result) {
+                        "2" -> {
+                            bottomBarVisibilityEpoch += 1
+                            bottomBar?.visibility = View.GONE
+                            stopPendingJournalPoll()
+                        }
+                        "1" -> {
+                            if (++attempts < JOURNAL_OPEN_POLL_LIMIT) mainHandler.postDelayed(this, JOURNAL_OPEN_POLL_INTERVAL_MS)
+                            else stopPendingJournalPoll()
+                        }
+                        else -> {
+                            stopPendingJournalPoll()
+                            synchronizeRoute()
+                        }
+                    }
+                }
+            }
+        }
+        pendingJournalPoll = poll
+        mainHandler.post(poll)
     }
 
     private fun navigateToTab(index: Int, tab: HybridTab) {
         val activeWebView = webView ?: return
+        stopPendingJournalPoll()
+        bottomBarVisibilityEpoch += 1
         pendingPath = tab.path
         setSelectedTab(index)
 
@@ -273,9 +333,9 @@ class KtHybridActivity : MainActivity() {
                 else -> "记账"
             }
             val visibilityEpoch = bottomBarVisibilityEpoch
-            activeWebView.evaluateJavascript("document.documentElement.hasAttribute('data-stark-journal-opening') || document.querySelector('.journal-overlay, .bottom-sheet-overlay') !== null") { result ->
+            activeWebView.evaluateJavascript("document.querySelector('.bottom-sheet-overlay') !== null || ${journalPanelStateScript()} === 2") { result ->
                 if (webView == activeWebView && visibilityEpoch == bottomBarVisibilityEpoch && currentWebPath(activeWebView) == path) {
-                    bottomBar?.visibility = if (journalOpening || result == "true") View.GONE else View.VISIBLE
+                    bottomBar?.visibility = if (result == "true") View.GONE else View.VISIBLE
                 }
             }
         } else {
@@ -316,5 +376,7 @@ class KtHybridActivity : MainActivity() {
     private companion object {
         const val ROUTE_FALLBACK_DELAY_MS = 1_500L
         const val ROUTE_TRACK_INTERVAL_MS = 250L
+        const val JOURNAL_OPEN_POLL_INTERVAL_MS = 32L
+        const val JOURNAL_OPEN_POLL_LIMIT = 300
     }
 }

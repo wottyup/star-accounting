@@ -40,6 +40,13 @@ public class AppUpdatePlugin extends Plugin {
     private static final long DOWNLOAD_POLL_INTERVAL_MS = 250;
     private static final long DOWNLOAD_STALL_TIMEOUT_MS = 120_000;
     private static final long DOWNLOAD_TOTAL_TIMEOUT_MS = 15 * 60_000;
+    private static final int CANNOT_RESUME_RETRIES = 1;
+
+    private static final class CannotResumeDownloadException extends IOException {
+        CannotResumeDownloadException() {
+            super("下载连接已中断且无法续传，请重新下载。");
+        }
+    }
 
     private final AtomicBoolean downloading = new AtomicBoolean(false);
     private volatile File downloadedFile;
@@ -203,28 +210,34 @@ public class AppUpdatePlugin extends Plugin {
             reportProgress("downloading", target.length(), target.length(), 0);
             return target;
         }
-        if (target.exists() && !target.delete()) throw new IOException("无法清理上次未完成的下载。");
-
         DownloadManager manager = (DownloadManager) getContext().getSystemService(Context.DOWNLOAD_SERVICE);
         if (manager == null) throw new IOException("系统下载服务不可用，请点击下方“下载更新”改用浏览器下载。");
 
-        DownloadManager.Request request = new DownloadManager.Request(Uri.parse(source));
-        request.setAllowedOverMetered(true);
-        request.setAllowedOverRoaming(false);
-        request.setMimeType("application/vnd.android.package-archive");
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
-        request.setTitle("星会计更新");
-        request.setDescription("正在下载安装包");
-        request.addRequestHeader("Accept", "application/vnd.android.package-archive, application/octet-stream");
-        request.setDestinationUri(Uri.fromFile(target));
+        for (int attempt = 0; attempt <= CANNOT_RESUME_RETRIES; attempt++) {
+            if (target.exists() && !target.delete()) throw new IOException("无法清理上次未完成的下载。");
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(source));
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(false);
+            request.setMimeType("application/vnd.android.package-archive");
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
+            request.setTitle("星会计更新");
+            request.setDescription("正在下载安装包");
+            request.addRequestHeader("Accept", "application/vnd.android.package-archive, application/octet-stream");
+            request.setDestinationUri(Uri.fromFile(target));
 
-        final long downloadId;
-        try {
-            downloadId = manager.enqueue(request);
-        } catch (Exception error) {
-            throw new IOException("无法启动系统下载，请点击下方“下载更新”改用浏览器下载。", error);
+            final long downloadId;
+            try {
+                downloadId = manager.enqueue(request);
+            } catch (Exception error) {
+                throw new IOException("无法启动系统下载，请点击下方“下载更新”改用浏览器下载。", error);
+            }
+            try {
+                return awaitSystemDownload(manager, downloadId, target);
+            } catch (CannotResumeDownloadException error) {
+                if (attempt == CANNOT_RESUME_RETRIES) throw error;
+            }
         }
-        return awaitSystemDownload(manager, downloadId, target);
+        throw new IOException("下载失败，请稍后重试。");
     }
 
     private File awaitSystemDownload(DownloadManager manager, long downloadId, File target) throws IOException {
@@ -313,7 +326,7 @@ public class AppUpdatePlugin extends Plugin {
             return new IOException("无法访问手机存储，请检查存储状态后重试。");
         }
         if (reason == DownloadManager.ERROR_CANNOT_RESUME) {
-            return new IOException("下载连接已中断且无法续传，请重新下载。");
+            return new CannotResumeDownloadException();
         }
         if (reason == DownloadManager.ERROR_HTTP_DATA_ERROR ||
                 reason == DownloadManager.ERROR_UNHANDLED_HTTP_CODE) {

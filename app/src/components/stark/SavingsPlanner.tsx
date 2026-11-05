@@ -944,7 +944,7 @@ export function SavingsPlanner({
         </section> : null}
 
         <JournalActionDock className="savings-plan-footer">
-          <span style={notice === "请先输入支出名称" || notice === "列已存在，请换一个名称" ? { fontSize: 9 } : undefined}>{notice || (hydrating ? "正在同步已有计划..." : "")}</span>
+          <span>{notice || (hydrating ? "正在同步已有计划..." : "")}</span>
           <button type="button" className="primary-button" disabled={saving || deleting || goalMissing} onClick={() => void savePlans()}>{saving ? "保存中" : savingsGoalId ? "保存修改" : "保存计划"}</button>
         </JournalActionDock>
       </section>

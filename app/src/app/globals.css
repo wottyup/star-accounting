@@ -6459,6 +6459,86 @@ button.stark-compass-card {
 .journal-panel.savings .savings-plan-table td {
   min-width: 66px;
 }
+
+/* Keep the compact savings editor readable on phone screens. Rem follows the
+   user's font-size setting through the root font size. */
+.journal-panel.savings .savings-panel-summary span,
+.journal-panel.savings .savings-goal-field > span,
+.journal-panel.savings .savings-edit-scope > span {
+  color: #53657b;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.journal-panel.savings .savings-template-import-trigger > span,
+.journal-panel.savings .savings-template-picker-head strong,
+.journal-panel.savings .savings-template-option strong {
+  font-size: 0.875rem;
+}
+
+.journal-panel.savings .savings-template-import-trigger > small,
+.journal-panel.savings .savings-template-picker-head span,
+.journal-panel.savings .savings-template-picker-state,
+.journal-panel.savings .savings-template-option small,
+.journal-panel.savings .savings-template-option em,
+.journal-panel.savings .savings-edit-scope small,
+.journal-panel.savings .savings-plan-footer span,
+.journal-panel.savings .savings-goal-danger-zone p {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.journal-panel.savings .savings-template-import-trigger > small,
+.journal-panel.savings .savings-template-picker-head span,
+.journal-panel.savings .savings-template-option small,
+.journal-panel.savings .savings-edit-scope small {
+  color: #64748b;
+}
+
+.journal-panel.savings .savings-goal-field input,
+.journal-panel.savings .savings-column-adder input,
+.journal-panel.savings .savings-goal-field .savings-date-picker {
+  font-size: 0.933rem;
+}
+
+.journal-panel.savings .savings-deposit-switch button,
+.journal-panel.savings .savings-mode-switch button,
+.journal-panel.savings .savings-edit-scope button,
+.journal-panel.savings .savings-month-restorer button,
+.journal-panel.savings .savings-column-adder button,
+.journal-panel.savings .stark-choice-picker-trigger,
+.journal-panel.savings .savings-goal-danger-zone button {
+  font-size: 0.875rem;
+}
+
+.journal-panel.savings .savings-deposit-switch button,
+.journal-panel.savings .savings-mode-switch button,
+.journal-panel.savings .savings-edit-scope button {
+  min-height: 34px;
+}
+
+.journal-panel.savings .savings-column-adder button {
+  height: auto;
+  min-height: 36px;
+  line-height: 1.2;
+}
+
+.journal-panel.savings .savings-plan-table,
+.journal-panel.savings .savings-plan-table input {
+  font-size: 0.875rem;
+}
+
+.journal-panel.savings .savings-plan-table input {
+  width: 62px;
+  height: 26px;
+}
+
+.journal-panel.savings .savings-plan-table th small {
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
 .modern-journal-shell {
   background: #ffffff;
   border-radius: 24px 24px 0 0;

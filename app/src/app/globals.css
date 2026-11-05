@@ -10865,7 +10865,7 @@ img[src$="/qita.webp"] {
 
 .settings-about-links a {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: 15px minmax(0, 1fr) 15px;
   align-items: center;
   gap: 10px;
   min-height: 48px;
@@ -10874,7 +10874,7 @@ img[src$="/qita.webp"] {
   border-radius: 10px;
   color: #64748b;
   background: transparent;
-  text-align: left;
+  text-align: center;
   text-decoration: none;
   transition: background 140ms ease;
 }
@@ -10889,6 +10889,7 @@ img[src$="/qita.webp"] {
 }
 
 .settings-about-links .settings-about-link-copy {
+  grid-column: 2;
   display: grid;
   min-width: 0;
   gap: 2px;
@@ -10908,6 +10909,7 @@ img[src$="/qita.webp"] {
 }
 
 .settings-about-links a > svg {
+  grid-column: 3;
   width: 15px;
   height: 15px;
   color: #94a3b8;

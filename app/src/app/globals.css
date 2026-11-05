@@ -6287,10 +6287,11 @@ button.stark-compass-card {
 }
 
 .savings-dashboard-page .savings-recent-row {
-  grid-template-columns: 30px minmax(0, 1fr) minmax(160px, 0.92fr);
-  gap: 2px 7px;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
   min-height: 0;
-  padding: 6px 8px;
+  padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.58);
   border-radius: 12px;
   background: rgba(244, 249, 255, 0.58);
@@ -6300,7 +6301,6 @@ button.stark-compass-card {
 }
 
 .savings-dashboard-page .savings-recent-row strong {
-  grid-column: 2;
   font-size: var(--saving-font-body);
   font-weight: 650;
 }
@@ -6315,7 +6315,6 @@ button.stark-compass-card {
 .savings-recent-meta {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-column: 2;
   gap: 6px;
   min-width: 0;
   align-items: center;
@@ -6336,45 +6335,10 @@ button.stark-compass-card {
   color: var(--saving-muted);
 }
 
-.savings-dashboard-page .savings-recent-row > span {
-  grid-column: 2;
-}
-
-.savings-dashboard-page .savings-recent-row > time {
-  grid-column: 2;
-  grid-row: 3;
-}
-
-.savings-dashboard-page .savings-recent-row > em {
-  grid-column: 3;
-  grid-row: 1 / span 3;
-}
-
 .savings-dashboard-page .loan-empty {
   color: var(--saving-label);
   font-size: var(--saving-font-label);
   font-weight: 500;
-}
-
-@media (max-width: 430px) {
-  .savings-dashboard-page .savings-recent-row {
-    grid-template-columns: 30px minmax(0, 1fr);
-    gap: 3px 8px;
-    padding: 7px 9px;
-  }
-
-  .savings-dashboard-page .savings-recent-icon {
-    grid-row: 1 / span 2;
-  }
-
-  .savings-dashboard-page .savings-recent-row strong {
-    grid-row: 1;
-  }
-
-  .savings-dashboard-page .savings-recent-meta {
-    grid-column: 2;
-    grid-row: 2;
-  }
 }
 
 /* floating journal panel */

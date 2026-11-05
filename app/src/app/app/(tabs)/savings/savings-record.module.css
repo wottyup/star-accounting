@@ -1,17 +1,41 @@
-.recentActions {
+.planContent {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  align-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.planHeader,
+.planMetaRow {
+  display: flex;
   align-items: center;
-  gap: 4px 6px;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.planHeader {
+  justify-content: space-between;
+}
+
+.planHeader strong {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.planContent .planHeader em {
+  flex: none;
+  margin-left: auto;
+  font-size: var(--saving-font-body);
+  font-weight: 700;
+}
+
+.planMetaRow > div {
+  flex: 1 1 150px;
   min-width: 0;
 }
 
 .progressSummary {
   display: grid;
-  grid-column: 1 / -1;
   width: 100%;
   gap: 2px;
 }
@@ -40,16 +64,9 @@
   transition: width 180ms ease;
 }
 
-.recentActions em {
-  grid-column: auto !important;
-  grid-row: auto !important;
-  overflow: hidden;
-  font-size: var(--saving-font-body);
-  font-weight: 700;
-  text-overflow: ellipsis;
-}
-
 .recordButton {
+  flex: none;
+  margin-left: auto;
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid rgba(0, 96, 192, 0.16);
@@ -74,10 +91,8 @@
 }
 
 .proofButton {
-  grid-column: 1;
-  grid-row: 3;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   overflow: hidden;
   border: 1px solid #dbeafe;
@@ -87,35 +102,8 @@
 }
 
 .proofButton img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-@media (max-width: 430px) {
-  .recentActions {
-    grid-column: 2 / -1;
-    grid-row: 3;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 2px 6px;
-  }
-
-  .progressSummary {
-    grid-column: 1 / -1;
-  }
-
-  .recentActions em {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-  }
-
-  .recordButton {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  .proofButton {
-    grid-column: 3;
-    grid-row: 2;
-  }
 }

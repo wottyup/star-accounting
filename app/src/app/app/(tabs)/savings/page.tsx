@@ -256,33 +256,38 @@ export default function SavingsPage() {
                   const progress = plan.amount > 0 ? clampPercent((recordedAmount / plan.amount) * 100) : 0;
                   return (
                     <div key={plan.id} className={`savings-recent-row ${plan.status.toLowerCase()}`}>
-                      <div className="savings-recent-icon">{recorded ? "已" : "未"}</div>
-                      <strong>{goal?.name || "储蓄计划"}</strong>
-                      <div className="savings-recent-meta">
-                        <span>{plan.month} · {translateValue(planStatusLabel(plan.status), locale)}</span>
-                        <time>{dayLabel(plan.updatedAt.slice(0, 10), locale)}</time>
-                      </div>
-                      <div className={styles.recentActions}>
+                      {plan.proofImage ? (
+                        <button type="button" className={styles.proofButton} onClick={() => setPreviewProofImage(plan.proofImage ?? null)} aria-label={`查看${goal?.name || "储蓄计划"}的图片凭证`}>
+                          <img src={plan.proofImage} alt="" />
+                        </button>
+                      ) : (
+                        <div className="savings-recent-icon">{recorded ? "已" : "未"}</div>
+                      )}
+                      <div className={styles.planContent}>
+                        <div className={styles.planHeader}>
+                          <strong>{goal?.name || "储蓄计划"}</strong>
+                          <em>+¥ {formatMoney(amount)}</em>
+                        </div>
+                        <div className={styles.planMetaRow}>
+                          <div className="savings-recent-meta">
+                            <span>{plan.month} · {translateValue(planStatusLabel(plan.status), locale)}</span>
+                            <time>{dayLabel(plan.updatedAt.slice(0, 10), locale)}</time>
+                          </div>
+                          <button
+                            type="button"
+                            className={`${styles.recordButton} ${recorded ? styles.recorded : ""}`}
+                            onClick={() => setRecordingPlan(plan)}
+                            aria-label={`${goal?.name || "储蓄计划"} · ${recorded ? "修改实际存入记录" : "记录实际存入"}`}
+                          >
+                            {recorded ? "修改记录" : "实际存入"}
+                          </button>
+                        </div>
                         <div className={styles.progressSummary}>
                           <div className={styles.progressTrack} aria-label={`${goal?.name || "储蓄计划"} 完成 ${progress}%`}>
                             <i style={{ width: `${progress}%` }} />
                           </div>
                           <small>已存 ¥ {formatMoney(recordedAmount)} / 计划 ¥ {formatMoney(plan.amount)}</small>
                         </div>
-                        <em>+¥ {formatMoney(amount)}</em>
-                        {plan.proofImage ? (
-                          <button type="button" className={styles.proofButton} onClick={() => setPreviewProofImage(plan.proofImage ?? null)} aria-label={`查看${goal?.name || "储蓄计划"}的图片凭证`}>
-                            <img src={plan.proofImage} alt="图片凭证" />
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className={`${styles.recordButton} ${recorded ? styles.recorded : ""}`}
-                          onClick={() => setRecordingPlan(plan)}
-                          aria-label={`${goal?.name || "储蓄计划"} · ${recorded ? "修改实际存入记录" : "记录实际存入"}`}
-                        >
-                          {recorded ? "修改记录" : "实际存入"}
-                        </button>
                       </div>
                     </div>
                   );

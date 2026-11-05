@@ -4824,8 +4824,8 @@ button.stark-compass-card {
 .savings-dashboard-page {
   --saving-ink: #142036;
   --saving-muted: #5b6b82;
-  --saving-label: #68768a;
-  --saving-heading: #7b899b;
+  --saving-label: #8492a4;
+  --saving-heading: #8b98a8;
   --saving-blue: #397fe8;
   --saving-green: #0d8a5f;
   --saving-coral: #e87962;
@@ -6214,7 +6214,7 @@ button.stark-compass-card {
 }
 
 .savings-dashboard-page .loan-empty {
-  color: var(--saving-muted);
+  color: var(--saving-label);
   font-size: var(--saving-font-label);
   font-weight: 600;
 }

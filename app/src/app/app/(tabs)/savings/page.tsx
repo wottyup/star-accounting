@@ -6,6 +6,7 @@ import { PageTopBar } from "@/components/stark/PageTopBar";
 import { PageDataError, PageSkeleton } from "@/components/stark/Skeleton";
 import { LazyJournalPanel as JournalPanel } from "@/components/stark/LazyJournalPanel";
 import { ProofImageViewer } from "@/components/stark/ProofImageViewer";
+import { FinancialPlanningNotice } from "@/components/stark/FinancialPlanningNotice";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
 import { REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/repository/RemoteRepository";
 import { savingsDepositTypeLabel } from "@/lib/stark/savings/deposit-type";
@@ -152,10 +153,7 @@ export default function SavingsPage() {
     <div className="page-stack savings-dashboard-page">
       <PageTopBar title="储蓄" />
 
-      <aside className="financial-planning-notice" role="note">
-        <strong>规划提醒</strong>
-        <p>本项目只用于规划，不能实际存入资金，请合理规划资金存放。</p>
-      </aside>
+      <FinancialPlanningNotice />
 
       <section className="home-card savings-vault-hero">
         <div className="savings-vault-copy">

@@ -4896,13 +4896,46 @@ button.stark-compass-card {
 }
 
 .financial-planning-notice {
-  display: grid;
-  gap: 4px;
-  padding: 12px 14px;
+  padding: 0;
   border: 1px solid #f4d78a;
   border-radius: 15px;
   background: #fff8dc;
   color: #785811;
+}
+
+.financial-planning-notice summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 10px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.financial-planning-notice summary::-webkit-details-marker {
+  display: none;
+}
+
+.financial-planning-notice summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin: -4px 4px 0 0;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+}
+
+.financial-planning-notice[open] summary::after {
+  transform: rotate(225deg);
+}
+
+.financial-planning-notice summary:focus-visible {
+  outline: 2px solid #9a6700;
+  outline-offset: -3px;
+  border-radius: 14px;
 }
 
 .financial-planning-notice strong {
@@ -4912,6 +4945,7 @@ button.stark-compass-card {
 
 .financial-planning-notice p {
   margin: 0;
+  padding: 0 14px 12px;
   font-size: calc(12px * var(--user-font-scale));
   line-height: 1.55;
 }

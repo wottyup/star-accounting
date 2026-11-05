@@ -4825,6 +4825,7 @@ button.stark-compass-card {
   --saving-ink: #142036;
   --saving-muted: #5b6b82;
   --saving-label: #68768a;
+  --saving-heading: #7b899b;
   --saving-blue: #397fe8;
   --saving-green: #0d8a5f;
   --saving-coral: #e87962;
@@ -4900,7 +4901,7 @@ button.stark-compass-card {
 
 .savings-section-head h2 {
   margin: 0;
-  color: var(--saving-muted);
+  color: var(--saving-heading);
   font-size: var(--saving-font-title);
   font-weight: 700;
 }
@@ -4960,7 +4961,7 @@ button.stark-compass-card {
   border: 1px solid rgba(104, 118, 138, 0.16);
   border-radius: 999px;
   background: #f7f9fc;
-  color: var(--saving-label) !important;
+  color: var(--saving-heading) !important;
   font-weight: 650;
   letter-spacing: 0.08em;
 }
@@ -4972,6 +4973,11 @@ button.stark-compass-card {
   font-size: var(--saving-font-label);
   font-weight: 600;
   line-height: 1.3;
+}
+
+.savings-metric-grid > .savings-metric-card > span,
+.savings-dashboard-page .savings-goal-copy > span {
+  color: var(--saving-heading);
 }
 
 .savings-vault-copy strong {

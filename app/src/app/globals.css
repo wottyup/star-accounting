@@ -1244,7 +1244,7 @@ html.kt-hybrid-shell .tabs-shell {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  font-size: calc(44px * var(--user-font-scale));
+  font-size: calc(48px * var(--user-font-scale));
   font-weight: 800;
   font-style: italic;
   letter-spacing: -2px;
@@ -16642,7 +16642,7 @@ html.showcase-demo .stark-hero-card {
 }
 
 html.showcase-demo .stark-card-watermark {
-  font-size: 36px;
+  font-size: 40px;
 }
 
 html.showcase-demo .stark-big-amount {

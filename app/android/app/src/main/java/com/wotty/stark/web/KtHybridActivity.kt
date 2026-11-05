@@ -1,5 +1,6 @@
 package com.wotty.stark.web
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -8,8 +9,10 @@ import android.graphics.Path
 import android.graphics.PorterDuff
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +22,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.getcapacitor.JSObject
+import java.io.ByteArrayOutputStream
 import org.json.JSONObject
 
 private data class HybridTab(
@@ -41,8 +46,8 @@ class KtHybridActivity : MainActivity() {
     private var bottomBar: FrameLayout? = null
     private var tabIcons: List<ImageView> = emptyList()
     private var journalAction: View? = null
-    private var bottomBarVisibilityEpoch = 0
-    private var pendingJournalPoll: Runnable? = null
+    private var sheetNavigationToken = 0
+    private var navigationInWebLayer = false
     private var pendingPath: String? = null
     private var fallbackNavigation: Runnable? = null
     private val routeTracker = object : Runnable {
@@ -53,6 +58,7 @@ class KtHybridActivity : MainActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        registerPlugin(HybridNavigationPlugin::class.java)
         super.onCreate(savedInstanceState)
         val activeWebView = bridge?.webView ?: return
         webView = activeWebView
@@ -66,7 +72,8 @@ class KtHybridActivity : MainActivity() {
     override fun onDestroy() {
         mainHandler.removeCallbacks(routeTracker)
         fallbackNavigation?.let(mainHandler::removeCallbacks)
-        stopPendingJournalPoll()
+        sheetNavigationToken += 1
+        navigationInWebLayer = false
         webView = null
         super.onDestroy()
     }
@@ -79,8 +86,6 @@ class KtHybridActivity : MainActivity() {
 
     override fun onPause() {
         mainHandler.removeCallbacks(routeTracker)
-        stopPendingJournalPoll()
-        bottomBarVisibilityEpoch += 1
         super.onPause()
     }
 
@@ -211,78 +216,76 @@ class KtHybridActivity : MainActivity() {
 
     private fun openJournalFromNative() {
         val activeWebView = webView ?: return
-        bottomBarVisibilityEpoch += 1
-        stopPendingJournalPoll()
-        journalAction?.isEnabled = false
-        val openingEpoch = bottomBarVisibilityEpoch
         activeWebView.evaluateJavascript(
-            "window.dispatchEvent(new Event('stark:kt-hybrid-journal')); document.documentElement.hasAttribute('data-stark-journal-opening')",
-        ) { result ->
-            if (webView != activeWebView || openingEpoch != bottomBarVisibilityEpoch) return@evaluateJavascript
-            if (result == "true") waitForJournalPanel(activeWebView) else {
-                journalAction?.isEnabled = true
+            "window.dispatchEvent(new Event('stark:kt-hybrid-journal'));",
+            null,
+        )
+    }
+
+    fun prepareSheetNavigationLayer(): JSObject {
+        val activeWebView = webView ?: return JSObject().put("active", false)
+        val bar = bottomBar ?: return JSObject().put("active", false)
+        synchronizeRoute()
+        if (bar.visibility != View.VISIBLE || bar.width <= 0 || bar.height <= 0 || activeWebView.width <= 0) {
+            return JSObject().put("active", false)
+        }
+        val bitmap = Bitmap.createBitmap(bar.width, bar.height, Bitmap.Config.ARGB_8888)
+        val encoded = try {
+            bar.draw(Canvas(bitmap))
+            ByteArrayOutputStream().use { output ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+            }
+        } finally {
+            bitmap.recycle()
+        }
+        val barPosition = IntArray(2).also(bar::getLocationOnScreen)
+        val webPosition = IntArray(2).also(activeWebView::getLocationOnScreen)
+        sheetNavigationToken += 1
+        return JSObject()
+            .put("active", true)
+            .put("token", sheetNavigationToken)
+            .put("dataUrl", "data:image/png;base64,$encoded")
+            .put("width", bar.width)
+            .put("height", bar.height)
+            .put("viewportWidth", activeWebView.width)
+            .put("left", barPosition[0] - webPosition[0])
+            .put("bottom", webPosition[1] + activeWebView.height - barPosition[1] - bar.height)
+    }
+
+    fun commitSheetNavigationLayer(token: Int, onReady: () -> Unit) {
+        val activeWebView = webView
+        if (activeWebView == null || token != sheetNavigationToken) {
+            onReady()
+            return
+        }
+        val commit = {
+            if (!isDestroyed && webView == activeWebView && token == sheetNavigationToken) {
+                navigationInWebLayer = true
                 synchronizeRoute()
             }
+            onReady()
+        }
+        // The Web image is already decoded. Wait until its frame is ready
+        // before handing off the actual native view, then start the CSS slide.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            activeWebView.postVisualStateCallback(token.toLong(), object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) = commit()
+            })
+        } else {
+            activeWebView.postOnAnimation { activeWebView.postOnAnimation { commit() } }
         }
     }
 
-    private fun stopPendingJournalPoll() {
-        pendingJournalPoll?.let(mainHandler::removeCallbacks)
-        pendingJournalPoll = null
-        journalAction?.isEnabled = true
-    }
-
-    private fun journalPanelStateScript(): String {
-        val bottomBarHeightCssPx = (bottomBar?.height ?: dp(88)) / resources.displayMetrics.density
-        return """(() => {
-            const panel = document.querySelector('.journal-overlay .journal-panel.ready');
-            if (panel && (!panel.classList.contains('visible') || panel.getBoundingClientRect().top <= window.innerHeight - $bottomBarHeightCssPx)) return 2;
-            return document.documentElement.hasAttribute('data-stark-journal-opening') ? 1 : 0;
-        })()"""
-    }
-
-    private fun waitForJournalPanel(activeWebView: WebView) {
-        stopPendingJournalPoll()
-        journalAction?.isEnabled = false
-        val openingPath = currentWebPath(activeWebView)
-        var attempts = 0
-        val poll = object : Runnable {
-            override fun run() {
-                if (webView != activeWebView || currentWebPath(activeWebView) != openingPath) {
-                    stopPendingJournalPoll()
-                    synchronizeRoute()
-                    return
-                }
-                activeWebView.evaluateJavascript(
-                    journalPanelStateScript(),
-                ) { result ->
-                    if (webView != activeWebView || pendingJournalPoll !== this) return@evaluateJavascript
-                    when (result) {
-                        "2" -> {
-                            bottomBarVisibilityEpoch += 1
-                            bottomBar?.visibility = View.GONE
-                            stopPendingJournalPoll()
-                        }
-                        "1" -> {
-                            if (++attempts < JOURNAL_OPEN_POLL_LIMIT) mainHandler.postDelayed(this, JOURNAL_OPEN_POLL_INTERVAL_MS)
-                            else stopPendingJournalPoll()
-                        }
-                        else -> {
-                            stopPendingJournalPoll()
-                            synchronizeRoute()
-                        }
-                    }
-                }
-            }
-        }
-        pendingJournalPoll = poll
-        mainHandler.post(poll)
+    fun releaseSheetNavigationLayer(token: Int) {
+        if (token != sheetNavigationToken) return
+        sheetNavigationToken += 1
+        navigationInWebLayer = false
+        synchronizeRoute()
     }
 
     private fun navigateToTab(index: Int, tab: HybridTab) {
         val activeWebView = webView ?: return
-        stopPendingJournalPoll()
-        bottomBarVisibilityEpoch += 1
         pendingPath = tab.path
         setSelectedTab(index)
 
@@ -332,14 +335,18 @@ class KtHybridActivity : MainActivity() {
                 4 -> "新增资产"
                 else -> "记账"
             }
-            val visibilityEpoch = bottomBarVisibilityEpoch
-            activeWebView.evaluateJavascript("document.querySelector('.bottom-sheet-overlay') !== null || ${journalPanelStateScript()} === 2") { result ->
-                if (webView == activeWebView && visibilityEpoch == bottomBarVisibilityEpoch && currentWebPath(activeWebView) == path) {
-                    bottomBar?.visibility = if (result == "true") View.GONE else View.VISIBLE
+            bottomBar?.visibility = if (navigationInWebLayer) View.INVISIBLE else View.VISIBLE
+            if (navigationInWebLayer) {
+                val token = sheetNavigationToken
+                // Recover only an orphaned handoff after a document reload.
+                // Animation and normal sheet dismissal never depend on polling.
+                activeWebView.evaluateJavascript("document.querySelector('[data-stark-native-bottom-bar=\"$token\"]') !== null") { result ->
+                    if (webView == activeWebView && token == sheetNavigationToken && result == "false") {
+                        releaseSheetNavigationLayer(token)
+                    }
                 }
             }
         } else {
-            bottomBarVisibilityEpoch += 1
             bottomBar?.visibility = View.GONE
         }
         if (path == pendingPath?.trimEnd('/')) {
@@ -376,7 +383,5 @@ class KtHybridActivity : MainActivity() {
     private companion object {
         const val ROUTE_FALLBACK_DELAY_MS = 1_500L
         const val ROUTE_TRACK_INTERVAL_MS = 250L
-        const val JOURNAL_OPEN_POLL_INTERVAL_MS = 32L
-        const val JOURNAL_OPEN_POLL_LIMIT = 300
     }
 }

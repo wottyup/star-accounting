@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type PropsWithChildren } from "react";
 import { createPortal } from "react-dom";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
+import { useSheetPresentation } from "@/components/stark/useSheetPresentation";
 
 const CLOSE_SETTLE_MS = 240;
 
@@ -19,6 +20,7 @@ type BottomSheetProps = PropsWithChildren<{
 export function BottomSheet({ children, title, onClose, historyMode = "marker", closeRequest, className = "", overlayClassName = "", bodyClassName = "" }: BottomSheetProps) {
   const titleId = useId();
   const [mounted, setMounted] = useState(false);
+  const layerReady = useSheetPresentation(mounted);
   const [enterReady, setEnterReady] = useState(false);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
@@ -32,15 +34,11 @@ export function BottomSheet({ children, title, onClose, historyMode = "marker", 
 
   useEffect(() => {
     setMounted(true);
-    let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => setEnterReady(true));
-    });
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      if (secondFrame) window.cancelAnimationFrame(secondFrame);
-    };
   }, []);
+
+  useEffect(() => {
+    if (layerReady && !closingRef.current) setEnterReady(true);
+  }, [layerReady]);
 
   const beginClose = useCallback(() => {
     if (closingRef.current) return;
@@ -124,7 +122,7 @@ export function BottomSheet({ children, title, onClose, historyMode = "marker", 
 
   return createPortal(
     <div
-      className={`bottom-sheet-overlay ${closing ? "is-closing" : ""} ${overlayClassName}`.trim()}
+      className={`bottom-sheet-overlay ${enterReady ? "is-ready" : ""} ${closing ? "is-closing" : ""} ${overlayClassName}`.trim()}
       onClick={(event) => {
         event.stopPropagation();
         requestClose();

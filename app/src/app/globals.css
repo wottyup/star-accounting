@@ -2317,10 +2317,14 @@ html.kt-hybrid-shell .tabs-shell {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.2);
-  backdrop-filter: blur(5px);
+  background: transparent;
   overscroll-behavior: contain;
   touch-action: pan-y;
+}
+
+.bottom-sheet-overlay.is-ready {
+  background: rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(5px);
 }
 
 .bottom-sheet-overlay.is-closing {
@@ -4467,6 +4471,14 @@ button.stark-compass-card {
 .tabs-liquid-shell .asset-ledger-card,
 .tabs-liquid-shell .account-wallet-card {
   border-color: transparent;
+}
+
+.native-bottom-nav-image {
+  position: fixed;
+  z-index: 50;
+  display: block;
+  max-width: none;
+  pointer-events: none;
 }
 
 .mobile-bottom-nav {

@@ -16,6 +16,7 @@ import { categoryIconSrcForCategory, expenseCategoryOptions } from "@/lib/stark/
 import { DateTimePicker } from "@/components/stark/DateTimePicker";
 import { ProofImageViewer } from "@/components/stark/ProofImageViewer";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
+import { useSheetPresentation } from "@/components/stark/useSheetPresentation";
 import { JournalActionDock, JournalActionTargetContext } from "@/components/stark/JournalActionDock";
 
 const SavingsPlanner = dynamic(
@@ -113,7 +114,7 @@ export function JournalPanel({
   const isSalaryPreset = variant === "journal" && preset?.type === "INCOME" && preset.category === "工资";
   const draftKind: NewEntryDraftKind = isSavings ? "savings" : isAsset ? "asset" : isLoan ? "loan" : isSalaryPreset ? "salary" : "journal";
   const [visible, setVisible] = useState(false);
-  const [sheetReady, setSheetReady] = useState(false);
+  const sheetReady = useSheetPresentation();
   const [type, setType] = useState<TransactionType>("EXPENSE");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("餐饮");
@@ -266,18 +267,8 @@ export function JournalPanel({
   }, [assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, type]);
 
   useEffect(() => {
-    let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => {
-        setSheetReady(true);
-        setVisible(true);
-      });
-    });
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      if (secondFrame) cancelAnimationFrame(secondFrame);
-    };
-  }, []);
+    if (sheetReady && !closingRef.current) setVisible(true);
+  }, [sheetReady]);
 
   useEffect(() => {
     if (!window.visualViewport) return;

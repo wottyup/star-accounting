@@ -4541,10 +4541,11 @@ button.stark-compass-card {
 .mobile-bottom-nav-item.is-pending::after {
   content: "";
   position: absolute;
-  top: 8px;
-  left: calc(50% - 17px);
-  width: 34px;
-  height: 34px;
+  inset: 0;
+  width: 38px;
+  height: 38px;
+  margin: auto;
+  box-sizing: border-box;
   border: 2px solid rgba(0, 96, 192, 0.15);
   border-top-color: #0060c0;
   border-radius: 50%;

@@ -3,9 +3,11 @@ package com.wotty.stark.web
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
@@ -173,11 +175,6 @@ class KtHybridActivity : MainActivity() {
             }
         }
 
-        fun plusLine() = GradientDrawable().apply {
-            setColor(Color.WHITE)
-            cornerRadius = dp(3).toFloat()
-        }
-
         val action = FrameLayout(this).apply {
             isClickable = true
             isFocusable = true
@@ -187,13 +184,27 @@ class KtHybridActivity : MainActivity() {
                 setColor(Color.WHITE)
             }
             elevation = dp(4).toFloat()
-            val circle = FrameLayout(this@KtHybridActivity).apply {
-                background = GradientDrawable(
-                    GradientDrawable.Orientation.TL_BR,
-                    intArrayOf(Color.rgb(118, 87, 255), Color.rgb(83, 57, 228)),
-                ).apply { shape = GradientDrawable.OVAL }
-                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(22), dp(4), Gravity.CENTER))
-                addView(View(this@KtHybridActivity).apply { background = plusLine() }, FrameLayout.LayoutParams(dp(4), dp(22), Gravity.CENTER))
+            val circle = object : View(this@KtHybridActivity) {
+                val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+                val plusPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.WHITE
+                    strokeWidth = dp(4).toFloat()
+                    strokeCap = Paint.Cap.ROUND
+                }
+
+                override fun onDraw(canvas: Canvas) {
+                    super.onDraw(canvas)
+                    val centerX = width / 2f
+                    val centerY = height / 2f
+                    fillPaint.shader = LinearGradient(
+                        0f, 0f, width.toFloat(), height.toFloat(),
+                        Color.rgb(118, 87, 255), Color.rgb(83, 57, 228), Shader.TileMode.CLAMP,
+                    )
+                    canvas.drawCircle(centerX, centerY, minOf(width, height) / 2f, fillPaint)
+                    val arm = dp(10).toFloat()
+                    canvas.drawLine(centerX - arm, centerY, centerX + arm, centerY, plusPaint)
+                    canvas.drawLine(centerX, centerY - arm, centerX, centerY + arm, plusPaint)
+                }
             }
             addView(circle, FrameLayout.LayoutParams(dp(46), dp(46), Gravity.CENTER))
             setOnClickListener { openJournalFromNative() }

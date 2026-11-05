@@ -4524,10 +4524,17 @@ button.stark-compass-card {
   padding: 0;
   border: 4px solid #ffffff;
   border-radius: 50%;
-  background: linear-gradient(145deg, #7657ff, #5339e4);
+  background: #ffffff;
   box-shadow: 0 4px 12px rgba(89, 64, 218, 0.24);
   color: #ffffff;
   transition: transform 150ms ease;
+}
+
+.mobile-bottom-nav-action svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .mobile-bottom-nav-action:active {

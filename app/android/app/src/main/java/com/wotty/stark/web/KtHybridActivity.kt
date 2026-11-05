@@ -87,7 +87,7 @@ class KtHybridActivity : MainActivity() {
         val icons = mutableListOf<ImageView>()
         tabs.forEachIndexed { index, tab ->
             if (index == 3) {
-                row.addView(View(this), LinearLayout.LayoutParams(dp(60), dp(60)))
+                row.addView(View(this), LinearLayout.LayoutParams(dp(60), dp(56)))
             }
             val image = ImageView(this).apply {
                 scaleType = ImageView.ScaleType.FIT_CENTER
@@ -106,7 +106,7 @@ class KtHybridActivity : MainActivity() {
                 addView(image, FrameLayout.LayoutParams(dp(29), dp(29), Gravity.CENTER))
                 setOnClickListener { navigateToTab(index, tab) }
             }
-            row.addView(item, LinearLayout.LayoutParams(0, dp(60), 1f))
+            row.addView(item, LinearLayout.LayoutParams(0, dp(56), 1f))
             icons.add(image)
         }
         tabIcons = icons
@@ -176,7 +176,7 @@ class KtHybridActivity : MainActivity() {
             addView(barBackground, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             addView(
                 row,
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(60), Gravity.TOP).apply { topMargin = dp(32) },
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56), Gravity.TOP).apply { topMargin = dp(32) },
             )
             addView(action, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
                 topMargin = dp(14)
@@ -186,12 +186,12 @@ class KtHybridActivity : MainActivity() {
         val content = findViewById<ViewGroup>(android.R.id.content)
         content.addView(
             bar,
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(92), Gravity.BOTTOM),
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88), Gravity.BOTTOM),
         )
         ViewCompat.setOnApplyWindowInsetsListener(bar) { view, insets ->
             val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             val params = view.layoutParams
-            params.height = dp(92) + bottomInset
+            params.height = dp(88) + bottomInset
             view.layoutParams = params
             insets
         }

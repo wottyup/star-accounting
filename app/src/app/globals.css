@@ -1245,9 +1245,15 @@ html.kt-hybrid-shell .tabs-shell {
 .stark-hero-meta-row {
   position: relative;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  gap: 8px;
+}
+
+.stark-hero-meta-row .stark-scope-selector {
+  justify-self: end;
+  max-width: 100%;
 }
 
 .stark-card-label {
@@ -1327,7 +1333,8 @@ html.kt-hybrid-shell .tabs-shell {
   min-width: 0;
 }
 
-.stark-tx-count {
+.stark-tx-count,
+.stark-cycle-range {
   color: #94a3b8;
   font-size: calc(11px * var(--user-font-scale));
 }
@@ -5015,9 +5022,9 @@ button.stark-compass-card {
 .stark-cycle-breakdown {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
   margin-top: 6px;
   color: #64748b;
   font-size: calc(10px * var(--user-font-scale));
@@ -5025,8 +5032,26 @@ button.stark-compass-card {
 }
 
 .stark-cycle-carryover {
+  grid-column: 1 / -1;
   color: #0060c0;
   font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.stark-cycle-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stark-cycle-metric-value {
+  margin-top: auto;
+  overflow-wrap: anywhere;
+}
+
+.stark-cycle-net-change {
+  grid-column: 1 / -1;
 }
 
 .reporting-year-option {
@@ -15985,6 +16010,7 @@ body .reporting-year-menu-grid button.selected {
   .stark-metric-switcher button,
   .stark-scope-selector button,
   .stark-tx-count,
+  .stark-cycle-range,
   .stark-detail-arrow,
   .stark-setting-pill,
   .stark-cycle-breakdown,
@@ -16250,9 +16276,10 @@ body .reporting-year-menu-grid button.selected {
 }
 
 @media (max-width: 370px) {
-  .stark-home-layout .stark-hero-toolbar,
-  .stark-home-layout .stark-hero-meta-row {
-    flex-wrap: wrap;
+  .stark-home-layout .stark-hero-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
     gap: 8px;
   }
 
@@ -16606,10 +16633,14 @@ html.showcase-demo .mobile-bottom-nav-icon {
 
 @media (max-width: 370px) {
   html.showcase-demo .stark-hero-toolbar {
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 3px;
     padding-right: 3px;
     padding-left: 3px;
+  }
+
+  html.showcase-demo .stark-metric-switcher {
+    justify-self: start;
   }
 
   html.showcase-demo .stark-period-badge {

@@ -375,12 +375,27 @@ function StarkCrystalHero({
                   : translateValue("待录入工资", locale)}
               </span>
             ) : null}
-            <span>{translateValue(balanceMode === "salary" ? "收入" : "月收入", locale)} ¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleIncome : summary.income)}</span>
-            <span>{translateValue(balanceMode === "salary" ? "消费" : "月消费", locale)} ¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleExpense : summary.expense)}</span>
-            <span>{translateValue("储蓄", locale)} ¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleSavings : summary.forecast.monthSavings)}</span>
-            <span>{translateValue("还款", locale)} ¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleRepayment : summary.forecast.monthRepayment)}</span>
+            <span className="stark-cycle-metric">
+              <span>{translateValue(balanceMode === "salary" ? "收入" : "月收入", locale)}</span>
+              <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleIncome : summary.income)}</span>
+            </span>
+            <span className="stark-cycle-metric">
+              <span>{translateValue(balanceMode === "salary" ? "消费" : "月消费", locale)}</span>
+              <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleExpense : summary.expense)}</span>
+            </span>
+            <span className="stark-cycle-metric">
+              <span>{translateValue("储蓄", locale)}</span>
+              <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleSavings : summary.forecast.monthSavings)}</span>
+            </span>
+            <span className="stark-cycle-metric">
+              <span>{translateValue("还款", locale)}</span>
+              <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleRepayment : summary.forecast.monthRepayment)}</span>
+            </span>
             {balanceMode === "salary" && summary.forecast.hasBalanceBaseline ? (
-              <span>{translateValue("本期净变动", locale)} {summary.forecast.salaryCycleNetChange < 0 ? "-¥" : "¥"}{formatMoney(Math.abs(summary.forecast.salaryCycleNetChange))}</span>
+              <span className="stark-cycle-metric stark-cycle-net-change">
+                <span>{translateValue("本期净变动", locale)}</span>
+                <span className="stark-cycle-metric-value">{summary.forecast.salaryCycleNetChange < 0 ? "-¥" : "¥"}{formatMoney(Math.abs(summary.forecast.salaryCycleNetChange))}</span>
+              </span>
             ) : null}
           </div>
         ) : null}
@@ -391,8 +406,14 @@ function StarkCrystalHero({
               {locale === "en-US"
                 ? `${activeMetric === "balance" && balanceMode === "salary" ? summary.forecast.cycleTransactionCount : transactionCount} entries`
                 : `共 ${activeMetric === "balance" && balanceMode === "salary" ? summary.forecast.cycleTransactionCount : transactionCount} 笔记账`}
-              {activeMetric === "balance" && balanceMode === "salary" ? ` · ${summary.forecast.salaryCycleRangeLabel}` : ""}
             </span>
+            {activeMetric === "balance" && balanceMode === "salary" ? (
+              <span className="stark-cycle-range">
+                {locale === "en-US"
+                  ? summary.forecast.salaryCycleRangeLabel.replace(" 至 ", " – ")
+                  : summary.forecast.salaryCycleRangeLabel}
+              </span>
+            ) : null}
             {activeMetric === "balance" && balanceMode === "salary" ? (
               <button
                 type="button"

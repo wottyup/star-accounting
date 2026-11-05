@@ -6359,8 +6359,8 @@ button.stark-compass-card {
 @media (max-width: 430px) {
   .savings-dashboard-page .savings-recent-row {
     grid-template-columns: 30px minmax(0, 1fr);
-    gap: 5px 8px;
-    padding: 10px;
+    gap: 3px 8px;
+    padding: 7px 9px;
   }
 
   .savings-dashboard-page .savings-recent-icon {

@@ -141,33 +141,25 @@ class KtHybridActivity : MainActivity() {
             override fun onDraw(canvas: Canvas) {
                 super.onDraw(canvas)
                 val density = resources.displayMetrics.density
-                val assetWidth = width.toFloat().coerceIn(390f * density, 430f * density)
-                val humpScale = assetWidth * (467f / 2011f) / 100f
-                val humpStart = width / 2f - 50f * humpScale
-                fun x(value: Float) = humpStart + value * humpScale
-                fun y(value: Float) = value * density
+                val barTop = 32f * density
+                val corner = 7f * density
+                val bumpWidth = (width * 0.24f).coerceIn(90f * density, 103f * density)
+                val bumpHeight = bumpWidth * 136f / 440f
+                val bumpLeft = (width - bumpWidth) / 2f
+                val bumpTop = barTop - bumpHeight
+                fun x(value: Float) = bumpLeft + value * bumpWidth / 440f
+                fun y(value: Float) = bumpTop + value * bumpHeight / 136f
                 val outline = Path().apply {
                     moveTo(0f, height.toFloat())
-                    lineTo(0f, y(37f))
-                    quadTo(0f, y(30f), y(7f), y(30f))
-                    lineTo(x(0f), y(30f))
-                    lineTo(x(1.9f), y(29.8f))
-                    quadTo(x(8.2f), y(28.5f), x(12.3f), y(25f))
-                    lineTo(x(13.8f), y(23.7f))
-                    lineTo(x(17f), y(20.1f))
-                    lineTo(x(23.8f), y(11.3f))
-                    quadTo(x(26.9f), y(7.9f), x(30.9f), y(5.2f))
-                    quadTo(x(37.2f), y(1f), x(46.5f), y(0f))
-                    lineTo(x(51.8f), y(0f))
-                    quadTo(x(61.3f), y(0.9f), x(67.7f), y(5f))
-                    lineTo(x(72.1f), y(8.1f))
-                    lineTo(x(75.8f), y(11.8f))
-                    lineTo(x(83f), y(21f))
-                    lineTo(x(86.4f), y(24.5f))
-                    quadTo(x(90.7f), y(28.5f), x(97.4f), y(29.8f))
-                    lineTo(x(100f), y(30f))
-                    lineTo(width.toFloat() - y(7f), y(30f))
-                    quadTo(width.toFloat(), y(30f), width.toFloat(), y(37f))
+                    lineTo(0f, barTop + corner)
+                    quadTo(0f, barTop, corner, barTop)
+                    lineTo(x(0f), y(136f))
+                    cubicTo(x(58f), y(136f), x(65f), y(117f), x(92f), y(77f))
+                    cubicTo(x(124f), y(28f), x(162f), y(0f), x(220f), y(0f))
+                    cubicTo(x(278f), y(0f), x(316f), y(28f), x(348f), y(77f))
+                    cubicTo(x(375f), y(117f), x(382f), y(136f), x(440f), y(136f))
+                    lineTo(width.toFloat() - corner, barTop)
+                    quadTo(width.toFloat(), barTop, width.toFloat(), barTop + corner)
                     lineTo(width.toFloat(), height.toFloat())
                     close()
                 }
@@ -218,22 +210,22 @@ class KtHybridActivity : MainActivity() {
             addView(barBackground, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             addView(
                 row,
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64), Gravity.TOP).apply { topMargin = dp(30) },
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64), Gravity.TOP).apply { topMargin = dp(32) },
             )
             addView(action, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-                topMargin = dp(6)
+                topMargin = dp(8)
             })
         }
         bottomBar = bar
         val content = findViewById<ViewGroup>(android.R.id.content)
         content.addView(
             bar,
-            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(94), Gravity.BOTTOM),
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(96), Gravity.BOTTOM),
         )
         ViewCompat.setOnApplyWindowInsetsListener(bar) { view, insets ->
             val bottomInset = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             val params = view.layoutParams
-            params.height = dp(94) + bottomInset
+            params.height = dp(96) + bottomInset
             view.layoutParams = params
             insets
         }

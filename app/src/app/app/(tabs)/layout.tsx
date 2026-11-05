@@ -27,8 +27,21 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   const isAssetsRoute = pathname.startsWith("/app/assets");
   const isLoansRoute = pathname.startsWith("/app/loans");
   const [journalVariant, setJournalVariant] = useState<"journal" | "savings" | "asset" | "loan" | null>(null);
-  const dismissJournal = useCallback(() => setJournalVariant(null), []);
+  const journalOpenPathRef = useRef<string | null>(null);
+  const dismissJournal = useCallback(() => {
+    journalOpenPathRef.current = null;
+    document.documentElement.removeAttribute("data-stark-journal-opening");
+    setJournalVariant(null);
+  }, []);
   const consumeJournalHistory = useLayeredHistoryMarker(Boolean(journalVariant), "starkJournal", dismissJournal);
+
+  useEffect(() => () => {
+    document.documentElement.removeAttribute("data-stark-journal-opening");
+  }, []);
+
+  useEffect(() => {
+    if (journalOpenPathRef.current !== null && pathname !== journalOpenPathRef.current) dismissJournal();
+  }, [dismissJournal, pathname]);
 
   useEffect(() => {
     if (!navigator.userAgent.includes("WottyStarkKtHybrid")) return;
@@ -58,10 +71,12 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   }, [ktHybridShell, router]);
 
   const openJournal = useCallback(() => {
-    void preloadJournalPanel();
+    journalOpenPathRef.current = pathname;
+    document.documentElement.setAttribute("data-stark-journal-opening", "true");
     const variant = isLoansRoute ? "loan" : isAssetsRoute ? "asset" : isSavingsRoute ? "savings" : "journal";
     setJournalVariant(variant);
-  }, [isAssetsRoute, isLoansRoute, isSavingsRoute]);
+    void preloadJournalPanel().catch(dismissJournal);
+  }, [dismissJournal, isAssetsRoute, isLoansRoute, isSavingsRoute, pathname]);
 
   useEffect(() => {
     if (!ktHybridShell) return;

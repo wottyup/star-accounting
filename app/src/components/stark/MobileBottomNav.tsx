@@ -161,7 +161,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                   className="mobile-bottom-nav-action"
                   aria-label={journalLabel}
                   title={journalLabel}
-                  onPointerDown={() => void preloadJournalPanel()}
+                  onPointerDown={() => { void preloadJournalPanel().catch(() => undefined); }}
                   onClick={onOpenJournal}
                 >
                   <svg viewBox="0 0 46 46" aria-hidden="true">

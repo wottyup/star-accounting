@@ -4479,6 +4479,11 @@ button.stark-compass-card {
   background: #ffffff;
 }
 
+html[data-stark-journal-opening] .mobile-bottom-nav {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .mobile-bottom-nav-hump {
   position: absolute;
   bottom: calc(100% - 1px);

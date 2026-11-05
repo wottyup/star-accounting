@@ -41,6 +41,8 @@ class KtHybridActivity : MainActivity() {
     private var bottomBar: FrameLayout? = null
     private var tabIcons: List<ImageView> = emptyList()
     private var journalAction: View? = null
+    private var journalOpening = false
+    private var bottomBarVisibilityEpoch = 0
     private var pendingPath: String? = null
     private var fallbackNavigation: Runnable? = null
     private val routeTracker = object : Runnable {
@@ -205,7 +207,18 @@ class KtHybridActivity : MainActivity() {
     }
 
     private fun openJournalFromNative() {
-        webView?.evaluateJavascript("window.dispatchEvent(new Event('stark:kt-hybrid-journal'));", null)
+        val activeWebView = webView ?: return
+        journalOpening = true
+        bottomBarVisibilityEpoch += 1
+        bottomBar?.visibility = View.GONE
+        activeWebView.evaluateJavascript(
+            "window.dispatchEvent(new Event('stark:kt-hybrid-journal')); document.documentElement.hasAttribute('data-stark-journal-opening')",
+        ) { result ->
+            if (webView != activeWebView) return@evaluateJavascript
+            journalOpening = false
+            bottomBarVisibilityEpoch += 1
+            if (result != "true") synchronizeRoute()
+        }
     }
 
     private fun navigateToTab(index: Int, tab: HybridTab) {
@@ -259,12 +272,14 @@ class KtHybridActivity : MainActivity() {
                 4 -> "新增资产"
                 else -> "记账"
             }
-            activeWebView.evaluateJavascript("document.querySelector('.journal-overlay, .bottom-sheet-overlay') !== null") { result ->
-                if (webView == activeWebView) {
-                    bottomBar?.visibility = if (result == "true") View.GONE else View.VISIBLE
+            val visibilityEpoch = bottomBarVisibilityEpoch
+            activeWebView.evaluateJavascript("document.documentElement.hasAttribute('data-stark-journal-opening') || document.querySelector('.journal-overlay, .bottom-sheet-overlay') !== null") { result ->
+                if (webView == activeWebView && visibilityEpoch == bottomBarVisibilityEpoch && currentWebPath(activeWebView) == path) {
+                    bottomBar?.visibility = if (journalOpening || result == "true") View.GONE else View.VISIBLE
                 }
             }
         } else {
+            bottomBarVisibilityEpoch += 1
             bottomBar?.visibility = View.GONE
         }
         if (path == pendingPath?.trimEnd('/')) {

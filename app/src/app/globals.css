@@ -1240,13 +1240,11 @@ html.kt-hybrid-shell .tabs-shell {
 }
 
 .stark-card-watermark {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: clamp(20px, 7vw, 48px);
-  font-size: clamp(20px, 7cqw, 48px);
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: calc(48px * var(--user-font-scale));
   font-weight: 800;
   font-style: italic;
   letter-spacing: -2px;
@@ -1314,16 +1312,13 @@ html.kt-hybrid-shell .tabs-shell {
   z-index: 1;
   display: flex;
   align-items: baseline;
-  gap: 8px;
   min-width: 0;
   margin: 1px 0;
-  container-type: inline-size;
 }
 
 .stark-big-amount {
   position: relative;
   z-index: 1;
-  flex: 0 0 auto;
   max-width: 100%;
   font-size: calc(32px * var(--user-font-scale));
   font-weight: 750;
@@ -16691,6 +16686,10 @@ html.showcase-demo .stark-hero-card {
   min-height: 116px;
   gap: 6px;
   padding: 10px 12px;
+}
+
+html.showcase-demo .stark-card-watermark {
+  font-size: 40px;
 }
 
 html.showcase-demo .stark-big-amount {

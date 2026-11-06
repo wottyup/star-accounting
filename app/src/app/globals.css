@@ -4500,8 +4500,9 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   bottom: calc(100% - 1px);
   left: 50%;
   display: block;
-  width: clamp(74px, 19vw, 84px);
-  aspect-ratio: 440 / 104;
+  /* Extend the shoulders without raising the center arc. */
+  width: clamp(86px, 22vw, 96px);
+  height: clamp(17.5px, 4.49vw, 19.85px);
   background: url("./bottom-nav-bump.svg") center bottom / 100% 100% no-repeat;
   transform: translateX(-50%);
   pointer-events: none;

@@ -128,8 +128,9 @@ class KtHybridActivity : MainActivity() {
                 val density = resources.displayMetrics.density
                 val barTop = 32f * density
                 val corner = 7f * density
-                val bumpWidth = (width * 0.19f).coerceIn(74f * density, 84f * density)
-                val bumpHeight = bumpWidth * 104f / 440f
+                // Extend the shoulders without raising the center arc.
+                val bumpWidth = (width * 0.22f).coerceIn(86f * density, 96f * density)
+                val bumpHeight = (width * 0.19f).coerceIn(74f * density, 84f * density) * 104f / 440f
                 val bumpLeft = (width - bumpWidth) / 2f
                 val bumpTop = barTop - bumpHeight
                 fun x(value: Float) = bumpLeft + value * bumpWidth / 440f

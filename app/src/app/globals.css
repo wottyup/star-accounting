@@ -4501,7 +4501,7 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   left: 50%;
   display: block;
   /* Extend the shoulders without raising the center arc. */
-  width: clamp(86px, 22vw, 96px);
+  width: clamp(94px, 24vw, 106px);
   height: clamp(17.5px, 4.49vw, 19.85px);
   background: url("./bottom-nav-bump.svg") center bottom / 100% 100% no-repeat;
   transform: translateX(-50%);

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -47,6 +47,7 @@ jobs:
 
           (cd "$output_dir" && sha256sum "$archive_name" > "$archive_name.sha256")
           printf 'artifact_name=%s\n' "${archive_name%.tar.gz}" >> "$GITHUB_OUTPUT"
+          printf 'archive_name=%s\n' "$archive_name" >> "$GITHUB_OUTPUT"
           printf 'output_dir=%s\n' "$output_dir" >> "$GITHUB_OUTPUT"
 
       - name: Upload Docker image package
@@ -57,3 +58,25 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 90
+
+      - name: Attach image package to GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCHIVE_NAME: ${{ steps.archive.outputs.archive_name }}
+          OUTPUT_DIR: ${{ steps.archive.outputs.output_dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release upload "$GITHUB_REF_NAME" \
+                "$OUTPUT_DIR/$ARCHIVE_NAME" \
+                "$OUTPUT_DIR/$ARCHIVE_NAME.sha256" \
+                --repo "$GITHUB_REPOSITORY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Android release was not created within 15 minutes" >&2
+          exit 1

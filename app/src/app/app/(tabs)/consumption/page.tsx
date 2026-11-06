@@ -292,18 +292,20 @@ export default function ConsumptionPage() {
     };
   }, [accountOpen, accountOptions.length, categoryOpen, categoryOptions.length]);
 
-  const filteredTransactions = useMemo(() => {
+  const scopedTransactions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return monthTransactions.filter((item) => {
-      const matchesMode = viewMode === "all"
-        || (viewMode === "expense" && effectiveType(item) === "EXPENSE")
-        || (viewMode === "income" && item.type === "INCOME");
       const matchesCategory = categoryFilter === "全部分类" || effectiveCategory(item) === categoryFilter;
       const matchesPlatform = platformFilter === "全部账户" || normalizeConsumptionPlatform(item.platform) === platformFilter;
       const text = `${effectiveCategory(item)} ${item.category} ${item.merchant || ""} ${item.description || ""} ${item.platform}`.toLowerCase();
-      return matchesMode && matchesCategory && matchesPlatform && (!normalizedQuery || text.includes(normalizedQuery));
+      return matchesCategory && matchesPlatform && (!normalizedQuery || text.includes(normalizedQuery));
     });
-  }, [categoryFilter, monthTransactions, platformFilter, query, viewMode]);
+  }, [categoryFilter, monthTransactions, platformFilter, query]);
+
+  const filteredTransactions = useMemo(() => scopedTransactions.filter((item) => viewMode === "all"
+    || (viewMode === "expense" && effectiveType(item) === "EXPENSE")
+    || (viewMode === "income" && item.type === "INCOME")), [scopedTransactions, viewMode]);
+  const scopeIsFiltered = Boolean(query.trim()) || categoryFilter !== "全部分类" || platformFilter !== "全部账户";
 
   const chartTransactions = useMemo(() => toAnalysisTransactions(filteredTransactions), [filteredTransactions]);
   // The shared chart helpers are expense-oriented. Project income entries as
@@ -317,14 +319,14 @@ export default function ConsumptionPage() {
   );
 
   const monthSummary = useMemo(() => {
-    const expenses = monthTransactions.filter((item) => effectiveType(item) === "EXPENSE");
-    const income = monthTransactions.filter((item) => item.type === "INCOME");
+    const expenses = scopedTransactions.filter((item) => effectiveType(item) === "EXPENSE");
+    const income = scopedTransactions.filter((item) => item.type === "INCOME");
     const primaryTransactions = viewMode === "income" ? income : expenses;
     const categoryTotals = primaryTransactions.reduce<Record<string, number>>((totals, item) => {
       totals[effectiveCategory(item)] = (totals[effectiveCategory(item)] ?? 0) + item.amount;
       return totals;
     }, {});
-    const [topCategory = "暂无支出", topCategoryAmount = 0] = Object.entries(categoryTotals)
+    const [topCategory = viewMode === "income" ? "暂无收入" : "暂无支出", topCategoryAmount = 0] = Object.entries(categoryTotals)
       .sort((a, b) => b[1] - a[1])[0] ?? [];
     const expense = expenses.reduce((sum, item) => sum + item.amount, 0);
     const incomeTotal = income.reduce((sum, item) => sum + item.amount, 0);
@@ -334,7 +336,7 @@ export default function ConsumptionPage() {
       income: incomeTotal,
       primaryAmount,
       balance: incomeTotal - expense,
-      count: monthTransactions.length,
+      count: scopedTransactions.length,
       expenseCount: expenses.length,
       topCategory,
       topCategoryAmount,
@@ -343,19 +345,19 @@ export default function ConsumptionPage() {
         1,
       ),
     };
-  }, [monthTransactions, reportingMonth, viewMode]);
+  }, [scopedTransactions, reportingMonth, viewMode]);
 
   const platformSummary = useMemo(() => {
     const targetType = viewMode === "income" ? "INCOME" : "EXPENSE";
-    const calc = (items: Transaction[]) => ({
-      expense: items.filter((i) => effectiveType(i) === targetType).reduce((s, i) => s + i.amount, 0),
-      count: items.filter((i) => effectiveType(i) === targetType).length,
-    });
-    return {
-      wechat: calc(monthTransactions.filter((item) => normalizeConsumptionPlatform(item.platform) === "微信")),
-      alipay: calc(monthTransactions.filter((item) => normalizeConsumptionPlatform(item.platform) === "支付宝")),
+    const calc = (items: Transaction[]) => {
+      const matching = items.filter((item) => effectiveType(item) === targetType);
+      return { amount: matching.reduce((sum, item) => sum + item.amount, 0), count: matching.length };
     };
-  }, [monthTransactions, viewMode]);
+    return {
+      wechat: calc(scopedTransactions.filter((item) => normalizeConsumptionPlatform(item.platform) === "微信")),
+      alipay: calc(scopedTransactions.filter((item) => normalizeConsumptionPlatform(item.platform) === "支付宝")),
+    };
+  }, [scopedTransactions, viewMode]);
 
   const charts = useMemo(
     () => buildHomeSummary({ transactions: chartTransactions, assets: [], budgets: [], loans: [], savingsGoals: [], reportingMonth }),
@@ -431,16 +433,16 @@ export default function ConsumptionPage() {
         <div className="consumption-overview-stats">
           <div><span>{locale === "en-US" ? (viewMode === "income" ? "Daily average income" : "Daily average spending") : (viewMode === "income" ? "日均收入" : "日均支出")}</span><strong>¥ {formatMoney(monthSummary.dailyAverage)}</strong></div>
           <div><span>{locale === "en-US" ? "Selected-period income" : "筛选期收入"}</span><strong>¥ {formatMoney(monthSummary.income)}</strong></div>
-          <div><span>{locale === "en-US" ? "Current balance" : "当前结余"}</span><strong className={monthSummary.balance >= 0 ? "positive" : "negative"}>{monthSummary.balance < 0 ? "-¥ " : "¥ "}{formatMoney(Math.abs(monthSummary.balance))}</strong></div>
+          <div><span>{locale === "en-US" ? (scopeIsFiltered ? "Filtered balance" : "Current balance") : (scopeIsFiltered ? "筛选结余" : "当前结余")}</span><strong className={monthSummary.balance >= 0 ? "positive" : "negative"}>{monthSummary.balance < 0 ? "-¥ " : "¥ "}{formatMoney(Math.abs(monthSummary.balance))}</strong></div>
         </div>
       </section>
 
       <section className="consumption-deep-summary">
-        <div><span>{translateValue("微信", locale)} {locale === "en-US" ? "spending" : "支出"}</span><strong>¥ {formatMoney(platformSummary.wechat.expense)}</strong><small>{formatCount(platformSummary.wechat.count, "transactions", locale)}</small></div>
-        <div><span>{translateValue("支付宝", locale)} {locale === "en-US" ? "spending" : "支出"}</span><strong>¥ {formatMoney(platformSummary.alipay.expense)}</strong><small>{formatCount(platformSummary.alipay.count, "transactions", locale)}</small></div>
+        <div><span>{translateValue("微信", locale)} {locale === "en-US" ? (viewMode === "income" ? "income" : "spending") : (viewMode === "income" ? "收入" : "支出")}</span><strong>¥ {formatMoney(platformSummary.wechat.amount)}</strong><small>{formatCount(platformSummary.wechat.count, "transactions", locale)}</small></div>
+        <div><span>{translateValue("支付宝", locale)} {locale === "en-US" ? (viewMode === "income" ? "income" : "spending") : (viewMode === "income" ? "收入" : "支出")}</span><strong>¥ {formatMoney(platformSummary.alipay.amount)}</strong><small>{formatCount(platformSummary.alipay.count, "transactions", locale)}</small></div>
       </section>
 
-      {viewMode !== "income" ? <RemarkedExpenseCard transactions={monthTransactions} locale={locale} /> : null}
+      {viewMode !== "income" ? <RemarkedExpenseCard transactions={filteredTransactions} locale={locale} /> : null}
 
       <section className={"consumption-filter-card" + (categoryOpen || accountOpen ? " is-category-open" : "")}>
         <div className="consumption-mode-tabs" role="tablist" aria-label={locale === "en-US" ? "Transaction type" : "收支类型"}>

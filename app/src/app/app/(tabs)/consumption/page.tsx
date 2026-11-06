@@ -120,7 +120,6 @@ export default function ConsumptionPage() {
   const [platformFilter, setPlatformFilter] = useState("全部账户");
   const [query, setQuery] = useState("");
   const [detailQuery, setDetailQuery] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [filterMenuReady, setFilterMenuReady] = useState(false);
@@ -140,12 +139,6 @@ export default function ConsumptionPage() {
     consumeFilterHistory();
     dismissFilters();
   }, [consumeFilterHistory, dismissFilters]);
-  const focusBillSearch = useCallback(() => {
-    const input = searchInputRef.current;
-    if (!input) return;
-    input.scrollIntoView({ block: "center" });
-    input.focus({ preventScroll: true });
-  }, []);
 
   useEffect(() => {
     setReportingMonth(getSelectedReportMonth());
@@ -415,7 +408,7 @@ export default function ConsumptionPage() {
 
   return (
     <div className="page-stack consumption-page consumption-analysis-page">
-      <PageTopBar title="消费分析" onSearch={focusBillSearch} />
+      <PageTopBar title="消费分析" />
 
       <section className="consumption-overview-card">
         <div className="consumption-overview-head">
@@ -604,7 +597,7 @@ export default function ConsumptionPage() {
           </div>
           <label className="consumption-search-wrap">
             <SearchIcon />
-            <input id="bill-search" ref={searchInputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={locale === "en-US" ? "Search merchant or note" : "搜索商户或备注"} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={locale === "en-US" ? "Search merchant or note" : "搜索商户或备注"} />
           </label>
         </div>
       </section>

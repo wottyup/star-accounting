@@ -11,8 +11,7 @@ export type SettingPictogramType =
   | "HELP"
   | "ABOUT"
   | "MODE"
-  | "UPDATE"
-  | "UPDATE_SOURCE";
+  | "UPDATE";
 
 const artwork: Record<SettingPictogramType, ReactNode> = {
   ACCOUNT: <>
@@ -87,13 +86,6 @@ const artwork: Record<SettingPictogramType, ReactNode> = {
     <path d="M14.5 12v7m0 0-3-3m3 3 3-3M9.5 22h10" fill="none" stroke="#FFFFFF" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
     <circle cx="25.5" cy="24.5" r="4.7" fill="#55C68F" />
     <path d="m23.4 24.4 1.4 1.4 2.6-2.8" fill="none" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </>,
-  UPDATE_SOURCE: <>
-    <rect x="2.5" y="5" width="27" height="20" rx="4" fill="#4D94CC" />
-    <rect x="5" y="8" width="22" height="14" rx="2" fill="#FFFFFF" />
-    <path d="M11 28h10M16 25v3" fill="none" stroke="#4D94CC" strokeWidth="2.4" strokeLinecap="round" />
-    <path d="M10 14.3a8.7 8.7 0 0 1 12 0M12.8 17a4.8 4.8 0 0 1 6.4 0" fill="none" stroke="#38B799" strokeWidth="2.1" strokeLinecap="round" />
-    <circle cx="16" cy="19.2" r="1.5" fill="#38B799" />
   </>,
 };
 

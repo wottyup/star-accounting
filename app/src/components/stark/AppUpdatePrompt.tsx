@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { usePathname } from "next/navigation";
 import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
-import { readLanUpdateUrl } from "@/lib/stark/lan-update";
 import { setAppUpdateAvailable } from "@/lib/stark/app-update-status";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 
@@ -27,7 +26,6 @@ type NativeDownloadProgress = {
 };
 type NativeAppUpdate = {
   getInstalledVersion(): Promise<{ versionCode: number; versionName: string }>;
-  getLanUpdateManifest(options: { url: string }): Promise<AppVersionInfo>;
   downloadAndInstall(options: { url: string; versionCode: number }): Promise<{ installationStarted: boolean }>;
   openDownloadInBrowser(options: { url: string }): Promise<{ opened: boolean }>;
   addListener(eventName: "downloadProgress", listener: (progress: NativeDownloadProgress) => void): Promise<PluginListenerHandle>;
@@ -43,24 +41,6 @@ const initialDownload: DownloadState = {
   message: null,
 };
 const CHECK_TIMEOUT_MS = 30_000;
-const LAN_UPDATE_CONNECTION_ERROR = "无法连接局域网版本服务，请检查手机网络和地址。";
-const LAN_UPDATE_USER_ERROR_PREFIXES = [
-  "请输入有效的局域网版本接口地址。",
-  "局域网版本接口返回 HTTP ",
-  "版本信息过大。",
-  "局域网版本信息不是有效 JSON。",
-  "局域网版本信息缺少版本号或安装包地址。",
-  "安装包须与局域网版本接口位于同一地址和端口。",
-  "无法读取当前安装版本，请稍后重试。",
-];
-
-function lanUpdateErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message.trim() : "";
-  return LAN_UPDATE_USER_ERROR_PREFIXES.some((prefix) => message.startsWith(prefix))
-    ? message
-    : LAN_UPDATE_CONNECTION_ERROR;
-}
-
 function isAppVersionInfo(value: unknown): value is AppVersionInfo {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<AppVersionInfo>;
@@ -197,15 +177,9 @@ export function AppUpdatePrompt() {
           throw new Error("Invalid installed app version");
         }
         if (!cancelled && requestId === checkRequestIdRef.current) setInstalledVersionName(installed.versionName);
-        const lanUrl = readLanUpdateUrl();
-        let responseInfo: unknown;
-        if (lanUrl) {
-          responseInfo = await nativeAppUpdate.getLanUpdateManifest({ url: lanUrl });
-        } else {
-          const response = await fetch(APP_UPDATE_URL, { signal: controller.signal, cache: "no-store" });
-          if (!response.ok) throw new Error("版本服务暂时不可用。");
-          responseInfo = await response.json();
-        }
+        const response = await fetch(APP_UPDATE_URL, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("版本服务暂时不可用。");
+        const responseInfo: unknown = await response.json();
         if (cancelled || requestId !== checkRequestIdRef.current) return;
         if (!isAppVersionInfo(responseInfo)) throw new Error("Invalid app version manifest");
         // A shared manifest must never offer another edition's APK.
@@ -227,14 +201,12 @@ export function AppUpdatePrompt() {
         } else if (canShowManualResult()) {
           setNotice({ title: "已是最新版本", message: "当前 App 版本为 " + installed.versionName + "。" });
         }
-      } catch (error) {
+      } catch {
         if (cancelled || requestId !== checkRequestIdRef.current || silentCheckAbortRef.current.has(controller)) return;
         setAppUpdateAvailable(false);
         if (canShowManualResult() && !cancelled) setNotice({
           title: "版本检查失败",
-          message: readLanUpdateUrl()
-            ? lanUpdateErrorMessage(error)
-            : "暂时无法连接版本服务，请稍后重试。",
+          message: "暂时无法连接版本服务，请稍后重试。",
         });
         // Version checks are optional and must never block the app.
       } finally {
@@ -248,21 +220,7 @@ export function AppUpdatePrompt() {
       if (document.querySelector(".settings-center-page") === null) return;
       void checkForUpdate(true);
     }
-    function handleSourceChange() {
-      if (manualPromptPathRef.current !== null) {
-        cancelPendingCheck();
-        manualPromptPathRef.current = null;
-        setManualPromptPath(null);
-        setChecking(false);
-        setNotice(null);
-        setUpdate(null);
-      }
-      setAppUpdateAvailable(false);
-      void checkForUpdate(false);
-    }
-
     window.addEventListener("stark:check-app-update", handleManualCheck);
-    window.addEventListener("stark:update-source-change", handleSourceChange);
     void checkForUpdate(false);
     return () => {
       cancelled = true;
@@ -274,7 +232,6 @@ export function AppUpdatePrompt() {
       }
       checkAbortRef.current = null;
       window.removeEventListener("stark:check-app-update", handleManualCheck);
-      window.removeEventListener("stark:update-source-change", handleSourceChange);
     };
   }, [cancelPendingCheck]);
 

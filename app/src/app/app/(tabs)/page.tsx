@@ -9,6 +9,7 @@ import { REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/
 import { EChartView } from "@/components/stark/EChartView";
 import { loadAvailableTransactionMonths, resolveAvailableReportingMonth } from "@/lib/stark/repository/transaction-months";
 import { Skeleton } from "@/components/stark/Skeleton";
+import { TopBarSearchAction } from "@/components/stark/PageTopBar";
 import { MonthPicker } from "@/components/stark/MonthPicker";
 import { BottomSheet } from "@/components/stark/BottomSheet";
 import { BudgetManagementSheet } from "@/components/stark/BudgetManagementSheet";
@@ -34,15 +35,6 @@ function IconBase({ children, size = 24, color = "currentColor", strokeWidth = 2
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {children}
     </svg>
-  );
-}
-
-function SearchIcon(props: IconProps) {
-  return (
-    <IconBase {...props}>
-      <circle cx="11" cy="11" r="7" />
-      <path d="m16.5 16.5 4 4" />
-    </IconBase>
   );
 }
 
@@ -116,14 +108,6 @@ function CompassIcon(props: IconProps) {
       <circle cx="12" cy="12" r="10" />
       <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
     </IconBase>
-  );
-}
-
-function HeaderAction({ children, label }: PropsWithChildren<{ label: string }>) {
-  return (
-    <button type="button" className="home-header-action" aria-label={label} title={label}>
-      {children}
-    </button>
   );
 }
 
@@ -1439,9 +1423,7 @@ export function HomeDashboard() {
           <span />
           <h1>首页</h1>
           <div className="home-actions">
-            <HeaderAction label="搜索">
-              <SearchIcon size={24} strokeWidth={1.8} />
-            </HeaderAction>
+            <TopBarSearchAction />
           </div>
         </header>
         <Skeleton className="skeleton-hero" />
@@ -1458,9 +1440,7 @@ export function HomeDashboard() {
           <span />
           <h1>首页</h1>
           <div className="home-actions">
-            <HeaderAction label="搜索">
-              <SearchIcon size={24} strokeWidth={1.8} />
-            </HeaderAction>
+            <TopBarSearchAction />
           </div>
         </header>
         <section className="home-data-error" role="alert">
@@ -1482,9 +1462,7 @@ export function HomeDashboard() {
         <span />
         <h1>首页</h1>
         <div className="home-actions">
-          <HeaderAction label="搜索">
-            <SearchIcon size={24} strokeWidth={1.8} />
-          </HeaderAction>
+          <TopBarSearchAction />
         </div>
       </header>
 

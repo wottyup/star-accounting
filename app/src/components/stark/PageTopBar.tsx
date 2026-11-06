@@ -1,6 +1,7 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
+import Link from "next/link";
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number };
 
@@ -21,11 +22,22 @@ function SearchIcon(props: IconProps) {
   );
 }
 
-function HeaderAction({ children, label }: PropsWithChildren<{ label: string }>) {
+export function TopBarSearchAction() {
   return (
-    <button type="button" className="home-header-action" aria-label={label} title={label}>
-      {children}
-    </button>
+    <Link
+      href="/app/consumption#bill-search"
+      className="home-header-action"
+      aria-label="搜索"
+      title="搜索"
+      onClick={(event) => {
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        if (!window.location.pathname.replace(/\/$/, "").endsWith("/app/consumption")) return;
+        event.preventDefault();
+        window.dispatchEvent(new Event("stark:focus-bill-search"));
+      }}
+    >
+      <SearchIcon size={24} strokeWidth={1.8} />
+    </Link>
   );
 }
 
@@ -35,7 +47,7 @@ export function PageTopBar({ title }: { title: string }) {
       <span />
       <h1>{title}</h1>
       <div className="home-actions">
-        <HeaderAction label="搜索"><SearchIcon size={24} strokeWidth={1.8} /></HeaderAction>
+        <TopBarSearchAction />
       </div>
     </header>
   );

@@ -434,7 +434,7 @@ func (store *Store) ImportTransactions(context context.Context, accountID, userI
 		}
 	}()
 
-	existingOrderIDs, err := transactionOrderIDs(context, transaction, accountID)
+	existingTransactionIDs, existingOrderIDs, err := transactionIdentifiers(context, transaction, accountID)
 	if err != nil {
 		return ledger.ImportResult{}, err
 	}
@@ -445,12 +445,21 @@ func (store *Store) ImportTransactions(context context.Context, accountID, userI
 			appendImportFailure(&result, index, raw, payloadErr)
 			continue
 		}
+		transactionID, hasTransactionID, transactionIDErr := nullablePayloadString(payload, "id")
+		sourceID, hasSourceID, sourceIDErr := nullablePayloadString(payload, "sourceId")
 		orderID, hasOrderID, orderErr := nullablePayloadString(payload, "orderId")
-		if orderErr != nil {
-			appendImportFailure(&result, index, raw, orderErr)
+		if transactionIDErr != nil || sourceIDErr != nil || orderErr != nil {
+			cause := transactionIDErr
+			if cause == nil {
+				cause = sourceIDErr
+			}
+			if cause == nil {
+				cause = orderErr
+			}
+			appendImportFailure(&result, index, raw, cause)
 			continue
 		}
-		if hasOrderID && strings.TrimSpace(orderID) != "" && existingOrderIDs[orderID] {
+		if (hasTransactionID && existingTransactionIDs[transactionID]) || (hasSourceID && sourceID != "" && existingTransactionIDs[sourceID]) || (hasOrderID && strings.TrimSpace(orderID) != "" && existingOrderIDs[orderID]) {
 			result.Skipped++
 			continue
 		}
@@ -471,6 +480,9 @@ func (store *Store) ImportTransactions(context context.Context, accountID, userI
 		}
 		if hasOrderID && strings.TrimSpace(orderID) != "" {
 			existingOrderIDs[orderID] = true
+		}
+		if hasTransactionID {
+			existingTransactionIDs[transactionID] = true
 		}
 		result.Imported++
 		if repaymentAmount.Sign() > 0 {
@@ -561,21 +573,26 @@ func (store *Store) ApplyLoanRepaymentClassifications(context context.Context, a
 	return result, nil
 }
 
-func transactionOrderIDs(context context.Context, transaction *sql.Tx, accountID string) (map[string]bool, error) {
-	rows, err := transaction.QueryContext(context, "SELECT `orderId` FROM `transaction` WHERE `accountId` = ? AND `orderId` IS NOT NULL", accountID)
+func transactionIdentifiers(context context.Context, transaction *sql.Tx, accountID string) (map[string]bool, map[string]bool, error) {
+	rows, err := transaction.QueryContext(context, "SELECT `id`, `orderId` FROM `transaction` WHERE `accountId` = ?", accountID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
-	identifiers := make(map[string]bool)
+	transactionIDs := make(map[string]bool)
+	orderIDs := make(map[string]bool)
 	for rows.Next() {
-		var orderID string
-		if err := rows.Scan(&orderID); err != nil {
-			return nil, err
+		var transactionID string
+		var orderID sql.NullString
+		if err := rows.Scan(&transactionID, &orderID); err != nil {
+			return nil, nil, err
 		}
-		identifiers[orderID] = true
+		transactionIDs[transactionID] = true
+		if orderID.Valid {
+			orderIDs[orderID.String] = true
+		}
 	}
-	return identifiers, rows.Err()
+	return transactionIDs, orderIDs, rows.Err()
 }
 
 func appendImportFailure(result *ledger.ImportResult, index int, raw json.RawMessage, cause error) {

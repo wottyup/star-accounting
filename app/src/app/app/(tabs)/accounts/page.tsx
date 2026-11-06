@@ -18,6 +18,7 @@ import { serializeTransactionsToCsv } from "@/lib/stark/export/transaction-csv";
 import { saveBillCsvOnAndroid } from "@/lib/stark/export/native-bill-export";
 import { buildImportErrorLogs, selectFailedImportTransactions } from "@/lib/stark/import/import-errors";
 import { matchImportedLoanRepayments } from "@/lib/stark/import/loan-repayment";
+import { importedTransactionId } from "@/lib/stark/import/import-id";
 import { BillRemarkSheet } from "@/components/stark/BillRemarkSheet";
 import { SubscriptionManagementSheet } from "@/components/stark/SubscriptionManagementSheet";
 import { BottomSheet } from "@/components/stark/BottomSheet";
@@ -27,6 +28,7 @@ import { getAppUpdateAvailable, subscribeAppUpdateAvailable } from "@/lib/stark/
 import { normalizeLanUpdateUrl, readLanUpdateUrl, saveLanUpdateUrl } from "@/lib/stark/lan-update";
 import type { BillImportSource } from "@/lib/stark/import/bill-csv";
 import { withAppBasePath } from "@/lib/stark/runtime";
+import type { DataRepository } from "@/lib/stark/repository/DataRepository";
 
 const manager = new DataModeManager();
 type PanelKey = Exclude<SettingPictogramType, "UPDATE">;
@@ -39,6 +41,21 @@ type PendingBillImport = {
   platform: BillImportSource;
   transactions: Transaction[];
 };
+
+async function saveImportLogsInBackground(repository: DataRepository, logs: ImportErrorLog[]) {
+  for (let index = 0; index < logs.length; index += 5) {
+    await Promise.allSettled(logs.slice(index, index + 5).map((log) => repository.saveImportErrorLog(log)));
+  }
+}
+
+function importFailureReason(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (/401|未登录|登录已失效/.test(message)) return "登录已失效";
+  if (/超时|abort/i.test(message)) return "请求超时";
+  const status = message.match(/Cloud API (\d{3})/);
+  if (status) return `服务返回 HTTP ${status[1]}`;
+  return "网络或数据源异常";
+}
 
 function ChevronIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>;
@@ -81,6 +98,7 @@ export default function AccountsPage() {
   const [importPlatform, setImportPlatform] = useState<BillImportSource>("微信");
   const [importMessage, setImportMessage] = useState("支持微信、支付宝官方导出的 CSV / Excel 账单，以及本应用导出的 CSV 账单");
   const [importing, setImporting] = useState(false);
+  const [importInterrupted, setImportInterrupted] = useState(false);
   const [readingBill, setReadingBill] = useState(false);
   const [pendingBillImport, setPendingBillImport] = useState<PendingBillImport | null>(null);
   const [importErrors, setImportErrors] = useState<ImportErrorLog[]>([]);
@@ -204,6 +222,7 @@ export default function AccountsPage() {
   function selectImportPlatform(platform: BillImportSource) {
     setImportPlatform(platform);
     setPendingBillImport(null);
+    setImportInterrupted(false);
     setImportMessage(platform === "本应用导出" ? "请选择本应用导出的 CSV 账单" : `请选择${platform}官方导出的 CSV / Excel 账单`);
   }
 
@@ -261,6 +280,7 @@ export default function AccountsPage() {
   async function prepareBillImport(file: File) {
     setReadingBill(true);
     setPendingBillImport(null);
+    setImportInterrupted(false);
     setImportMessage("正在读取账单...");
     try {
       const { parseBillFile } = await import("@/lib/stark/import/bill-csv");
@@ -271,8 +291,10 @@ export default function AccountsPage() {
       }
 
       const now = nowText();
-      const transactions: Transaction[] = rows.map((row) => ({
-        id: createId("transaction"), userId: "local-user", accountId: getCurrentAccountId(),
+      const accountId = getCurrentAccountId();
+      const transactions: Transaction[] = rows.map((row, index) => ({
+        id: importedTransactionId(accountId, file.name, importPlatform, row, index), sourceId: row.sourceId ?? null,
+        userId: "local-user", accountId,
         amount: row.amount, type: row.type, category: row.category, platform: row.platform,
         merchant: row.merchant, date: row.date, description: row.description,
         orderId: row.orderId, paymentMethod: row.paymentMethod, status: row.status, loanId: null, remarkCategory: row.remarkCategory ?? null,
@@ -280,9 +302,8 @@ export default function AccountsPage() {
       }));
       setPendingBillImport({ fileName: file.name, platform: importPlatform, transactions });
       setImportMessage(`已识别 ${file.name}：${importPlatform}账单，共 ${transactions.length} 笔。确认后才会导入。`);
-    } catch (error) {
-      const detail = error instanceof Error && error.message ? `：${error.message}` : "";
-      setImportMessage(`读取账单失败${detail}。请确认文件未损坏且为 CSV / XLS / XLSX 格式。`);
+    } catch {
+      setImportMessage("读取账单失败，请确认文件未损坏且为 CSV / XLS / XLSX 格式。");
     } finally {
       setReadingBill(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -291,8 +312,11 @@ export default function AccountsPage() {
 
   async function confirmBillImport() {
     if (!pendingBillImport || importing) return;
+    const total = pendingBillImport.transactions.length;
+    let completed = 0;
     setImporting(true);
-    setImportMessage(`正在导入 ${pendingBillImport.transactions.length} 笔${pendingBillImport.platform}账单...`);
+    setImportInterrupted(false);
+    setImportMessage(`正在导入 ${total} 笔${pendingBillImport.platform}账单，已处理 0 笔...`);
     try {
       const repository = manager.getRepository();
       const accountId = getCurrentAccountId();
@@ -302,7 +326,10 @@ export default function AccountsPage() {
       ]);
       const categorizedTransactions = applyCategoryRules(pendingBillImport.transactions, rules);
       const matched = matchImportedLoanRepayments(categorizedTransactions, loans);
-      const result = await repository.importTransactions(matched.transactions);
+      const result = await repository.importTransactions(matched.transactions, (count) => {
+        completed = count;
+        setImportMessage(`正在导入 ${total} 笔${pendingBillImport.platform}账单，已处理 ${count} 笔...`);
+      });
       const repaymentSummary = result.loanRepayments
         ? `，自动关联 ${result.loanRepayments} 笔贷款还款${result.loanRepaymentAmount ? `（¥${result.loanRepaymentAmount.toFixed(2)}）` : ""}`
         : "";
@@ -315,8 +342,8 @@ export default function AccountsPage() {
           ? result.failedRows
           : [{ lineNumber: 0, rawData: `${pendingBillImport.transactions.length} rows`, errorMessage: `${result.errors} rows failed to import`, errorType: "IMPORT" }];
         const failedLogs: ImportErrorLog[] = buildImportErrorLogs(failedRows, { fileName: pendingBillImport.fileName, accountId: getCurrentAccountId(), createdAt: now });
-        await Promise.all(failedLogs.map((log) => repository.saveImportErrorLog(log)));
         setImportErrors((current) => [...failedLogs, ...current]);
+        void saveImportLogsInBackground(repository, failedLogs).catch(() => undefined);
         if (result.failedRows?.length) {
           const failedTransactions = selectFailedImportTransactions(pendingBillImport.transactions, result.failedRows);
           if (failedTransactions.length) setPendingBillImport({ ...pendingBillImport, transactions: failedTransactions });
@@ -327,15 +354,17 @@ export default function AccountsPage() {
           .filter((item) => item.fileName === pendingBillImport.fileName && !item.resolved)
           .map((item) => ({ ...item, resolved: true }));
         if (resolvedLogs.length) {
-          await Promise.all(resolvedLogs.map((log) => repository.saveImportErrorLog(log)));
+          void saveImportLogsInBackground(repository, resolvedLogs).catch(() => undefined);
           const resolvedIds = new Map(resolvedLogs.map((log) => [log.id, log]));
           setImportErrors((current) => current.map((item) => resolvedIds.get(item.id) ?? item));
         }
         setPendingBillImport(null);
       }
     } catch (error) {
-      const detail = error instanceof Error && error.message ? `：${error.message}` : "";
-      setImportMessage(`账单导入失败${detail}`);
+      setImportInterrupted(true);
+      setImportMessage(`导入中断，已确认处理 ${completed}/${total} 笔：${importFailureReason(error)}。请直接点击“继续导入”，已写入的账单会自动跳过。`);
+      window.dispatchEvent(new Event("stark:transaction-saved"));
+      window.dispatchEvent(new Event("stark:loan-saved"));
     } finally {
       setImporting(false);
     }
@@ -470,14 +499,14 @@ export default function AccountsPage() {
 
             {activePanel === "IMPORT" ? <div className="settings-sheet-body">
               <div className="bill-platform-picker">
-                <button type="button" className={importPlatform === "微信" ? "active wechat" : "wechat"} onClick={() => selectImportPlatform("微信")}><span>微</span><div><strong>微信账单</strong><small>微信支付 CSV / Excel 格式</small></div></button>
-                <button type="button" className={importPlatform === "支付宝" ? "active alipay" : "alipay"} onClick={() => selectImportPlatform("支付宝")}><span>支</span><div><strong>支付宝账单</strong><small>支付宝交易记录 CSV / Excel</small></div></button>
-                <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span>备</span><div><strong>本应用导出账单</strong><small>导出的 CSV 备份文件</small></div></button>
+                <button type="button" className={importPlatform === "微信" ? "active wechat" : "wechat"} onClick={() => selectImportPlatform("微信")}><span><img src={withAppBasePath("/category-icons/weixin.webp")} alt="" /></span><div><strong>微信账单</strong><small>微信支付 CSV / Excel 格式</small></div></button>
+                <button type="button" className={importPlatform === "支付宝" ? "active alipay" : "alipay"} onClick={() => selectImportPlatform("支付宝")}><span><img src={withAppBasePath("/category-icons/zhifubao.webp")} alt="" /></span><div><strong>支付宝账单</strong><small>支付宝交易记录 CSV / Excel</small></div></button>
+                <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><div><strong>本应用导出账单</strong><small>导出的 CSV 备份文件</small></div></button>
               </div>
               <div className={`bill-import-message ${importMessage.startsWith("已导入") ? "success" : ""}`}>{importMessage}</div>
               <input ref={fileInputRef} type="file" hidden accept={importPlatform === "本应用导出" ? ".csv,text/csv" : ".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={(event) => { const file = event.target.files?.[0]; if (file) void prepareBillImport(file); }} />
               <button type="button" className="settings-sheet-primary" disabled={readingBill || importing} onClick={() => fileInputRef.current?.click()}>{readingBill ? "正在读取..." : pendingBillImport ? "重新选择账单文件" : "选择账单文件"}</button>
-              {pendingBillImport ? <button type="button" className="settings-confirm-button bill-import-confirm" disabled={importing} onClick={() => void confirmBillImport()}>{importing ? "导入中..." : `确认导入 ${pendingBillImport.transactions.length} 笔`}</button> : null}
+              {pendingBillImport ? <button type="button" className="settings-confirm-button bill-import-confirm" disabled={importing} onClick={() => void confirmBillImport()}>{importing ? "导入中..." : importInterrupted ? `继续导入 ${pendingBillImport.transactions.length} 笔` : `确认导入 ${pendingBillImport.transactions.length} 笔`}</button> : null}
               <p className="settings-sheet-tip">支持微信、支付宝官方导出的 CSV / XLS / XLSX 文件，以及本应用导出的 CSV 备份；请选择对应来源，确认导入前不会写入数据。</p>
               {importErrors.length ? <div className="import-error-list"><strong>最近导入问题</strong>{importErrors.slice(0, 5).map((item) => <div key={item.id}><span>{item.fileName}{item.lineNumber > 0 ? ` · 第 ${item.lineNumber} 行` : ""}</span><small>{item.resolved ? "已解决" : item.errorMessage}</small></div>)}</div> : null}
             </div> : null}

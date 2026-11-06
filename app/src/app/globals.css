@@ -10612,16 +10612,15 @@ img[src$="/qita.webp"] {
   place-items: center;
   width: 36px;
   height: 36px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid #e7ebf2;
   border-radius: 10px;
-  color: #ffffff;
-  background: #0d8a5f;
-  font-size: calc(12px * var(--user-font-scale));
-  font-weight: 600;
+  background: #ffffff;
 }
 
-.bill-platform-picker button.alipay > span { background: #2e91e9; }
+.bill-platform-picker button > span img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .bill-platform-picker button.backup { grid-column: 1 / -1; }
-.bill-platform-picker button.backup > span { background: #5f6d83; }
 .bill-platform-picker button > div { display: grid; gap: 5px; min-width: 0; }
 .bill-platform-picker strong { font-size: calc(11px * var(--user-font-scale)); font-weight: 600; }
 .bill-platform-picker small { overflow: hidden; color: #7d899c; font-size: calc(8px * var(--user-font-scale)); text-overflow: ellipsis; white-space: nowrap; }

@@ -32,7 +32,7 @@ export interface DataRepository {
   getTransaction(id: string): Promise<Transaction | null>;
   saveTransaction(transaction: Transaction): Promise<void>;
   deleteTransaction(id: string): Promise<void>;
-  importTransactions(transactions: Transaction[]): Promise<ImportResult>;
+  importTransactions(transactions: Transaction[], onProgress?: (completed: number, total: number) => void): Promise<ImportResult>;
   applyLoanRepaymentClassifications(transactions: Transaction[]): Promise<LoanRepaymentClassificationResult>;
 
   getAssets(accountId: string): Promise<Asset[]>;

@@ -181,7 +181,7 @@ fun Route.transactionRoutes() {
         call.respond(HttpStatusCode.NoContent)
     }
 
-    // POST /api/transactions/import - 批量导入（按 orderId 去重）
+    // POST /api/transactions/import - 批量导入（按流水 ID、备份原始 ID 和 orderId 去重）
     post("/api/transactions/import") {
         val items = call.receive<JsonArray>()
         val userId = call.currentUserId()

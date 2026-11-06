@@ -179,7 +179,7 @@ export async function deleteSavingsGoalAndPlans(goalId: string) {
 
 /**
  * 在同一 IndexedDB 事务内导入账单，并对其中已关联贷款的还款更新贷款余额。
- * 只会处理本次通过订单号去重后真正写入的流水，避免重复导入再次冲销贷款。
+ * 只会处理本次通过流水 ID、备份原始 ID 和订单号去重后真正写入的流水，避免重复导入再次冲销贷款。
  */
 export async function importTransactionsAndApplyLoanRepayments(transactions: Transaction[]): Promise<ImportResult> {
   if (!transactions.length) return { imported: 0, skipped: 0, errors: 0, loanRepayments: 0, loanRepaymentAmount: 0 };
@@ -203,10 +203,13 @@ export async function importTransactionsAndApplyLoanRepayments(transactions: Tra
           .map((item) => item.orderId)
           .filter((item): item is string => Boolean(item)),
       );
+      const existingTransactionIds = new Set(
+        existingTransactions.filter((item) => item.accountId === accountId).map((item) => item.id),
+      );
       const pending = transactions.filter((item) => {
-        if (!item.orderId) return true;
-        if (existingOrderIds.has(item.orderId)) return false;
-        existingOrderIds.add(item.orderId);
+        if (existingTransactionIds.has(item.id) || (item.sourceId && existingTransactionIds.has(item.sourceId)) || (item.orderId && existingOrderIds.has(item.orderId))) return false;
+        existingTransactionIds.add(item.id);
+        if (item.orderId) existingOrderIds.add(item.orderId);
         return true;
       });
       const loanById = new Map(loans.filter((loan) => loan.accountId === accountId).map((loan) => [loan.id, { ...loan }]));

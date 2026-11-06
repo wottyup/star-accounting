@@ -5,6 +5,8 @@ export type BillPlatform = "微信" | "支付宝";
 export type BillImportSource = BillPlatform | "本应用导出";
 
 export type BillImportRow = {
+  /** Original transaction ID present only in this app's CSV backup. */
+  sourceId?: string | null;
   amount: number;
   type: TransactionType;
   category: string;
@@ -73,21 +75,27 @@ function headerIndex(headers: string[], names: string[]) {
   return normalizedHeaders.findIndex((header) => normalizedNames.some((name) => header.includes(name)));
 }
 
-function valueAt(record: BillRecord, headers: string[], names: string[]) {
+function rawValueAt(record: BillRecord, headers: string[], names: string[]): unknown {
   for (const name of names) {
     const index = headerIndex(headers, [name]);
     if (index < 0) continue;
-    const value = normalizeText(record[headers[index]]);
-    if (value) return value;
+    const value = record[headers[index]];
+    if (value instanceof Date || typeof value === "number") return value;
+    if (normalizeText(value)) return value;
   }
   return "";
+}
+
+function valueAt(record: BillRecord, headers: string[], names: string[]) {
+  return normalizeText(rawValueAt(record, headers, names));
 }
 
 function parseAmount(value: unknown) {
   if (typeof value === "number") return Math.abs(value);
   const normalized = normalizeText(value).replace(/[¥￥,\s]/g, "");
+  if (!normalized) return Number.NaN;
   const amount = Number(normalized);
-  return Number.isFinite(amount) ? Math.abs(amount) : 0;
+  return Math.abs(amount);
 }
 
 function pad(value: number) {
@@ -230,8 +238,8 @@ function normalizeRows(rows: BillRecord[], platform: BillPlatform): BillImportRo
   if (!hasDate || !hasAmount) return [];
 
   return rows.flatMap((row) => {
-    const amount = parseAmount(valueAt(row, headers, fields.amount));
-    const date = parseDateValue(valueAt(row, headers, fields.date));
+    const amount = parseAmount(rawValueAt(row, headers, fields.amount));
+    const date = parseDateValue(rawValueAt(row, headers, fields.date));
     if (!Number.isFinite(amount) || amount <= 0 || !date) return [];
 
     const direction = valueAt(row, headers, fields.direction);
@@ -263,12 +271,13 @@ function normalizeStarkExportRows(rows: BillRecord[]): BillImportRow[] {
   if (!hasStarkExportHeaders(headers)) return [];
 
   return rows.flatMap((row) => {
-    const amount = parseAmount(valueAt(row, headers, ["金额"]));
-    const date = parseDateValue(valueAt(row, headers, ["日期"]));
+    const amount = parseAmount(rawValueAt(row, headers, ["金额"]));
+    const date = parseDateValue(rawValueAt(row, headers, ["日期"]));
     const type = detectStarkExportType(valueAt(row, headers, ["类型"]));
-    if (!Number.isFinite(amount) || amount <= 0 || !date || !type) return [];
+    if (!Number.isFinite(amount) || !date || !type) return [];
 
     return [{
+      sourceId: valueAt(row, headers, ["流水ID"]) || null,
       amount,
       type,
       category: valueAt(row, headers, ["分类"]) || (type === "INCOME" ? "收入" : type === "TRANSFER" ? "转账" : type === "REPAYMENT" ? "还款" : "其他"),

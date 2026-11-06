@@ -4,6 +4,8 @@ export type TransactionType = "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
 
 export interface Transaction {
   id: string;
+  /** Original ID from a CSV backup, used only to skip an already present bill. */
+  sourceId?: string | null;
   userId: string;
   accountId: string;
   amount: number;

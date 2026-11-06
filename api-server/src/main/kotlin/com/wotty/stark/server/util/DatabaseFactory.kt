@@ -723,8 +723,10 @@ object DatabaseFactory {
         items.forEachIndexed { index, payload ->
             runCatching {
                 val transactionId = payload.getString("id")
+                val sourceId = payload.getNullableString("sourceId")
                 val orderId = payload.getNullableString("orderId")
-                if (transactionId in existingTransactionIds || (!orderId.isNullOrBlank() && orderId in existingOrderIds)) {
+                if (transactionId in existingTransactionIds || (!sourceId.isNullOrBlank() && sourceId in existingTransactionIds)
+                    || (!orderId.isNullOrBlank() && orderId in existingOrderIds)) {
                     skipped += 1
                 } else {
                     val normalizedValues = payload.toMutableMap()

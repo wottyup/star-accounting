@@ -187,9 +187,11 @@ export class LocalRepository implements DataRepository {
     await deleteRecord("transactions", id);
   }
 
-  async importTransactions(transactions: Transaction[]): Promise<ImportResult> {
+  async importTransactions(transactions: Transaction[], onProgress?: (completed: number, total: number) => void): Promise<ImportResult> {
     await this.ensureSeeded();
-    return importTransactionsAndApplyLoanRepayments(transactions);
+    const result = await importTransactionsAndApplyLoanRepayments(transactions);
+    onProgress?.(transactions.length, transactions.length);
+    return result;
   }
 
   async applyLoanRepaymentClassifications(transactions: Transaction[]): Promise<LoanRepaymentClassificationResult> {

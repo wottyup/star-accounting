@@ -55,6 +55,8 @@ export const REMOTE_CACHE_UPDATED_EVENT = "stark:remote-cache-updated";
 const TRANSACTION_CACHE_TTL = 60_000;
 const RESOURCE_CACHE_TTL = 60_000;
 const TRANSACTION_PAGE_SIZE = 500;
+const TRANSACTION_IMPORT_BATCH_SIZE = 200;
+const TRANSACTION_IMPORT_TIMEOUT_MS = 60_000;
 
 function sortByDateDesc<T extends { date?: string; createdAt?: string }>(items: T[]) {
   return [...items].sort((a, b) => (b.date ?? b.createdAt ?? "").localeCompare(a.date ?? a.createdAt ?? ""));
@@ -303,6 +305,9 @@ export class RemoteRepository implements DataRepository {
       // 必须等待响应体读取完成后再离开 try，否则 finally 会提前清掉
       // 超时定时器；网络连接只返回了响应头但响应体卡住时就会无限等待。
       return await response.json() as T;
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error("云端请求超时，请检查网络后重试");
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -520,15 +525,32 @@ export class RemoteRepository implements DataRepository {
   async getTransaction(id: string) { return await this.request<Transaction | null>(`/api/transactions/${encodeURIComponent(id)}`); }
   async saveTransaction(transaction: Transaction) { await this.save("transactions", transaction); }
   async deleteTransaction(id: string) { await this.delete("transactions", id); }
-  async importTransactions(transactions: Transaction[]): Promise<ImportResult> {
+  async importTransactions(transactions: Transaction[], onProgress?: (completed: number, total: number) => void): Promise<ImportResult> {
     if (!transactions.length) return { imported: 0, skipped: 0, errors: 0 };
     const accountId = transactions[0].accountId;
-    const result = await this.request<ImportResult>(transactionsImportPath(accountId), {
-      method: "POST",
-      body: JSON.stringify(transactions),
-    });
-    await this.clearTransactionCaches(accountId);
-    return result;
+    const summary: ImportResult = { imported: 0, skipped: 0, errors: 0, failedRows: [], loanRepayments: 0, loanRepaymentAmount: 0 };
+    try {
+      // Each batch commits independently. Retrying this same prepared list is safe:
+      // the server skips transaction IDs that were already written.
+      for (let offset = 0; offset < transactions.length; offset += TRANSACTION_IMPORT_BATCH_SIZE) {
+        const batch = transactions.slice(offset, offset + TRANSACTION_IMPORT_BATCH_SIZE);
+        const result = await this.request<ImportResult>(transactionsImportPath(accountId), {
+          method: "POST",
+          body: JSON.stringify(batch),
+        }, TRANSACTION_IMPORT_TIMEOUT_MS);
+        summary.imported += result.imported;
+        summary.skipped += result.skipped;
+        summary.errors += result.errors;
+        summary.loanRepayments = (summary.loanRepayments ?? 0) + (result.loanRepayments ?? 0);
+        summary.loanRepaymentAmount = (summary.loanRepaymentAmount ?? 0) + (result.loanRepaymentAmount ?? 0);
+        summary.failedRows?.push(...(result.failedRows ?? []).map((row) => ({ ...row, lineNumber: row.lineNumber + offset })));
+        onProgress?.(offset + batch.length, transactions.length);
+      }
+      return summary;
+    } finally {
+      // A timed-out request may still have committed on the server.
+      await this.clearTransactionCaches(accountId);
+    }
   }
   async applyLoanRepaymentClassifications(transactions: Transaction[]): Promise<LoanRepaymentClassificationResult> {
     if (!transactions.length) return { applied: 0, amount: 0, skipped: 0 };

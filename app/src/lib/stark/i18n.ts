@@ -4,6 +4,7 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "读取账单失败，请确认文件未损坏且为 CSV / XLS / XLSX 格式。": "Could not read the bill file. Check that it is intact and uses CSV / XLS / XLSX format.", "登录已失效": "Session expired", "请求超时": "Request timed out", "网络或数据源异常": "Network or data source error", "云端请求超时，请检查网络后重试": "Cloud request timed out. Check your network and try again.",
   "正在保存账单到系统文件...": "Saving bills to a system file…", "已取消账单导出": "Bill export canceled", "当前安装包尚未包含账单保存功能，请安装新版本后再导出": "This installed app does not support saving bills yet. Install a newer version and try again.", "账单数量超出单次导出上限，请联系开发者": "Too many bills for one export. Contact the developer.",
   "重试": "Retry", "加载中…": "Loading…", "正在读取归类规则…": "Loading classification rules…", "归类规则读取失败，请重试": "Could not load classification rules. Try again.", "账单读取失败，请重试": "Could not load bills. Try again.", "更早的账单读取失败，已加载的账单仍可查看": "Could not load older bills. The bills already loaded remain available.", "归类已保存，账单列表刷新失败，请重试": "Classification was saved, but the bill list could not refresh. Try again.", "已加载账单中暂无匹配，正在查找更早账单…": "No match in loaded bills yet. Searching older bills…",
   全部目标: "All goals", 计划来源: "Plan source", 月度计划: "Monthly plan", 目标与计划: "Goal and plans",
@@ -160,18 +161,22 @@ function translateDynamic(source: string) {
   value = value.replace(/^较上月(增加|下降) (\d+)%[，,]建议关注高频消费分类$/, (_m, direction, percent) => `${direction === "增加" ? "Up" : "Down"} ${percent}% from last month; watch high-frequency spending categories`);
   value = value.replace(/^(.+?)已消耗 (\d+)%，结余处于合理区间$/, (_m, name, percent) => `${knownValues.get(name) ?? name} used ${percent}%; the remaining budget is in a healthy range`);
   value = value.replace(/^当前已加载流水中匹配 (\d+) 笔$/, "$1 matching transactions loaded");
-  value = value.replace(/^已导入 (\d+) 笔，跳过 (\d+) 笔，失败 (\d+) 笔$/, "Imported $1, skipped $2, failed $3");
-  value = value.replace(/^已导入 (\d+) 笔，跳过 (\d+) 笔，失败 (\d+) 笔，失败行可再次确认导入$/, "Imported $1, skipped $2, failed $3; failed rows can be confirmed again");
+  value = value.replace(/^已导入 (\d+) 笔，跳过 (\d+) 笔，失败 (\d+) 笔(?:，自动关联 (\d+) 笔贷款还款(?:（¥(.+?)）)?)?(，失败行可再次确认导入)?$/, (_m, imported, skipped, failed, repayments, amount, retry) => `Imported ${imported}, skipped ${skipped}, failed ${failed}${repayments ? `; ${repayments} loan repayments linked${amount ? ` (¥${amount})` : ""}` : ""}${retry ? "; failed rows can be retried" : ""}`);
   value = value.replace(/^正在读取账单，已读取 (\d+) 笔\.\.\.$/, "Reading bills; $1 loaded…");
   value = value.replace(/^正在保存账单\.\.\. (\d+)%$/, "Saving bills… $1%");
   value = value.replace(/^已导出 (\d+) 笔账单，保存位置：所选位置\/(.+)$/, "Exported $1 bills. Saved to your selected location as $2");
   value = value.replace(/^已导出 (\d+) 笔账单，保存位置：(.+)$/, "Exported $1 bills. Saved to: $2");
   value = value.replace(/^已生成 (\d+) 笔账单，请在浏览器下载记录中查看 (.+)$/, "Generated $1 bills. Check your browser downloads for $2");
   value = value.replace(/^导出账单失败[：:](.*)$/, (_m, detail) => `Bill export failed: ${detail}`);
-  value = value.replace(/^已识别 (.+)：(.+)账单，共 (\d+) 笔。确认后才会导入。$/, "Recognized $1: $2 bills, $3 transactions. Confirm to import.");
+  value = value.replace(/^已识别 (.+)：(微信|支付宝|本应用导出)账单，共 (\d+) 笔。确认后才会导入。$/, (_m, name, platform, count) => `Recognized ${name}: ${count} ${knownValues.get(platform) ?? platform} bills. Confirm to import.`);
+  value = value.replace(/^正在导入 (\d+) 笔(微信|支付宝|本应用导出)账单，已处理 (\d+) 笔\.\.\.$/, (_m, total, platform, done) => `Importing ${total} ${knownValues.get(platform) ?? platform} bills; ${done} processed…`);
+  value = value.replace(/^确认导入 (\d+) 笔$/, "Confirm import of $1 bills");
+  value = value.replace(/^继续导入 (\d+) 笔$/, "Continue importing $1 bills");
+  value = value.replace(/^导入中断，已确认处理 (\d+)\/(\d+) 笔：(.+)。请直接点击“继续导入”，已写入的账单会自动跳过。$/, (_m, done, total, reason) => `Import interrupted after ${done}/${total} confirmed bills: ${reason.startsWith("服务返回 HTTP ") ? reason.replace("服务返回", "Server returned") : knownValues.get(reason) ?? reason}. Tap “Continue importing” to skip bills already saved.`);
   value = value.replace(/^读取账单失败(.*)。请确认文件未损坏且为 CSV \/ XLS \/ XLSX 格式。$/, "Could not read bills$1. Confirm the file is intact and uses CSV / XLS / XLSX format.");
-  value = value.replace(/^正在导入 (\d+) 笔(.+)账单\.\.\.$/, "Importing $1 $2 bills…");
+  value = value.replace(/^正在导入 (\d+) 笔(.+)账单\.\.\.$/, (_m, count, platform) => `Importing ${count} ${knownValues.get(platform) ?? platform} bills…`);
   value = value.replace(/^账单导入失败(.*)$/, (_m, detail) => `Bill import failed${detail}`);
+  value = value.replace(/^(.+?) · 第 (\d+) 行$/, "$1 · line $2");
   value = value.replace(/^第 (\d+) 行$/, "line $1");
   value = value.replace(/^当前账户：(.+)$/, "Current account: $1");
   value = value.replace(/^已新增(固定支出|临时支出)“(.+?)”列$/, (_m, kind, name) => `Added ${kind === "固定支出" ? "fixed expense" : "temporary expense"} column “${name}”`);
@@ -214,9 +219,10 @@ function translateDynamic(source: string) {
   value = value.replace(/^暂无资产账户$/, "No asset accounts yet");
   value = value.replace(/^暂无资产配置数据$/, "No asset allocation data yet");
   value = value.replace(/^暂无负债，表现优秀$/, "No liabilities. Great work.");
-  value = value.replace(/^请选择(.+?)官方导出的 CSV \/ Excel 账单$/, "Choose the official $1 CSV / Excel bill file");
+  value = value.replace(/^请选择(微信|支付宝)官方导出的 CSV \/ Excel 账单$/, (_m, platform) => `Choose an official ${knownValues.get(platform) ?? platform} CSV / Excel bill file`);
   value = value.replace(/^请选择(.+?)账单文件$/, "Choose the $1 bill file");
   value = value.replace(/^当前选择的是(.+?)，但文件看起来是(.+?)账单$/, "You selected $1, but the file appears to be a $2 bill");
+  value = value.replace(/^没有识别到有效(微信|支付宝)流水，请确认这是官方导出的 CSV \/ Excel 账单$/, (_m, platform) => `No valid ${knownValues.get(platform) ?? platform} bills were found. Choose an official CSV / Excel export.`);
   value = value.replace(/^没有识别到有效(.+?)流水，请检查 CSV\/Excel 文件格式$/, "No valid $1 transactions were found. Check the CSV/Excel format.");
   value = value.replace(/^(.+?) · (待存入|已完成|已跳过)$/, (_m, name, status) => `${name} · ${knownValues.get(status) ?? status}`);
   value = value.replace(/^达到 (\d+)% 时提醒$/, "Alert at $1%");

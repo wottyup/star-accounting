@@ -4,6 +4,7 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "重试": "Retry", "加载中…": "Loading…", "正在读取归类规则…": "Loading classification rules…", "归类规则读取失败，请重试": "Could not load classification rules. Try again.", "账单读取失败，请重试": "Could not load bills. Try again.", "更早的账单读取失败，已加载的账单仍可查看": "Could not load older bills. The bills already loaded remain available.", "归类已保存，账单列表刷新失败，请重试": "Classification was saved, but the bill list could not refresh. Try again.", "已加载账单中暂无匹配，正在查找更早账单…": "No match in loaded bills yet. Searching older bills…",
   全部目标: "All goals", 计划来源: "Plan source", 月度计划: "Monthly plan", 目标与计划: "Goal and plans",
   查看对应月度计划: "Open the corresponding monthly plan", 月度计划与目标设置: "Monthly plans and goal settings", 按计划月份由早到晚: "Planned months, earliest first",
   本期资金分配: "Salary-cycle allocation",
@@ -217,8 +218,10 @@ function translateDynamic(source: string) {
   value = value.replace(/^确定删除(月度|年度)总预算吗？$/, (_m, period) => `Delete the ${period === "月度" ? "monthly" : "annual"} total budget?`);
   value = value.replace(/^已生成 (收入|支出)校正流水 ¥ (.+)，账面余额已同步。$/, (_m, type, amount) => `Created a ${type === "收入" ? "income" : "expense"} reconciliation entry for ¥ ${amount}; the recorded balance is synced.`);
   value = value.replace(/^现有实际余额比本月账单结余(多|少) ¥ (.+)。$/, (_m, direction, amount) => `The actual balance is ¥ ${amount} ${direction === "多" ? "above" : "below"} this month’s bill balance.`);
-  value = value.replace(/^已应用到 (\d+) 笔流水，后续导入同名账单也会自动归类$/, "$1 transactions updated; future bills with the same name will be categorized automatically");
+  value = value.replace(/^已应用到 (\d+) 笔流水(?:，其中 (\d+) 笔已关联贷款还款)?，后续导入同名账单也会自动归类(；请重试刷新账单列表)?$/, (_m, count, loanCount, refreshFailed) => `${count} transactions updated${loanCount ? `; ${loanCount} linked to loan repayments` : ""}. Future bills with the same name will be categorized automatically${refreshFailed ? "; retry refreshing the bill list" : ""}.`);
   value = value.replace(/^当前账本匹配 (\d+) 笔，已在下方显示$/, "$1 matching transactions are shown below");
+  value = value.replace(/^已加载账单匹配 (\d+) 笔，已在下方显示$/, "$1 matching transactions in loaded bills are shown below");
+  value = value.replace(/^正在读取更早账单，已加载 (\d+) 笔…$/, "Loading older bills; $1 loaded…");
   value = value.replace(/^加载更多（还有 (\d+) 笔）$/, "Load more ($1 remaining)");
   value = value.replace(/^删除(.+)规则$/, "Delete $1 rule");
   value = value.replace(/^删除(.+)列$/, "Delete $1 column");

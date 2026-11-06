@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
 import { useConfirmDialog } from "@/components/stark/ConfirmDialogProvider";
 import { formatMoney, nowText } from "@/lib/stark/utils/format";
@@ -13,6 +13,8 @@ import type { CategoryRule, Transaction } from "@/lib/stark/models";
 import type { DataRepository } from "@/lib/stark/repository/DataRepository";
 
 const WRITE_BATCH_SIZE = 50;
+const BILL_PAGE_SIZE = 200;
+const READ_TIMEOUT_MS = 15_000;
 const INITIAL_VISIBLE_BILLS = 100;
 const VISIBLE_BILL_STEP = 100;
 
@@ -41,6 +43,25 @@ function sameKeyword(left: string, right: string) {
 async function saveInBatches(repo: DataRepository, items: Transaction[]) {
   for (let index = 0; index < items.length; index += WRITE_BATCH_SIZE) {
     await Promise.all(items.slice(index, index + WRITE_BATCH_SIZE).map((item) => repo.saveTransaction(item)));
+  }
+}
+
+function readWithinTimeout<T>(request: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    request,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("账单读取超时")), READ_TIMEOUT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+async function readAllTransactionPages(repo: DataRepository, accountId: string) {
+  const transactions: Transaction[] = [];
+  for (let page = 1; ; page += 1) {
+    const batch = await readWithinTimeout(repo.getTransactions(accountId, page, BILL_PAGE_SIZE));
+    transactions.push(...batch);
+    if (batch.length < BILL_PAGE_SIZE) return transactions;
   }
 }
 
@@ -90,6 +111,14 @@ export function BillRemarkSheet() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [rules, setRules] = useState<CategoryRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyComplete, setHistoryComplete] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const nextPageRef = useRef(1);
+  const [rulesLoading, setRulesLoading] = useState(true);
+  const [rulesError, setRulesError] = useState("");
+  const [rulesReloadKey, setRulesReloadKey] = useState(0);
   const [savingRule, setSavingRule] = useState(false);
   const [ruleMessage, setRuleMessage] = useState("输入账单里的名称或关键词，例如：房东");
   const [keyword, setKeyword] = useState("");
@@ -102,21 +131,59 @@ export function BillRemarkSheet() {
     let cancelled = false;
     const currentAccountId = getCurrentAccountId();
     setAccountId(currentAccountId);
-    void Promise.all([repo.getTransactions(currentAccountId, 1, Number.MAX_SAFE_INTEGER), repo.getCategoryRules(currentAccountId)])
-      .then(([data, savedRules]) => {
+    const firstPage = nextPageRef.current;
+    setLoadError("");
+    if (firstPage === 1) {
+      setTransactions([]);
+      setLoading(true);
+      setHistoryComplete(false);
+    } else {
+      setLoadingHistory(true);
+    }
+
+    async function loadBills() {
+      try {
+        for (let page = firstPage; ; page += 1) {
+          const batch = await readWithinTimeout(repo.getTransactions(currentAccountId, page, BILL_PAGE_SIZE));
+          if (cancelled) return;
+          setTransactions((previous) => page === 1 ? batch : [...previous, ...batch]);
+          setLoading(false);
+          nextPageRef.current = page + 1;
+          if (batch.length < BILL_PAGE_SIZE) {
+            setLoadingHistory(false);
+            setHistoryComplete(true);
+            return;
+          }
+          setLoadingHistory(true);
+        }
+      } catch {
         if (cancelled) return;
-        setTransactions(data);
-        setRules(savedRules.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
         setLoading(false);
+        setLoadingHistory(false);
+        setLoadError(nextPageRef.current === 1 ? "账单读取失败，请重试" : "更早的账单读取失败，已加载的账单仍可查看");
+      }
+    }
+
+    void loadBills();
+    return () => { cancelled = true; };
+  }, [reloadKey, repo]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setRulesLoading(true);
+    setRulesError("");
+    void readWithinTimeout(repo.getCategoryRules(getCurrentAccountId()))
+      .then((savedRules) => {
+        if (!cancelled) setRules([...savedRules].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
       })
       .catch(() => {
-        if (!cancelled) {
-          setLoading(false);
-          setRuleMessage("账单加载失败，请稍后重试");
-        }
+        if (!cancelled) setRulesError("归类规则读取失败，请重试");
+      })
+      .finally(() => {
+        if (!cancelled) setRulesLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [repo, rulesReloadKey]);
 
   const searchIndex = useMemo(() => buildRemarkTransactionSearchIndex(transactions), [transactions]);
   const deferredKeyword = useDeferredValue(keyword);
@@ -168,15 +235,13 @@ export function BillRemarkSheet() {
   async function saveKeywordRule() {
     const trimmedKeyword = keyword.trim();
     const trimmedCategory = ruleCategory.trim();
-    if (!trimmedKeyword || !trimmedCategory || savingRule) return;
+    if (!trimmedKeyword || !trimmedCategory || savingRule || !historyComplete || rulesLoading || rulesError) return;
 
     setSavingRule(true);
     setRuleMessage("正在匹配并应用流水...");
     try {
-      const [allTransactions, loans] = await Promise.all([
-        repo.getTransactions(accountId, 1, Number.MAX_SAFE_INTEGER),
-        repo.getLoans(accountId),
-      ]);
+      const allTransactions = transactions;
+      const loans = await repo.getLoans(accountId);
 
       const timestamp = nowText();
       const existing = rules.find((rule) => sameKeyword(ruleKeyword(rule), trimmedKeyword));
@@ -204,14 +269,20 @@ export function BillRemarkSheet() {
       const loanRepaymentTransactions = matched.transactions.filter((item) => Boolean(item.loanId));
       const repaymentResult = await repo.applyLoanRepaymentClassifications(loanRepaymentTransactions);
       setRules((prev) => [rule, ...prev.filter((item) => item.id !== rule.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
-      if (loanRepaymentTransactions.length) {
-        setTransactions(await repo.getTransactions(accountId, 1, Number.MAX_SAFE_INTEGER));
-      } else {
-        const updatedById = new Map(updatedTransactions.map((item) => [item.id, item]));
-        setTransactions((prev) => prev.map((item) => updatedById.get(item.id) ?? item));
+      setTransactions(updatedTransactions);
+      let refreshFailed = false;
+      if (repaymentResult.applied) {
+        try {
+          setTransactions(await readAllTransactionPages(repo, accountId));
+        } catch {
+          refreshFailed = true;
+          nextPageRef.current = 1;
+          setHistoryComplete(false);
+          setLoadError("归类已保存，账单列表刷新失败，请重试");
+        }
       }
       setKeyword("");
-      setRuleMessage(`已应用到 ${changedTransactions.length} 笔流水${repaymentResult.applied ? `，其中 ${repaymentResult.applied} 笔已关联贷款还款` : ""}，后续导入同名账单也会自动归类`);
+      setRuleMessage(`已应用到 ${changedTransactions.length} 笔流水${repaymentResult.applied ? `，其中 ${repaymentResult.applied} 笔已关联贷款还款` : ""}，后续导入同名账单也会自动归类${refreshFailed ? "；请重试刷新账单列表" : ""}`);
       window.dispatchEvent(new Event("stark:transaction-saved"));
       if (repaymentResult.applied) window.dispatchEvent(new Event("stark:loan-saved"));
     } catch {
@@ -254,10 +325,12 @@ export function BillRemarkSheet() {
           <input value={ruleCategory} onChange={(event) => setRuleCategory(event.target.value)} placeholder="也可以输入自定义分类" />
         </div>
         <div className="category-rule-preview">
-          <span>{keyword.trim() ? `当前账本匹配 ${previewMatches} 笔，已在下方显示` : "示例：输入“房东”后归入“房租水电”"}</span>
-          <button type="button" disabled={!keyword.trim() || !ruleCategory.trim() || savingRule} onClick={() => void saveKeywordRule()}>{savingRule ? "应用中..." : "保存并应用"}</button>
+          <span>{keyword.trim() ? `${historyComplete ? "当前账本" : "已加载账单"}匹配 ${previewMatches} 笔，已在下方显示` : "示例：输入“房东”后归入“房租水电”"}</span>
+          <button type="button" disabled={!keyword.trim() || !ruleCategory.trim() || savingRule || !historyComplete || rulesLoading || Boolean(rulesError)} onClick={() => void saveKeywordRule()}>{savingRule ? "应用中..." : "保存并应用"}</button>
         </div>
         <p className={`category-rule-message ${ruleMessage.startsWith("已应用") ? "success" : ""}`}>{ruleMessage}</p>
+        {rulesLoading ? <p className="category-rule-message">正在读取归类规则…</p> : null}
+        {rulesError ? <div className="bill-remark-status error" role="alert"><span>{rulesError}</span><button type="button" onClick={() => setRulesReloadKey((value) => value + 1)}>重试</button></div> : null}
       </section>
 
      {rules.length ? <section className="category-rule-list">
@@ -279,6 +352,9 @@ export function BillRemarkSheet() {
           全部流水 <em>{allCount}</em>
         </button>
       </div>
+
+      {loadingHistory ? <div className="bill-remark-status" role="status">正在读取更早账单，已加载 {transactions.length} 笔…</div> : null}
+      {loadError ? <div className="bill-remark-status error" role="alert"><span>{loadError}</span><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重试</button></div> : null}
 
       {loading ? (
         <div className="bill-remark-empty">加载中…</div>
@@ -315,7 +391,9 @@ export function BillRemarkSheet() {
             加载更多（还有 {billList.length - visibleBillList.length} 笔）
           </button>
         ) : null}
-      </>) : (
+      </>) : loadingHistory ? (
+        <div className="bill-remark-empty">已加载账单中暂无匹配，正在查找更早账单…</div>
+      ) : loadError ? null : (
         <div className="bill-remark-empty">{keyword.trim() ? "当前账本没有匹配的非收入流水" : "当前没有可归类的转账账单"}</div>
       )}
     </div>

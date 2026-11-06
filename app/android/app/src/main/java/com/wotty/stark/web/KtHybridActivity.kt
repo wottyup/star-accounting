@@ -109,6 +109,11 @@ class KtHybridActivity : MainActivity() {
                 isClickable = true
                 isFocusable = true
                 contentDescription = tab.description
+                translationX = when (index) {
+                    2 -> dp(5).toFloat()
+                    3 -> -dp(5).toFloat()
+                    else -> 0f
+                }
                 val selectableBackground = android.util.TypedValue()
                 if (theme.resolveAttribute(android.R.attr.selectableItemBackground, selectableBackground, true)) {
                     setBackgroundResource(selectableBackground.resourceId)

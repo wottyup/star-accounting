@@ -179,7 +179,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                 // Forced full prefetch uses dynamic RSC requests in Next 16.
                 // Auto prefetch reads the files emitted by our static export.
                 prefetch="auto"
-                className={`mobile-bottom-nav-item${active ? " active" : ""}${pendingTarget === target ? " is-pending" : ""}`}
+                className={`mobile-bottom-nav-item${index === 2 ? " near-center-left" : index === 3 ? " near-center-right" : ""}${active ? " active" : ""}${pendingTarget === target ? " is-pending" : ""}`}
                 aria-label={item.label}
                 aria-current={active ? "page" : undefined}
                 onNavigate={(event) => {

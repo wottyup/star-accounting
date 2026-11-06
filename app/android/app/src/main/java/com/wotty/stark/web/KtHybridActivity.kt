@@ -134,14 +134,15 @@ class KtHybridActivity : MainActivity() {
                 val bumpTop = barTop - bumpHeight
                 fun x(value: Float) = bumpLeft + value * bumpWidth / 440f
                 fun y(value: Float) = bumpTop + value * bumpHeight / 104f
+                // Keep this curve aligned with app/src/app/bottom-nav-bump.svg.
                 val outline = Path().apply {
                     moveTo(0f, height.toFloat())
                     lineTo(0f, barTop + corner)
                     quadTo(0f, barTop, corner, barTop)
                     lineTo(x(0f), y(104f))
                     cubicTo(x(52f), y(104f), x(78f), y(97f), x(116f), y(56f))
-                    cubicTo(x(151f), y(20f), x(184f), y(0f), x(220f), y(0f))
-                    cubicTo(x(256f), y(0f), x(289f), y(20f), x(324f), y(56f))
+                    cubicTo(x(151f), y(20f), x(160f), y(0f), x(220f), y(0f))
+                    cubicTo(x(280f), y(0f), x(289f), y(20f), x(324f), y(56f))
                     cubicTo(x(362f), y(97f), x(388f), y(104f), x(440f), y(104f))
                     lineTo(width.toFloat() - corner, barTop)
                     quadTo(width.toFloat(), barTop, width.toFloat(), barTop + corner)

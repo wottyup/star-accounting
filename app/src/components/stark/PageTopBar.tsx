@@ -1,7 +1,6 @@
 "use client";
 
 import type { PropsWithChildren } from "react";
-import Link from "next/link";
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number };
 
@@ -22,32 +21,27 @@ function SearchIcon(props: IconProps) {
   );
 }
 
-export function TopBarSearchAction() {
+function TopBarSearchAction({ onClick }: { onClick: () => void }) {
   return (
-    <Link
-      href="/app/consumption#bill-search"
+    <button
+      type="button"
       className="home-header-action"
       aria-label="搜索"
       title="搜索"
-      onClick={(event) => {
-        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-        if (!window.location.pathname.replace(/\/$/, "").endsWith("/app/consumption")) return;
-        event.preventDefault();
-        window.dispatchEvent(new Event("stark:focus-bill-search"));
-      }}
+      onClick={onClick}
     >
       <SearchIcon size={24} strokeWidth={1.8} />
-    </Link>
+    </button>
   );
 }
 
-export function PageTopBar({ title }: { title: string }) {
+export function PageTopBar({ title, onSearch }: { title: string; onSearch?: () => void }) {
   return (
     <header className="home-topbar">
       <span />
       <h1>{title}</h1>
       <div className="home-actions">
-        <TopBarSearchAction />
+        {onSearch ? <TopBarSearchAction onClick={onSearch} /> : null}
       </div>
     </header>
   );

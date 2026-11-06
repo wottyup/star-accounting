@@ -121,7 +121,6 @@ export default function ConsumptionPage() {
   const [query, setQuery] = useState("");
   const [detailQuery, setDetailQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const pendingSearchFocusRef = useRef(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [filterMenuReady, setFilterMenuReady] = useState(false);
@@ -141,37 +140,12 @@ export default function ConsumptionPage() {
     consumeFilterHistory();
     dismissFilters();
   }, [consumeFilterHistory, dismissFilters]);
-
-  useEffect(() => {
-    const focusBillSearch = () => {
-      const input = searchInputRef.current;
-      if (!input) {
-        pendingSearchFocusRef.current = true;
-        return;
-      }
-      pendingSearchFocusRef.current = false;
-      input.scrollIntoView({ block: "center" });
-      input.focus({ preventScroll: true });
-    };
-    const focusFromHash = () => {
-      if (window.location.hash === "#bill-search") focusBillSearch();
-    };
-    window.addEventListener("stark:focus-bill-search", focusBillSearch);
-    window.addEventListener("hashchange", focusFromHash);
-    if (window.location.hash === "#bill-search") pendingSearchFocusRef.current = true;
-    if (!loading && !loadError && pendingSearchFocusRef.current) {
-      const frame = window.requestAnimationFrame(focusBillSearch);
-      return () => {
-        window.cancelAnimationFrame(frame);
-        window.removeEventListener("stark:focus-bill-search", focusBillSearch);
-        window.removeEventListener("hashchange", focusFromHash);
-      };
-    }
-    return () => {
-      window.removeEventListener("stark:focus-bill-search", focusBillSearch);
-      window.removeEventListener("hashchange", focusFromHash);
-    };
-  }, [loading, loadError]);
+  const focusBillSearch = useCallback(() => {
+    const input = searchInputRef.current;
+    if (!input) return;
+    input.scrollIntoView({ block: "center" });
+    input.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     setReportingMonth(getSelectedReportMonth());
@@ -441,7 +415,7 @@ export default function ConsumptionPage() {
 
   return (
     <div className="page-stack consumption-page consumption-analysis-page">
-      <PageTopBar title="消费分析" />
+      <PageTopBar title="消费分析" onSearch={focusBillSearch} />
 
       <section className="consumption-overview-card">
         <div className="consumption-overview-head">

@@ -9,7 +9,6 @@ import { REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/
 import { EChartView } from "@/components/stark/EChartView";
 import { loadAvailableTransactionMonths, resolveAvailableReportingMonth } from "@/lib/stark/repository/transaction-months";
 import { Skeleton } from "@/components/stark/Skeleton";
-import { TopBarSearchAction } from "@/components/stark/PageTopBar";
 import { MonthPicker } from "@/components/stark/MonthPicker";
 import { BottomSheet } from "@/components/stark/BottomSheet";
 import { BudgetManagementSheet } from "@/components/stark/BudgetManagementSheet";
@@ -1422,9 +1421,7 @@ export function HomeDashboard() {
         <header className="home-topbar">
           <span />
           <h1>首页</h1>
-          <div className="home-actions">
-            <TopBarSearchAction />
-          </div>
+          <div className="home-actions" />
         </header>
         <Skeleton className="skeleton-hero" />
         <Skeleton className="skeleton-card" />
@@ -1439,9 +1436,7 @@ export function HomeDashboard() {
         <header className="home-topbar">
           <span />
           <h1>首页</h1>
-          <div className="home-actions">
-            <TopBarSearchAction />
-          </div>
+          <div className="home-actions" />
         </header>
         <section className="home-data-error" role="alert">
           <strong>未能读取数据库数据</strong>
@@ -1461,9 +1456,7 @@ export function HomeDashboard() {
       <header className="home-topbar">
         <span />
         <h1>首页</h1>
-        <div className="home-actions">
-          <TopBarSearchAction />
-        </div>
+        <div className="home-actions" />
       </header>
 
       {/* 极简通透 Hero */}

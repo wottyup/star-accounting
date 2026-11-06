@@ -134,7 +134,7 @@ class KtHybridActivity : MainActivity() {
                 val barTop = 32f * density
                 val corner = 7f * density
                 // Extend the shoulders without raising the center arc.
-                val bumpWidth = (width * 0.24f).coerceIn(94f * density, 106f * density)
+                val bumpWidth = (width * 0.27f).coerceIn(106f * density, 118f * density)
                 val bumpHeight = (width * 0.19f).coerceIn(74f * density, 84f * density) * 104f / 440f
                 val bumpLeft = (width - bumpWidth) / 2f
                 val bumpTop = barTop - bumpHeight
@@ -181,7 +181,7 @@ class KtHybridActivity : MainActivity() {
                     canvas.drawLine(centerX, centerY - arm, centerX, centerY + arm, plusPaint)
                 }
             }
-            addView(circle, FrameLayout.LayoutParams(dp(38), dp(38), Gravity.CENTER))
+            addView(circle, FrameLayout.LayoutParams(dp(34), dp(34), Gravity.CENTER))
             setOnClickListener { openJournalFromNative() }
         }
         journalAction = action

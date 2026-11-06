@@ -59,6 +59,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AppUpdatePlugin.class);
+        registerPlugin(BillExportPlugin.class);
         super.onCreate(savedInstanceState);
         this.bridge.setWebViewClient(new StaticExportWebViewClient(this.bridge));
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);

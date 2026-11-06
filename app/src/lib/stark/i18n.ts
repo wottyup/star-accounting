@@ -4,6 +4,7 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "正在保存账单到系统文件...": "Saving bills to a system file…", "已取消账单导出": "Bill export canceled", "当前安装包尚未包含账单保存功能，请安装新版本后再导出": "This installed app does not support saving bills yet. Install a newer version and try again.", "账单数量超出单次导出上限，请联系开发者": "Too many bills for one export. Contact the developer.",
   "重试": "Retry", "加载中…": "Loading…", "正在读取归类规则…": "Loading classification rules…", "归类规则读取失败，请重试": "Could not load classification rules. Try again.", "账单读取失败，请重试": "Could not load bills. Try again.", "更早的账单读取失败，已加载的账单仍可查看": "Could not load older bills. The bills already loaded remain available.", "归类已保存，账单列表刷新失败，请重试": "Classification was saved, but the bill list could not refresh. Try again.", "已加载账单中暂无匹配，正在查找更早账单…": "No match in loaded bills yet. Searching older bills…",
   全部目标: "All goals", 计划来源: "Plan source", 月度计划: "Monthly plan", 目标与计划: "Goal and plans",
   查看对应月度计划: "Open the corresponding monthly plan", 月度计划与目标设置: "Monthly plans and goal settings", 按计划月份由早到晚: "Planned months, earliest first",
@@ -161,7 +162,11 @@ function translateDynamic(source: string) {
   value = value.replace(/^当前已加载流水中匹配 (\d+) 笔$/, "$1 matching transactions loaded");
   value = value.replace(/^已导入 (\d+) 笔，跳过 (\d+) 笔，失败 (\d+) 笔$/, "Imported $1, skipped $2, failed $3");
   value = value.replace(/^已导入 (\d+) 笔，跳过 (\d+) 笔，失败 (\d+) 笔，失败行可再次确认导入$/, "Imported $1, skipped $2, failed $3; failed rows can be confirmed again");
-  value = value.replace(/^已导出 (\d+) 笔账单，文件已开始下载$/, "Exported $1 bills; the download has started");
+  value = value.replace(/^正在读取账单，已读取 (\d+) 笔\.\.\.$/, "Reading bills; $1 loaded…");
+  value = value.replace(/^正在保存账单\.\.\. (\d+)%$/, "Saving bills… $1%");
+  value = value.replace(/^已导出 (\d+) 笔账单，保存位置：所选位置\/(.+)$/, "Exported $1 bills. Saved to your selected location as $2");
+  value = value.replace(/^已导出 (\d+) 笔账单，保存位置：(.+)$/, "Exported $1 bills. Saved to: $2");
+  value = value.replace(/^已生成 (\d+) 笔账单，请在浏览器下载记录中查看 (.+)$/, "Generated $1 bills. Check your browser downloads for $2");
   value = value.replace(/^导出账单失败[：:](.*)$/, (_m, detail) => `Bill export failed: ${detail}`);
   value = value.replace(/^已识别 (.+)：(.+)账单，共 (\d+) 笔。确认后才会导入。$/, "Recognized $1: $2 bills, $3 transactions. Confirm to import.");
   value = value.replace(/^读取账单失败(.*)。请确认文件未损坏且为 CSV \/ XLS \/ XLSX 格式。$/, "Could not read bills$1. Confirm the file is intact and uses CSV / XLS / XLSX format.");

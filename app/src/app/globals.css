@@ -10635,6 +10635,7 @@ img[src$="/qita.webp"] {
   background: #f9fbfe;
   font-size: calc(9px * var(--user-font-scale));
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .bill-import-message.success { color: #26785c; border-color: #b9dfd0; background: #edf8f4; }

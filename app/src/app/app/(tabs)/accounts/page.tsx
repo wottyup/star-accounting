@@ -15,6 +15,7 @@ import { nowText } from "@/lib/stark/utils/format";
 import { createId } from "@/lib/stark/utils/id";
 import { applyCategoryRules } from "@/lib/stark/dashboard/remark";
 import { serializeTransactionsToCsv } from "@/lib/stark/export/transaction-csv";
+import { saveBillCsvOnAndroid } from "@/lib/stark/export/native-bill-export";
 import { buildImportErrorLogs, selectFailedImportTransactions } from "@/lib/stark/import/import-errors";
 import { matchImportedLoanRepayments } from "@/lib/stark/import/loan-repayment";
 import { BillRemarkSheet } from "@/components/stark/BillRemarkSheet";
@@ -349,26 +350,46 @@ export default function AccountsPage() {
       const accountId = getCurrentAccountId();
       const pageSize = 500;
       const transactions: Transaction[] = [];
+      let complete = false;
       for (let page = 1; page <= 1000; page += 1) {
         const batch = await repository.getTransactions(accountId, page, pageSize);
         transactions.push(...batch);
-        if (batch.length < pageSize) break;
+        setExportMessage(`正在读取账单，已读取 ${transactions.length} 笔...`);
+        if (batch.length < pageSize) {
+          complete = true;
+          break;
+        }
       }
+      if (!complete) throw new Error("账单数量超出单次导出上限，请联系开发者");
       const csv = `\uFEFF${serializeTransactionsToCsv(transactions)}`;
+      const now = new Date();
+      const pad = (value: number) => String(value).padStart(2, "0");
+      const fileName = `star-accounting-bills-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+      if (Capacitor.isNativePlatform()) {
+        setExportMessage("正在保存账单到系统文件...");
+        const result = await saveBillCsvOnAndroid(csv, fileName, (percent) => setExportMessage(`正在保存账单... ${percent}%`));
+        setExportMessage(`已导出 ${transactions.length} 笔账单，保存位置：${result.location}`);
+        return;
+      }
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
-      const date = new Date().toISOString().slice(0, 10);
       anchor.href = url;
-      anchor.download = `star-accounting-bills-${date}.csv`;
+      anchor.download = fileName;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      setExportMessage(`已导出 ${transactions.length} 笔账单，文件已开始下载`);
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setExportMessage(`已生成 ${transactions.length} 笔账单，请在浏览器下载记录中查看 ${fileName}`);
     } catch (error) {
-      const detail = error instanceof Error && error.message ? `：${error.message}` : "";
-      setExportMessage(`导出账单失败${detail}`);
+      const detail = error instanceof Error ? error.message : "";
+      if (detail === "已取消保存") {
+        setExportMessage("已取消账单导出");
+      } else if (Capacitor.isNativePlatform() && /not implemented/i.test(detail)) {
+        setExportMessage("当前安装包尚未包含账单保存功能，请安装新版本后再导出");
+      } else {
+        setExportMessage(`导出账单失败${detail ? `：${detail}` : ""}`);
+      }
     } finally {
       setExporting(false);
     }

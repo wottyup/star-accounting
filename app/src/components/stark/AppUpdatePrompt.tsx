@@ -43,6 +43,23 @@ const initialDownload: DownloadState = {
   message: null,
 };
 const CHECK_TIMEOUT_MS = 30_000;
+const LAN_UPDATE_CONNECTION_ERROR = "无法连接局域网版本服务，请检查手机网络和地址。";
+const LAN_UPDATE_USER_ERROR_PREFIXES = [
+  "请输入有效的局域网版本接口地址。",
+  "局域网版本接口返回 HTTP ",
+  "版本信息过大。",
+  "局域网版本信息不是有效 JSON。",
+  "局域网版本信息缺少版本号或安装包地址。",
+  "安装包须与局域网版本接口位于同一地址和端口。",
+  "无法读取当前安装版本，请稍后重试。",
+];
+
+function lanUpdateErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return LAN_UPDATE_USER_ERROR_PREFIXES.some((prefix) => message.startsWith(prefix))
+    ? message
+    : LAN_UPDATE_CONNECTION_ERROR;
+}
 
 function isAppVersionInfo(value: unknown): value is AppVersionInfo {
   if (!value || typeof value !== "object") return false;
@@ -216,7 +233,7 @@ export function AppUpdatePrompt() {
         if (canShowManualResult() && !cancelled) setNotice({
           title: "版本检查失败",
           message: readLanUpdateUrl()
-            ? error instanceof Error && error.message ? error.message : "无法连接局域网版本服务，请检查手机网络和地址。"
+            ? lanUpdateErrorMessage(error)
             : "暂时无法连接版本服务，请稍后重试。",
         });
         // Version checks are optional and must never block the app.
@@ -280,8 +297,8 @@ export function AppUpdatePrompt() {
       <div className="app-update-overlay" role="dialog" aria-modal="true" aria-labelledby="app-update-notice-title">
         <section className="app-update-card">
           <div className="app-update-icon" aria-hidden="true">i</div>
-          <p className="app-update-kicker">{notice.title}</p>
-          <h2 id="app-update-notice-title">{notice.message}</h2>
+          <p className="app-update-kicker" id="app-update-notice-title">{notice.title}</p>
+          <p className="app-update-notice-message">{notice.message}</p>
           <div className="app-update-actions single">
             <button type="button" className="app-update-primary" onClick={closePrompt}>知道了</button>
           </div>

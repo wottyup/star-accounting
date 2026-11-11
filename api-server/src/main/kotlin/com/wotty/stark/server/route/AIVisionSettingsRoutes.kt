@@ -28,6 +28,10 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.Base64
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.put
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -44,6 +48,7 @@ private val aiVisionHttpClient: HttpClient = HttpClient.newBuilder()
 data class AIVisionSettingsPayload(
     val baseUrl: String,
     val model: String,
+    val apiFormat: String = "openai",
     val apiKey: String = "",
 )
 
@@ -52,6 +57,7 @@ private data class AIVisionSettingsResponse(
     val configured: Boolean,
     val source: String,
     val baseUrl: String,
+    val apiFormat: String,
     val model: String,
     val hasApiKey: Boolean,
     val hasPersonalConfiguration: Boolean,
@@ -61,6 +67,7 @@ private data class AIVisionSettingsResponse(
 
 data class AIVisionProviderConfig(
     val baseUrl: String,
+    val apiFormat: String,
     val model: String,
     val apiKey: String,
 )
@@ -76,10 +83,14 @@ private fun ApplicationCall.currentAIVisionUserId(): String = principal<JWTPrinc
 internal fun defaultAIVisionProviderConfig(): AIVisionProviderConfig = AIVisionProviderConfig(
     baseUrl = System.getenv("AI_VISION_BASE_URL")?.trim()?.trimEnd('/')?.takeIf(String::isNotEmpty)
         ?: "https://api.openai.com/v1",
+    apiFormat = normalizeAIVisionApiFormat(System.getenv("AI_VISION_API_FORMAT").orEmpty()),
     model = System.getenv("AI_VISION_MODEL")?.trim()?.takeIf(String::isNotEmpty)
         ?: "gpt-4o-mini",
     apiKey = System.getenv("AI_VISION_API_KEY")?.trim().orEmpty(),
 )
+
+internal fun normalizeAIVisionApiFormat(raw: String): String = raw.trim().lowercase().ifBlank { "openai" }
+    .also { require(it == "openai" || it == "anthropic") { "请选择受支持的模型接口格式" } }
 
 internal fun aiVisionEncryptionKey(): String = System.getenv("AI_VISION_ENCRYPTION_KEY")?.trim().orEmpty()
 
@@ -92,7 +103,7 @@ internal fun resolveUserAIVisionConfig(userId: String): Pair<AIVisionProviderCon
     val saved = DatabaseFactory.getUserAIVisionSettings(userId)
         ?: return defaultAIVisionProviderConfig() to false
     val decrypted = decryptAIVisionKey(aiVisionEncryptionKey(), saved.encryptedApiKey)
-    return AIVisionProviderConfig(saved.baseUrl, saved.model, decrypted) to true
+    return AIVisionProviderConfig(saved.baseUrl, saved.apiFormat, saved.model, decrypted) to true
 }
 
 internal fun normalizeAndValidateAIVisionBaseURL(raw: String, allowPrivate: Boolean, resolveHost: Boolean = false): String {
@@ -175,11 +186,30 @@ private suspend fun testAIVisionConnection(provider: AIVisionProviderConfig, all
     val baseUrl = withContext(Dispatchers.IO) {
         normalizeAndValidateAIVisionBaseURL(provider.baseUrl, allowPrivate, resolveHost = true)
     }
-    val request = HttpRequest.newBuilder(URI.create("$baseUrl/models"))
-        .timeout(Duration.ofSeconds(15))
-        .header("Authorization", "Bearer ${provider.apiKey}")
-        .GET()
-        .build()
+    val requestBuilder = HttpRequest.newBuilder(
+        URI.create(if (provider.apiFormat == "anthropic") "$baseUrl/v1/messages" else "$baseUrl/models")
+    ).timeout(Duration.ofSeconds(25))
+    val request = if (provider.apiFormat == "anthropic") {
+        val payload = buildJsonObject {
+            put("model", provider.model)
+            put("max_tokens", 1)
+            put("messages", buildJsonArray {
+                add(buildJsonObject {
+                    put("role", "user")
+                    put("content", "Reply OK")
+                })
+            })
+        }.toString()
+        requestBuilder.header("x-api-key", provider.apiKey)
+            .header("anthropic-version", "2023-06-01")
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(payload))
+            .build()
+    } else {
+        requestBuilder.header("Authorization", "Bearer ${provider.apiKey}")
+            .GET()
+            .build()
+    }
     val response = try {
         withContext(Dispatchers.IO) {
             aiVisionHttpClient.send(request, HttpResponse.BodyHandlers.discarding())
@@ -201,6 +231,7 @@ fun Routing.aiVisionSettingsRoutes() {
             val source = if (saved == null) "server" else "personal"
             val baseUrl = saved?.baseUrl ?: defaults.baseUrl
             val model = saved?.model ?: defaults.model
+            val apiFormat = saved?.apiFormat ?: defaults.apiFormat
             val hasKey = if (saved == null) defaults.apiKey.isNotBlank() else saved.encryptedApiKey.isNotBlank()
             val personalKeyReadable = saved == null || runCatching {
                 decryptAIVisionKey(aiVisionEncryptionKey(), saved.encryptedApiKey)
@@ -210,6 +241,7 @@ fun Routing.aiVisionSettingsRoutes() {
                     configured = baseUrl.isNotBlank() && model.isNotBlank() && hasKey && personalKeyReadable,
                     source = source,
                     baseUrl = baseUrl,
+                    apiFormat = apiFormat,
                     model = model,
                     hasApiKey = hasKey,
                     hasPersonalConfiguration = saved != null,
@@ -244,6 +276,12 @@ fun Routing.aiVisionSettingsRoutes() {
                 call.respond(HttpStatusCode.BadRequest, AIVisionMessage(error.message ?: "模型服务地址无效"))
                 return@put
             }
+            val apiFormat = try {
+                normalizeAIVisionApiFormat(payload.apiFormat)
+            } catch (error: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, AIVisionMessage(error.message ?: "请选择受支持的模型接口格式"))
+                return@put
+            }
 
             val saved = DatabaseFactory.getUserAIVisionSettings(userId)
             val encryptedKey = if (apiKey.isNotBlank()) {
@@ -262,7 +300,7 @@ fun Routing.aiVisionSettingsRoutes() {
                 }
                 previous
             }
-            DatabaseFactory.saveUserAIVisionSettings(userId, UserAIVisionSettings(baseUrl, model, encryptedKey))
+            DatabaseFactory.saveUserAIVisionSettings(userId, UserAIVisionSettings(baseUrl, apiFormat, model, encryptedKey))
             call.respond(HttpStatusCode.OK, AIVisionMessage("AI 设置已保存"))
         }
 
@@ -285,7 +323,12 @@ fun Routing.aiVisionSettingsRoutes() {
             }
             try {
                 testAIVisionConnection(
-                    AIVisionProviderConfig(payload.baseUrl.trim(), payload.model.trim(), key),
+                    AIVisionProviderConfig(
+                        payload.baseUrl.trim(),
+                        normalizeAIVisionApiFormat(payload.apiFormat),
+                        payload.model.trim(),
+                        key,
+                    ),
                     aiVisionPrivateEndpointsAllowed(),
                 )
             } catch (error: IllegalArgumentException) {

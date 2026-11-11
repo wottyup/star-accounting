@@ -1,12 +1,14 @@
 package vision
 
 import (
+	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -18,14 +20,32 @@ import (
 
 type UserSettings struct {
 	BaseURL         string
+	APIFormat       string
 	Model           string
 	EncryptedAPIKey string
 }
 
 type ProviderConfig struct {
-	BaseURL string
-	Model   string
-	APIKey  string
+	BaseURL   string
+	APIFormat string
+	Model     string
+	APIKey    string
+}
+
+const (
+	APIFormatOpenAI    = "openai"
+	APIFormatAnthropic = "anthropic"
+)
+
+func NormalizeAPIFormat(raw string) (string, error) {
+	format := strings.ToLower(strings.TrimSpace(raw))
+	if format == "" {
+		return APIFormatOpenAI, nil
+	}
+	if format != APIFormatOpenAI && format != APIFormatAnthropic {
+		return "", errors.New("请选择受支持的模型接口格式")
+	}
+	return format, nil
 }
 
 func EncryptionReady(key string) bool {
@@ -191,12 +211,33 @@ func TestConnection(ctx context.Context, provider ProviderConfig, allowPrivate b
 	if err != nil {
 		return err
 	}
-	endpoint := baseURL + "/models"
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	apiFormat, err := NormalizeAPIFormat(provider.APIFormat)
+	if err != nil {
+		return err
+	}
+	var request *http.Request
+	if apiFormat == APIFormatAnthropic {
+		payload, marshalErr := json.Marshal(map[string]interface{}{
+			"model": provider.Model, "max_tokens": 1,
+			"messages": []map[string]string{{"role": "user", "content": "Reply OK"}},
+		})
+		if marshalErr != nil {
+			return errors.New("无法构造模型连接测试请求")
+		}
+		request, err = http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/v1/messages", bytes.NewReader(payload))
+	} else {
+		request, err = http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/models", nil)
+	}
 	if err != nil {
 		return errors.New("模型服务地址无效")
 	}
-	request.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	if apiFormat == APIFormatAnthropic {
+		request.Header.Set("x-api-key", provider.APIKey)
+		request.Header.Set("anthropic-version", "2023-06-01")
+		request.Header.Set("Content-Type", "application/json")
+	} else {
+		request.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		return errors.New("连接模型服务失败，请检查地址、网络和证书")

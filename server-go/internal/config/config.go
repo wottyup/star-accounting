@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/wottyup/star-accounting/server-go/internal/vision"
 )
 
 const (
@@ -53,9 +55,10 @@ type AuthConfig struct {
 }
 
 type VisionConfig struct {
-	BaseURL string
-	APIKey  string
-	Model   string
+	BaseURL   string
+	APIFormat string
+	APIKey    string
+	Model     string
 }
 
 func (config Config) PortString() string {
@@ -138,6 +141,10 @@ func Load(lookup LookupEnv) (Config, error) {
 	if visionModel == "" {
 		visionModel = "gpt-4o-mini"
 	}
+	visionAPIFormat, err := vision.NormalizeAPIFormat(value("AI_VISION_API_FORMAT"))
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		Host:     host,
@@ -148,9 +155,10 @@ func Load(lookup LookupEnv) (Config, error) {
 			AccountAdminKey: value("ACCOUNT_ADMIN_KEY"),
 		},
 		Vision: VisionConfig{
-			BaseURL: strings.TrimRight(visionBaseURL, "/"),
-			APIKey:  value("AI_VISION_API_KEY"),
-			Model:   visionModel,
+			BaseURL:   strings.TrimRight(visionBaseURL, "/"),
+			APIFormat: visionAPIFormat,
+			APIKey:    value("AI_VISION_API_KEY"),
+			Model:     visionModel,
 		},
 		VisionEncryptionKey:         value("AI_VISION_ENCRYPTION_KEY"),
 		VisionAllowPrivateEndpoints: strings.EqualFold(value("AI_VISION_ALLOW_PRIVATE_ENDPOINTS"), "true"),

@@ -71,6 +71,7 @@ data class AuthUser(
 
 data class UserAIVisionSettings(
     val baseUrl: String,
+    val apiFormat: String,
     val model: String,
     val encryptedApiKey: String,
 )
@@ -127,6 +128,7 @@ object AuthSettings : Table("authsetting") {
 object UserAIVisionSettingsTable : Table("useraivisionsetting") {
     val userId = varchar("userId", 191)
     val baseUrl = text("baseUrl")
+    val apiFormat = varchar("apiFormat", 32).default("openai")
     val model = varchar("model", 191)
     val encryptedApiKey = text("encryptedApiKey")
     val updatedAt = datetime("updatedAt")
@@ -424,6 +426,7 @@ object DatabaseFactory {
             ?.let { row ->
                 UserAIVisionSettings(
                     baseUrl = row[UserAIVisionSettingsTable.baseUrl],
+                    apiFormat = row[UserAIVisionSettingsTable.apiFormat],
                     model = row[UserAIVisionSettingsTable.model],
                     encryptedApiKey = row[UserAIVisionSettingsTable.encryptedApiKey],
                 )
@@ -433,6 +436,7 @@ object DatabaseFactory {
     fun saveUserAIVisionSettings(userId: String, settings: UserAIVisionSettings) = transaction {
         val updated = UserAIVisionSettingsTable.update({ UserAIVisionSettingsTable.userId eq userId }) {
             it[baseUrl] = settings.baseUrl
+            it[apiFormat] = settings.apiFormat
             it[model] = settings.model
             it[encryptedApiKey] = settings.encryptedApiKey
             it[updatedAt] = LocalDateTime.now()
@@ -441,6 +445,7 @@ object DatabaseFactory {
             UserAIVisionSettingsTable.insert {
                 it[UserAIVisionSettingsTable.userId] = userId
                 it[baseUrl] = settings.baseUrl
+                it[apiFormat] = settings.apiFormat
                 it[model] = settings.model
                 it[encryptedApiKey] = settings.encryptedApiKey
                 it[updatedAt] = LocalDateTime.now()

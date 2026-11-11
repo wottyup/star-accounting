@@ -24,6 +24,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
 import java.net.URI
@@ -173,7 +174,8 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     val baseUrl = withContext(Dispatchers.IO) {
         normalizeAndValidateAIVisionBaseURL(provider.baseUrl, aiVisionPrivateEndpointsAllowed(), resolveHost = true)
     }
-    val dataUrl = "data:${image.mimeType};base64," + Base64.getEncoder().encodeToString(image.bytes)
+    val imageBase64 = Base64.getEncoder().encodeToString(image.bytes)
+    val dataUrl = "data:${image.mimeType};base64,$imageBase64"
     val prompt = """识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
 - 金额优先取最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。
@@ -184,41 +186,77 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
 - description 只可写简短商品/订单内容摘要；绝不包含订单号、商户单号、流水号、手机号、账号或支付凭证编号。
 - confidence 为 high、medium、low 之一；任何关键字段不确定时降低置信度，并在 warnings 用中文简短说明。
 只输出 JSON 对象，字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。"""
-    val requestJson = buildJsonObject {
-        put("model", provider.model)
-        put("max_tokens", 700)
-        put("response_format", buildJsonObject { put("type", "json_object") })
-        put("messages", buildJsonArray {
-            add(buildJsonObject { put("role", "system"); put("content", prompt) })
-            add(buildJsonObject {
-                put("role", "user")
-                put("content", buildJsonArray {
-                    add(buildJsonObject { put("type", "text"); put("text", "请识别这张截图。") })
-                    add(buildJsonObject {
-                        put("type", "image_url")
-                        put("image_url", buildJsonObject {
-                            put("url", dataUrl)
-                            put("detail", "high")
+    val anthropic = provider.apiFormat == "anthropic"
+    val requestJson = if (anthropic) {
+        buildJsonObject {
+            put("model", provider.model)
+            put("max_tokens", 700)
+            put("system", prompt)
+            put("messages", buildJsonArray {
+                add(buildJsonObject {
+                    put("role", "user")
+                    put("content", buildJsonArray {
+                        add(buildJsonObject { put("type", "text"); put("text", "请识别这张截图。") })
+                        add(buildJsonObject {
+                            put("type", "image")
+                            put("source", buildJsonObject {
+                                put("type", "base64")
+                                put("media_type", image.mimeType)
+                                put("data", imageBase64)
+                            })
                         })
                     })
                 })
             })
-        })
+        }
+    } else {
+        buildJsonObject {
+            put("model", provider.model)
+            put("max_tokens", 700)
+            put("response_format", buildJsonObject { put("type", "json_object") })
+            put("messages", buildJsonArray {
+                add(buildJsonObject { put("role", "system"); put("content", prompt) })
+                add(buildJsonObject {
+                    put("role", "user")
+                    put("content", buildJsonArray {
+                        add(buildJsonObject { put("type", "text"); put("text", "请识别这张截图。") })
+                        add(buildJsonObject {
+                            put("type", "image_url")
+                            put("image_url", buildJsonObject {
+                                put("url", dataUrl)
+                                put("detail", "high")
+                            })
+                        })
+                    })
+                })
+            })
+        }
     }.toString()
-    val request = HttpRequest.newBuilder(URI.create("$baseUrl/chat/completions"))
-        .timeout(Duration.ofSeconds(55))
-        .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer ${provider.apiKey}")
-        .POST(HttpRequest.BodyPublishers.ofString(requestJson))
-        .build()
+    val requestBuilder = HttpRequest.newBuilder(URI.create(
+        if (anthropic) "$baseUrl/v1/messages" else "$baseUrl/chat/completions"
+    )).timeout(Duration.ofSeconds(55)).header("Content-Type", "application/json")
+    if (anthropic) {
+        requestBuilder.header("x-api-key", provider.apiKey)
+            .header("anthropic-version", "2023-06-01")
+    } else {
+        requestBuilder.header("Authorization", "Bearer ${provider.apiKey}")
+    }
+    val request = requestBuilder.POST(HttpRequest.BodyPublishers.ofString(requestJson)).build()
 
     val response = withContext(Dispatchers.IO) {
         visionHttpClient.send(request, HttpResponse.BodyHandlers.ofString())
     }
     if (response.statusCode() !in 200..299) throw IllegalStateException("Vision provider request failed")
     val content = runCatching {
-        Json.parseToJsonElement(response.body()).jsonObject["choices"]!!.jsonArray
-            .first().jsonObject["message"]!!.jsonObject["content"]!!.jsonPrimitive.content
+        val body = Json.parseToJsonElement(response.body()).jsonObject
+        if (anthropic) {
+            body["content"]!!.jsonArray.mapNotNull { block ->
+                val item = block.jsonObject
+                if (item["type"]?.jsonPrimitive?.content == "text") item["text"]?.jsonPrimitive?.content else null
+            }.joinToString("\n")
+        } else {
+            body["choices"]!!.jsonArray.first().jsonObject["message"]!!.jsonObject["content"]!!.jsonPrimitive.content
+        }
     }.getOrNull()?.trim()?.removePrefix("```json")?.removePrefix("```")?.trim()?.removeSuffix("```")?.trim()
         ?: return null
     val parsed = runCatching { Json.parseToJsonElement(content).jsonObject }.getOrNull() ?: return null

@@ -134,6 +134,7 @@ var userAIVisionSettingsTable = schemaTable{
 	Create: `CREATE TABLE IF NOT EXISTS ` + "`useraivisionsetting`" + ` (
 		` + "`userId`" + ` VARCHAR(191) NOT NULL,
 		` + "`baseUrl`" + ` TEXT NOT NULL,
+		` + "`apiFormat`" + ` VARCHAR(32) NOT NULL DEFAULT 'openai',
 		` + "`model`" + ` VARCHAR(191) NOT NULL,
 		` + "`encryptedApiKey`" + ` TEXT NOT NULL,
 		` + "`updatedAt`" + ` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -142,6 +143,7 @@ var userAIVisionSettingsTable = schemaTable{
 	Columns: []schemaColumn{
 		{"userId", "VARCHAR(191) NOT NULL"},
 		{"baseUrl", "TEXT NOT NULL"},
+		{"apiFormat", "VARCHAR(32) NOT NULL DEFAULT 'openai'"},
 		{"model", "VARCHAR(191) NOT NULL"},
 		{"encryptedApiKey", "TEXT NOT NULL"},
 		{"updatedAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"},

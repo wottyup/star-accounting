@@ -58,6 +58,12 @@ func Open(settings config.DatabaseConfig) (*Store, error) {
 			db.Close()
 			return nil, fmt.Errorf("initialise AI settings schema: %w", err)
 		}
+		if err := ensureColumn(context.Background(), db, userAIVisionSettingsTable.Name, schemaColumn{
+			Name: "apiFormat", Definition: "VARCHAR(32) NOT NULL DEFAULT 'openai'",
+		}); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("upgrade AI settings schema: %w", err)
+		}
 	}
 	return &Store{db: db}, nil
 }

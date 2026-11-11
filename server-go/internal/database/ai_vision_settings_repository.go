@@ -16,9 +16,9 @@ func (store *Store) GetUserVisionSettings(ctx context.Context, userID string) (v
 	}
 	var settings vision.UserSettings
 	err = database.QueryRowContext(ctx, `
-		SELECT baseUrl, model, encryptedApiKey
+		SELECT baseUrl, apiFormat, model, encryptedApiKey
 		FROM useraivisionsetting WHERE userId = ? LIMIT 1`, userID).Scan(
-		&settings.BaseURL, &settings.Model, &settings.EncryptedAPIKey,
+		&settings.BaseURL, &settings.APIFormat, &settings.Model, &settings.EncryptedAPIKey,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return vision.UserSettings{}, false, nil
@@ -35,10 +35,10 @@ func (store *Store) SaveUserVisionSettings(ctx context.Context, userID string, s
 		return err
 	}
 	_, err = database.ExecContext(ctx, `
-		INSERT INTO useraivisionsetting (userId, baseUrl, model, encryptedApiKey, updatedAt)
-		VALUES (?, ?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE baseUrl = VALUES(baseUrl), model = VALUES(model), encryptedApiKey = VALUES(encryptedApiKey), updatedAt = VALUES(updatedAt)`,
-		userID, settings.BaseURL, settings.Model, settings.EncryptedAPIKey, time.Now().UTC(),
+		INSERT INTO useraivisionsetting (userId, baseUrl, apiFormat, model, encryptedApiKey, updatedAt)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE baseUrl = VALUES(baseUrl), apiFormat = VALUES(apiFormat), model = VALUES(model), encryptedApiKey = VALUES(encryptedApiKey), updatedAt = VALUES(updatedAt)`,
+		userID, settings.BaseURL, settings.APIFormat, settings.Model, settings.EncryptedAPIKey, time.Now().UTC(),
 	)
 	return err
 }

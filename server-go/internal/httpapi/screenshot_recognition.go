@@ -115,7 +115,8 @@ func readRecognitionImage(writer http.ResponseWriter, request *http.Request) ([]
 }
 
 func requestScreenshotRecognition(parent context.Context, provider vision.ProviderConfig, image []byte, contentType string, allowPrivateEndpoints bool) (screenshotRecognition, error) {
-	imageData := "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(image)
+	imageBase64 := base64.StdEncoding.EncodeToString(image)
+	imageData := "data:" + contentType + ";base64," + imageBase64
 	prompt := `识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
 - 金额优先取最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。
@@ -127,17 +128,37 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 - confidence 为 high、medium、low 之一；任何关键字段不确定时降低置信度，并在 warnings 用中文简短说明。
 只输出 JSON 对象，字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。`
 
-	body, err := json.Marshal(map[string]interface{}{
-		"model":           provider.Model,
-		"response_format": map[string]string{"type": "json_object"},
-		"messages": []interface{}{
-			map[string]interface{}{"role": "system", "content": prompt},
-			map[string]interface{}{"role": "user", "content": []interface{}{
-				map[string]string{"type": "text", "text": "请识别这张截图。"},
-				map[string]interface{}{"type": "image_url", "image_url": map[string]string{"url": imageData, "detail": "high"}},
+	apiFormat, err := vision.NormalizeAPIFormat(provider.APIFormat)
+	if err != nil {
+		return screenshotRecognition{}, err
+	}
+	var requestPayload map[string]interface{}
+	if apiFormat == vision.APIFormatAnthropic {
+		requestPayload = map[string]interface{}{
+			"model": provider.Model, "max_tokens": 700, "system": prompt,
+			"messages": []interface{}{map[string]interface{}{
+				"role": "user", "content": []interface{}{
+					map[string]string{"type": "text", "text": "请识别这张截图。"},
+					map[string]interface{}{"type": "image", "source": map[string]string{
+						"type": "base64", "media_type": contentType, "data": imageBase64,
+					}},
+				},
 			}},
-		},
-	})
+		}
+	} else {
+		requestPayload = map[string]interface{}{
+			"model":           provider.Model,
+			"response_format": map[string]string{"type": "json_object"},
+			"messages": []interface{}{
+				map[string]interface{}{"role": "system", "content": prompt},
+				map[string]interface{}{"role": "user", "content": []interface{}{
+					map[string]string{"type": "text", "text": "请识别这张截图。"},
+					map[string]interface{}{"type": "image_url", "image_url": map[string]string{"url": imageData, "detail": "high"}},
+				}},
+			},
+		}
+	}
+	body, err := json.Marshal(requestPayload)
 	if err != nil {
 		return screenshotRecognition{}, err
 	}
@@ -149,12 +170,20 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	ctx, cancel := context.WithTimeout(parent, 50*time.Second)
 	defer cancel()
 	endpoint := strings.TrimRight(baseURL, "/") + "/chat/completions"
+	if apiFormat == vision.APIFormatAnthropic {
+		endpoint = strings.TrimRight(baseURL, "/") + "/v1/messages"
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return screenshotRecognition{}, err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	if apiFormat == vision.APIFormatAnthropic {
+		request.Header.Set("x-api-key", provider.APIKey)
+		request.Header.Set("anthropic-version", "2023-06-01")
+	} else {
+		request.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		return screenshotRecognition{}, err
@@ -173,11 +202,32 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
 	}
-	if err := json.Unmarshal(responseBody, &envelope); err != nil || len(envelope.Choices) == 0 {
+	if err := json.Unmarshal(responseBody, &envelope); err != nil {
 		return screenshotRecognition{}, errors.New("invalid vision response")
 	}
-	content := strings.TrimSpace(envelope.Choices[0].Message.Content)
+	var content string
+	if apiFormat == vision.APIFormatAnthropic {
+		textParts := make([]string, 0, len(envelope.Content))
+		for _, block := range envelope.Content {
+			if block.Type == "text" && strings.TrimSpace(block.Text) != "" {
+				textParts = append(textParts, block.Text)
+			}
+		}
+		content = strings.TrimSpace(strings.Join(textParts, "\n"))
+	} else {
+		if len(envelope.Choices) == 0 {
+			return screenshotRecognition{}, errors.New("invalid vision response")
+		}
+		content = strings.TrimSpace(envelope.Choices[0].Message.Content)
+	}
+	if content == "" {
+		return screenshotRecognition{}, errors.New("empty vision response")
+	}
 	content = strings.TrimPrefix(content, "```json")
 	content = strings.TrimPrefix(content, "```")
 	content = strings.TrimSuffix(strings.TrimSpace(content), "```")

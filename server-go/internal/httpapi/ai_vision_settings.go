@@ -22,6 +22,7 @@ type aiVisionSettingsResponse struct {
 	Configured               bool   `json:"configured"`
 	Source                   string `json:"source"`
 	BaseURL                  string `json:"baseUrl"`
+	APIFormat                string `json:"apiFormat"`
 	Model                    string `json:"model"`
 	HasAPIKey                bool   `json:"hasApiKey"`
 	HasPersonalConfiguration bool   `json:"hasPersonalConfiguration"`
@@ -30,9 +31,10 @@ type aiVisionSettingsResponse struct {
 }
 
 type saveAIVisionSettingsRequest struct {
-	BaseURL string `json:"baseUrl"`
-	Model   string `json:"model"`
-	APIKey  string `json:"apiKey"`
+	BaseURL   string `json:"baseUrl"`
+	APIFormat string `json:"apiFormat"`
+	Model     string `json:"model"`
+	APIKey    string `json:"apiKey"`
 }
 
 func registerAIVisionSettingsRoutes(
@@ -59,6 +61,7 @@ func registerAIVisionSettingsRoutes(
 			response := aiVisionSettingsResponse{
 				Source:                   "server",
 				BaseURL:                  defaultVision.BaseURL,
+				APIFormat:                defaultVision.APIFormat,
 				Model:                    defaultVision.Model,
 				HasAPIKey:                strings.TrimSpace(defaultVision.APIKey) != "",
 				HasPersonalConfiguration: hasPersonal,
@@ -68,6 +71,7 @@ func registerAIVisionSettingsRoutes(
 			if hasPersonal {
 				response.Source = "personal"
 				response.BaseURL = personal.BaseURL
+				response.APIFormat = personal.APIFormat
 				response.Model = personal.Model
 				response.HasAPIKey = personal.EncryptedAPIKey != ""
 				if response.HasAPIKey {
@@ -104,6 +108,11 @@ func registerAIVisionSettingsRoutes(
 				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
 				return
 			}
+			apiFormat, err := vision.NormalizeAPIFormat(payload.APIFormat)
+			if err != nil {
+				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
+				return
+			}
 			var encryptedKey string
 			if apiKey == "" {
 				previous, found, readErr := repository.GetUserVisionSettings(request.Context(), user.ID)
@@ -132,7 +141,7 @@ func registerAIVisionSettingsRoutes(
 				return
 			}
 			if err := repository.SaveUserVisionSettings(request.Context(), user.ID, vision.UserSettings{
-				BaseURL: normalizedURL, Model: model, EncryptedAPIKey: encryptedKey,
+				BaseURL: normalizedURL, APIFormat: apiFormat, Model: model, EncryptedAPIKey: encryptedKey,
 			}); err != nil {
 				writeJSON(writer, http.StatusInternalServerError, map[string]string{"error": "保存 AI 设置失败"})
 				return
@@ -178,7 +187,15 @@ func registerAIVisionSettingsRoutes(
 					}
 				}
 			}
-			provider := vision.ProviderConfig{BaseURL: strings.TrimSpace(payload.BaseURL), Model: strings.TrimSpace(payload.Model), APIKey: apiKey}
+			apiFormat, err := vision.NormalizeAPIFormat(payload.APIFormat)
+			if err != nil {
+				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": err.Error()})
+				return
+			}
+			provider := vision.ProviderConfig{
+				BaseURL: strings.TrimSpace(payload.BaseURL), APIFormat: apiFormat,
+				Model: strings.TrimSpace(payload.Model), APIKey: apiKey,
+			}
 			if provider.Model == "" {
 				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "请填写模型名称"})
 				return
@@ -207,8 +224,8 @@ func resolveUserVisionConfig(ctx context.Context, repository VisionSettingsRepos
 			if err != nil {
 				return vision.ProviderConfig{}, true, err
 			}
-			return vision.ProviderConfig{BaseURL: personal.BaseURL, Model: personal.Model, APIKey: apiKey}, true, nil
+			return vision.ProviderConfig{BaseURL: personal.BaseURL, APIFormat: personal.APIFormat, Model: personal.Model, APIKey: apiKey}, true, nil
 		}
 	}
-	return vision.ProviderConfig{BaseURL: defaultVision.BaseURL, Model: defaultVision.Model, APIKey: defaultVision.APIKey}, false, nil
+	return vision.ProviderConfig{BaseURL: defaultVision.BaseURL, APIFormat: defaultVision.APIFormat, Model: defaultVision.Model, APIKey: defaultVision.APIKey}, false, nil
 }

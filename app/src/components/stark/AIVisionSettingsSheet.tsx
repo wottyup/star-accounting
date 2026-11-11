@@ -12,6 +12,7 @@ import {
 export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: boolean; onOpenCloudLogin: () => void }) {
   const [settings, setSettings] = useState<AIVisionSettings | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
+  const [apiFormat, setApiFormat] = useState<"openai" | "anthropic">("openai");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(true);
@@ -29,6 +30,7 @@ export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: 
       const result = await getAIVisionSettings();
       setSettings(result);
       setBaseUrl(result.baseUrl);
+      setApiFormat(result.apiFormat === "anthropic" ? "anthropic" : "openai");
       setModel(result.model);
       setApiKey("");
     } catch (reason) {
@@ -44,7 +46,7 @@ export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: 
   }, [enabled, load]);
 
   function formValues() {
-    return { baseUrl: baseUrl.trim(), model: model.trim(), apiKey };
+    return { baseUrl: baseUrl.trim(), apiFormat, model: model.trim(), apiKey };
   }
 
   async function save() {
@@ -108,7 +110,7 @@ export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: 
 
   return (
     <div className="settings-sheet-body ai-vision-settings">
-      <p className="settings-sheet-note">配置截图记账使用的 OpenAI 兼容视觉模型。API Key 会加密保存在云端账户中，不会回传或写入账本。</p>
+      <p className="settings-sheet-note">配置截图记账使用的视觉模型接口。API Key 会加密保存在云端账户中，不会回传或写入账本。</p>
 
       {loading ? <div className="bill-import-message">正在读取 AI 设置…</div> : null}
 
@@ -128,8 +130,18 @@ export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: 
       ) : null}
 
       <label className="ai-vision-field">
+        <span>接口格式</span>
+        <select value={apiFormat} onChange={(event) => setApiFormat(event.target.value === "anthropic" ? "anthropic" : "openai")} disabled={loading}>
+          <option value="openai">OpenAI 兼容</option>
+          <option value="anthropic">Anthropic Messages</option>
+        </select>
+      </label>
+      {apiFormat === "anthropic" ? (
+        <p className="settings-sheet-tip">Anthropic Messages 使用 /v1/messages；DeepSeek 可填写 https://api.deepseek.com/anthropic。</p>
+      ) : null}
+      <label className="ai-vision-field">
         <span>服务地址</span>
-        <input type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://api.openai.com/v1" disabled={loading} />
+        <input type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={apiFormat === "anthropic" ? "https://api.anthropic.com" : "https://api.openai.com/v1"} disabled={loading} />
       </label>
       <label className="ai-vision-field">
         <span>模型名称</span>

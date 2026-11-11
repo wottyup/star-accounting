@@ -5,6 +5,7 @@ export type AIVisionSettings = {
   configured: boolean;
   source: "personal" | "server";
   baseUrl: string;
+  apiFormat: "openai" | "anthropic";
   model: string;
   hasApiKey: boolean;
   hasPersonalConfiguration: boolean;
@@ -47,11 +48,11 @@ export function getAIVisionSettings() {
   return request<AIVisionSettings>("/api/settings/ai-vision");
 }
 
-export function saveAIVisionSettings(input: { baseUrl: string; model: string; apiKey: string }) {
+export function saveAIVisionSettings(input: { baseUrl: string; apiFormat: "openai" | "anthropic"; model: string; apiKey: string }) {
   return request<MessageResponse>("/api/settings/ai-vision", { method: "PUT", body: JSON.stringify(input) });
 }
 
-export function testAIVisionSettings(input: { baseUrl: string; model: string; apiKey: string }) {
+export function testAIVisionSettings(input: { baseUrl: string; apiFormat: "openai" | "anthropic"; model: string; apiKey: string }) {
   return request<MessageResponse>("/api/settings/ai-vision/test", { method: "POST", body: JSON.stringify(input) });
 }
 

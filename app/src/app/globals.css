@@ -10889,8 +10889,11 @@ img[src$="/qita.webp"] {
 .ai-vision-field { display: grid; gap: 6px; min-width: 0; }
 .ai-vision-field > span { color: #4f5d73; font-size: calc(13px * var(--user-font-scale)); font-weight: 550; }
 .ai-vision-field input { width: 100%; min-width: 0; height: 43px; padding: 0 12px; border: 1px solid #dce5f0; border-radius: 10px; outline: none; color: #25344c; background: #fbfcfe; font: inherit; font-size: calc(13px * var(--user-font-scale)); }
+.ai-vision-field select { width: 100%; min-width: 0; height: 43px; padding: 0 12px; border: 1px solid #dce5f0; border-radius: 10px; outline: none; color: #25344c; background: #fbfcfe; font: inherit; font-size: calc(13px * var(--user-font-scale)); }
 .ai-vision-field input:focus { border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 12%, transparent); }
+.ai-vision-field select:focus { border-color: var(--primary); background: #ffffff; box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 12%, transparent); }
 .ai-vision-field input:disabled { opacity: 0.6; }
+.ai-vision-field select:disabled { opacity: 0.6; }
 .ai-vision-warning { padding: 10px 12px; border: 1px solid #efc8c4; border-radius: 10px; color: #a84e46; background: #fff2f0; font-size: calc(12px * var(--user-font-scale)); line-height: 1.5; }
 .ai-vision-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .ai-vision-actions button { min-height: 42px; border-radius: 10px; font-size: calc(13px * var(--user-font-scale)); }

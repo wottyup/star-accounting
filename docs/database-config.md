@@ -80,7 +80,7 @@ API 进程读取环境变量。Docker Compose 的启动脚本会先从持久化�
 
 `AI_VISION_ENCRYPTION_KEY` 用来加密设置页中用户自行填写的模型 API Key。本地 `pnpm dev` 使用 Ktor API 时，应在 `.env` 中配置至少 32 位的随机值。Docker Compose 首次启动会自动生成并保存在 `api-secret` 命名卷中；已有部署升级后也会补生成一次。请把该密钥卷纳入备份，数据库中的个人模型密钥只有配合原加密密钥才能解密。不要把该值放进 Web 页面、账本或仓库。
 
-截图识别可继续使用服务器默认的 `AI_VISION_BASE_URL`、`AI_VISION_API_KEY` 和 `AI_VISION_MODEL`。登录用户也可在“设置 → AI 截图识别”中保存自己的模型服务配置，个人 API Key 只以 AES-GCM 密文保存在数据库中；读取设置时不会把密钥返回给客户端。默认仅允许 HTTPS 公网模型服务。只有管理员明确配置 `AI_VISION_ALLOW_PRIVATE_ENDPOINTS=true` 后，才允许 HTTP 或私有网段地址，供自建模型服务使用。
+截图识别可继续使用服务器默认的 `AI_VISION_BASE_URL`、`AI_VISION_API_FORMAT`、`AI_VISION_API_KEY` 和 `AI_VISION_MODEL`。接口格式支持 `openai`（默认）和 `anthropic`；DeepSeek Anthropic 兼容接口可使用 `https://api.deepseek.com/anthropic`。登录用户也可在“设置 → AI 截图识别”中保存自己的模型服务配置，个人 API Key 只以 AES-GCM 密文保存在数据库中；读取设置时不会把密钥返回给客户端。默认仅允许 HTTPS 公网模型服务。只有管理员明确配置 `AI_VISION_ALLOW_PRIVATE_ENDPOINTS=true` 后，才允许 HTTP 或私有网段地址，供自建模型服务使用。
 
 连接池默认最多 10 个连接、启动时保持 1 个空闲连接（`DB_POOL_MAX_SIZE=10`、`DB_POOL_MIN_IDLE=1`）。用户量增加时可通过环境变量调大，但个人部署不需要修改。
 

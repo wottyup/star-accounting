@@ -8141,16 +8141,38 @@ img[src$="/qita.webp"] {
 }
 
 .shopping-analysis-rankings li {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 5px 7px;
   min-width: 0;
-  color: #475569;
-  font-size: calc(11px * var(--user-font-scale));
 }
 
-.shopping-analysis-rankings li > i {
+.shopping-analysis-rank-button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 12px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 4px 7px;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 3px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #475569;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.shopping-analysis-rank-button:hover,
+.shopping-analysis-rank-button:active {
+  background: #fff6f3;
+}
+
+.shopping-analysis-rank-button:focus-visible {
+  outline: 2px solid rgba(189, 89, 76, 0.4);
+  outline-offset: 1px;
+}
+
+.shopping-analysis-rank-button > i {
   display: grid;
   grid-row: 1 / span 2;
   width: 18px;
@@ -8165,27 +8187,47 @@ img[src$="/qita.webp"] {
 }
 
 .shopping-analysis-rank-name {
-  grid-column: 2 / 4;
+  grid-column: 2;
+  grid-row: 1;
   overflow: hidden;
+  color: #475569;
+  font-size: calc(11px * var(--user-font-scale));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.shopping-analysis-rankings li small {
+.shopping-analysis-rank-meta {
   grid-column: 2;
   grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.shopping-analysis-rank-meta small {
+  overflow: hidden;
   color: #8a94a4;
   font-size: calc(9px * var(--user-font-scale));
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.shopping-analysis-rankings li strong {
-  grid-column: 3;
-  grid-row: 2;
+.shopping-analysis-rank-meta strong {
   color: #334155;
   font-size: calc(10px * var(--user-font-scale));
   font-weight: 600;
   white-space: nowrap;
+}
+
+.shopping-analysis-rank-arrow {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  color: #a0aabc;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .shopping-analysis-list-empty,
@@ -8208,6 +8250,99 @@ img[src$="/qita.webp"] {
   line-height: 1.5;
 }
 
+.shopping-analysis-sheet .bottom-sheet-header strong {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-analysis-sheet-body {
+  min-height: 0;
+  max-height: min(calc(82dvh - 76px), 634px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.shopping-detail-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #f1e4e0;
+  border-radius: 13px;
+  background: #fff8f6;
+}
+
+.shopping-detail-summary span {
+  color: #718096;
+}
+
+.shopping-detail-summary strong {
+  color: #bd594c;
+  font-variant-numeric: tabular-nums;
+}
+
+.shopping-detail-list {
+  display: grid;
+  gap: 8px;
+}
+
+.shopping-detail-row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #e9edf3;
+  border-radius: 13px;
+  background: #ffffff;
+}
+
+.shopping-detail-row-head,
+.shopping-detail-row-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.shopping-detail-row-head > strong:first-child {
+  overflow: hidden;
+  color: #334155;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-detail-row-head > strong:last-child {
+  flex: 0 0 auto;
+  color: #b94d42;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.shopping-detail-row-meta {
+  color: #8490a2;
+  font-size: calc(11px * var(--user-font-scale));
+}
+
+.shopping-detail-row-meta > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shopping-detail-row p {
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid #f0f2f5;
+  color: #667085;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 520px) {
   .shopping-analysis-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8224,6 +8359,16 @@ img[src$="/qita.webp"] {
 
   .shopping-analysis-list-head span {
     text-align: left;
+  }
+
+  .shopping-analysis-sheet-body {
+    max-height: min(calc(82dvh - 76px), 634px);
+  }
+
+  .shopping-detail-row-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
   }
 }
 

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { EChartsCoreOption } from "echarts/core";
 import { EChartView } from "@/components/stark/EChartView";
+import { isShoppingAnalysisCategory } from "@/lib/stark/dashboard/shopping-analysis";
 import { formatMoney, isReportingYearKey, reportingMonthDate } from "@/lib/stark/utils/format";
 import type { Transaction } from "@/lib/stark/models";
 import { formatMonthLabel, useAppLocale } from "@/lib/stark/i18n";
@@ -13,7 +14,7 @@ type ShoppingKeyword = { name: string; count: number };
 function collectShoppingTransactions(transactions: Transaction[]) {
   return transactions.filter((transaction) =>
     transaction.type === "EXPENSE"
-    && transaction.category === "购物"
+    && isShoppingAnalysisCategory(transaction.category)
     && Number.isFinite(transaction.amount)
     && transaction.amount > 0,
   );
@@ -163,13 +164,13 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
         <div className="section-head">
           <div className="consumption-chart-title">
             <h2>{locale === "zh-CN" ? "购物分析" : "Shopping analysis"}</h2>
-            <span>{locale === "zh-CN" ? "按当前周期、账户和搜索条件统计" : "Uses the selected period, account, and search filters"}</span>
+            <span>{locale === "zh-CN" ? "汇总当前筛选的购物、服饰、日用等商品类支出" : "Shopping, clothing, daily essentials, and related spending in the current filters"}</span>
           </div>
         </div>
 
         {!hasShoppingBills ? (
           <div className="shopping-analysis-empty">
-            {locale === "zh-CN" ? "当前筛选下暂无购物账单" : "No shopping bills match the current filters"}
+            {locale === "zh-CN" ? "当前周期和筛选范围内暂无购物、服饰或日用类账单" : "No shopping, clothing, or daily essentials bills match the current period and filters"}
           </div>
         ) : (
           <>

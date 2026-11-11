@@ -16,6 +16,7 @@ import { loadAvailableTransactionMonths, resolveAvailableReportingMonth } from "
 import { buildHomeSummary } from "@/lib/stark/dashboard/summary";
 import { effectiveCategory, effectiveType, hasRemark, toAnalysisTransaction, toAnalysisTransactions } from "@/lib/stark/dashboard/remark";
 import { normalizeConsumptionPlatform } from "@/lib/stark/dashboard/consumption-platforms";
+import { isShoppingAnalysisCategory } from "@/lib/stark/dashboard/shopping-analysis";
 import { categoryIconSrc, categoryIconSrcForCategory } from "@/lib/stark/utils/category-icon";
 import { withAppBasePath } from "@/lib/stark/runtime";
 import { getCurrentAccountId, getSelectedReportMonth, setSelectedReportMonth } from "@/lib/stark/storage/local-config";
@@ -610,7 +611,7 @@ export default function ConsumptionPage() {
         transactions={displayChartTransactions}
         monthKey={reportingMonth}
         viewMode={viewMode}
-        showShoppingAnalysis={viewMode !== "income" && (categoryFilter === "全部分类" || categoryFilter === "购物")}
+        showShoppingAnalysis={viewMode !== "income" && (categoryFilter === "全部分类" || isShoppingAnalysisCategory(categoryFilter))}
       />
 
       <section className="consumption-detail-card">

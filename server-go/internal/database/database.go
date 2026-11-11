@@ -50,6 +50,14 @@ func Open(settings config.DatabaseConfig) (*Store, error) {
 			db.Close()
 			return nil, fmt.Errorf("initialise MySQL schema: %w", err)
 		}
+	} else {
+		// This small table is created additively even when the broader schema
+		// migration is disabled, so user-level AI settings remain available in
+		// local environments that intentionally skip business-schema checks.
+		if _, err := db.ExecContext(context.Background(), userAIVisionSettingsTable.Create); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("initialise AI settings schema: %w", err)
+		}
 	}
 	return &Store{db: db}, nil
 }

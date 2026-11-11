@@ -47,6 +47,7 @@ DB_USER=accounting
 DB_PASSWORD=请替换为数据库密码
 JWT_SECRET=请替换为至少 32 位的随机字符串
 ACCOUNT_ADMIN_KEY=请替换为至少 12 位的随机管理员恢复密钥
+AI_VISION_ENCRYPTION_KEY=请替换为至少 32 位的随机字符串
 ```
 
 执行 `pnpm dev` 时，开发脚本会自动读取该文件并传给 API。已经存在的系统环境变量优先于 `.env`。
@@ -77,6 +78,10 @@ API 进程读取环境变量。Docker Compose 的启动脚本会先从持久化�
 
 `ACCOUNT_ADMIN_KEY` 用于无邮件环境下的密码找回，以及已登录后开启或关闭新用户注册。Compose 会生成至少 12 位的随机值，保存在 API 密钥卷中，并注入 API 进程；不能填入 Web 页面配置、数据库或 Git 仓库。本地开发未配置时，普通登录和注册仍可用，但找回密码与注册开关会提示不可用。
 
+`AI_VISION_ENCRYPTION_KEY` 用来加密设置页中用户自行填写的模型 API Key。本地 `pnpm dev` 使用 Ktor API 时，应在 `.env` 中配置至少 32 位的随机值。Docker Compose 首次启动会自动生成并保存在 `api-secret` 命名卷中；已有部署升级后也会补生成一次。请把该密钥卷纳入备份，数据库中的个人模型密钥只有配合原加密密钥才能解密。不要把该值放进 Web 页面、账本或仓库。
+
+截图识别可继续使用服务器默认的 `AI_VISION_BASE_URL`、`AI_VISION_API_KEY` 和 `AI_VISION_MODEL`。登录用户也可在“设置 → AI 截图识别”中保存自己的模型服务配置，个人 API Key 只以 AES-GCM 密文保存在数据库中；读取设置时不会把密钥返回给客户端。默认仅允许 HTTPS 公网模型服务。只有管理员明确配置 `AI_VISION_ALLOW_PRIVATE_ENDPOINTS=true` 后，才允许 HTTP 或私有网段地址，供自建模型服务使用。
+
 连接池默认最多 10 个连接、启动时保持 1 个空闲连接（`DB_POOL_MAX_SIZE=10`、`DB_POOL_MIN_IDLE=1`）。用户量增加时可通过环境变量调大，但个人部署不需要修改。
 
 ## 3. 首次启动行为
@@ -87,6 +92,7 @@ API 进程读取环境变量。Docker Compose 的启动脚本会先从持久化�
 - 已有表缺少的字段会尝试补齐；
 - 不会自动创建 MySQL 数据库本身；
 - 不会清空正常业务数据。
+- 用户级 AI 模型设置表会单独兼容创建，即使关闭完整结构迁移也会按需创建。
 
 当前启动逻辑还会清理几个历史演示储蓄目标（`goal-travel`、`goal-emergency` 等）及其计划，这是代码中的兼容清理逻辑。
 

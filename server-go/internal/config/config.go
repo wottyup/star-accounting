@@ -17,13 +17,15 @@ const (
 type LookupEnv func(string) (string, bool)
 
 type Config struct {
-	Host         string
-	Port         int
-	Database     DatabaseConfig
-	Auth         AuthConfig
-	Vision       VisionConfig
-	Version      AppVersion
-	KTWebVersion AppVersion
+	Host                        string
+	Port                        int
+	Database                    DatabaseConfig
+	Auth                        AuthConfig
+	Vision                      VisionConfig
+	VisionEncryptionKey         string
+	VisionAllowPrivateEndpoints bool
+	Version                     AppVersion
+	KTWebVersion                AppVersion
 }
 
 type DatabaseConfig struct {
@@ -150,6 +152,8 @@ func Load(lookup LookupEnv) (Config, error) {
 			APIKey:  value("AI_VISION_API_KEY"),
 			Model:   visionModel,
 		},
+		VisionEncryptionKey:         value("AI_VISION_ENCRYPTION_KEY"),
+		VisionAllowPrivateEndpoints: strings.EqualFold(value("AI_VISION_ALLOW_PRIVATE_ENDPOINTS"), "true"),
 		Version: AppVersion{
 			Code:        versionCode,
 			Name:        versionName,

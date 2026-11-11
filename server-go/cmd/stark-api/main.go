@@ -41,8 +41,15 @@ func main() {
 	ledgerService := ledger.NewService(store)
 
 	server := &http.Server{
-		Addr:              net.JoinHostPort(appConfig.Host, appConfig.PortString()),
-		Handler:           httpapi.NewHandler(httpapi.Options{Database: store, Auth: authService, Ledger: ledgerService, Vision: appConfig.Vision, Version: appConfig.Version, KTWebVersion: appConfig.KTWebVersion, SchemaVersion: database.SchemaVersion(), Logger: logger}),
+		Addr: net.JoinHostPort(appConfig.Host, appConfig.PortString()),
+		Handler: httpapi.NewHandler(httpapi.Options{
+			Database: store, Auth: authService, Ledger: ledgerService,
+			Vision: appConfig.Vision, VisionSettings: store,
+			VisionEncryptionKey:         appConfig.VisionEncryptionKey,
+			VisionAllowPrivateEndpoints: appConfig.VisionAllowPrivateEndpoints,
+			Version:                     appConfig.Version, KTWebVersion: appConfig.KTWebVersion,
+			SchemaVersion: database.SchemaVersion(), Logger: logger,
+		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

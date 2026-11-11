@@ -94,6 +94,7 @@ fun Application.module() {
             exchangeRateRoutes()
             themeConfigRoutes()
             syncRoutes()
+            aiVisionSettingsRoutes()
             screenshotRecognitionRoutes()
         }
     }

@@ -5,6 +5,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.server.application.call
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.auth.principal
+import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
@@ -36,6 +38,7 @@ private const val MAX_RECOGNITION_IMAGE_BYTES = 10 * 1024 * 1024
 private const val MAX_MULTIPART_OVERHEAD_BYTES = 256 * 1024
 private val visionHttpClient: HttpClient = HttpClient.newBuilder()
     .connectTimeout(Duration.ofSeconds(10))
+    .followRedirects(HttpClient.Redirect.NEVER)
     .build()
 
 @Serializable
@@ -55,8 +58,19 @@ private data class UploadedScreenshot(val bytes: ByteArray, val mimeType: String
 
 fun Routing.screenshotRecognitionRoutes() {
     post("/api/transactions/recognize-screenshot") {
-        val apiKey = System.getenv("AI_VISION_API_KEY")?.trim().orEmpty()
-        if (apiKey.isEmpty()) {
+        val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
+            ?.takeIf(String::isNotBlank)
+        if (userId == null) {
+            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "请先登录云端账户"))
+            return@post
+        }
+        val provider = try {
+            resolveUserAIVisionConfig(userId).first
+        } catch (_: Exception) {
+            call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "个人 AI 配置无法解密，请在设置中重新保存或联系管理员"))
+            return@post
+        }
+        if (provider.apiKey.isEmpty()) {
             call.respond(HttpStatusCode.ServiceUnavailable, mapOf("error" to "AI 识别服务尚未配置，请联系管理员"))
             return@post
         }
@@ -80,7 +94,7 @@ fun Routing.screenshotRecognitionRoutes() {
             }
             is RecognitionUploadResult.Valid -> {
                 val result = try {
-                    requestScreenshotRecognition(upload.image, apiKey)
+                    requestScreenshotRecognition(upload.image, provider)
                 } catch (_: Exception) {
                     call.respond(HttpStatusCode.BadGateway, mapOf("error" to "截图识别失败，请稍后重试"))
                     return@post
@@ -155,11 +169,10 @@ private fun detectImageMime(bytes: ByteArray): String? {
     return null
 }
 
-private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, apiKey: String): ScreenshotRecognitionResponse? {
-    val baseUrl = System.getenv("AI_VISION_BASE_URL")?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() }
-        ?: "https://api.openai.com/v1"
-    val model = System.getenv("AI_VISION_MODEL")?.trim()?.takeIf { it.isNotEmpty() }
-        ?: "gpt-4o-mini"
+private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, provider: AIVisionProviderConfig): ScreenshotRecognitionResponse? {
+    val baseUrl = withContext(Dispatchers.IO) {
+        normalizeAndValidateAIVisionBaseURL(provider.baseUrl, aiVisionPrivateEndpointsAllowed(), resolveHost = true)
+    }
     val dataUrl = "data:${image.mimeType};base64," + Base64.getEncoder().encodeToString(image.bytes)
     val prompt = """识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
 - 金额优先取最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
@@ -172,7 +185,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, apiK
 - confidence 为 high、medium、low 之一；任何关键字段不确定时降低置信度，并在 warnings 用中文简短说明。
 只输出 JSON 对象，字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。"""
     val requestJson = buildJsonObject {
-        put("model", model)
+        put("model", provider.model)
         put("max_tokens", 700)
         put("response_format", buildJsonObject { put("type", "json_object") })
         put("messages", buildJsonArray {
@@ -195,7 +208,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, apiK
     val request = HttpRequest.newBuilder(URI.create("$baseUrl/chat/completions"))
         .timeout(Duration.ofSeconds(55))
         .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer $apiKey")
+        .header("Authorization", "Bearer ${provider.apiKey}")
         .POST(HttpRequest.BodyPublishers.ofString(requestJson))
         .build()
 

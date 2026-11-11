@@ -129,6 +129,25 @@ func SchemaVersion() string {
 	return hex.EncodeToString(hash.Sum(nil))[:16]
 }
 
+var userAIVisionSettingsTable = schemaTable{
+	Name: "useraivisionsetting",
+	Create: `CREATE TABLE IF NOT EXISTS ` + "`useraivisionsetting`" + ` (
+		` + "`userId`" + ` VARCHAR(191) NOT NULL,
+		` + "`baseUrl`" + ` TEXT NOT NULL,
+		` + "`model`" + ` VARCHAR(191) NOT NULL,
+		` + "`encryptedApiKey`" + ` TEXT NOT NULL,
+		` + "`updatedAt`" + ` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+		PRIMARY KEY (` + "`userId`" + `)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+	Columns: []schemaColumn{
+		{"userId", "VARCHAR(191) NOT NULL"},
+		{"baseUrl", "TEXT NOT NULL"},
+		{"model", "VARCHAR(191) NOT NULL"},
+		{"encryptedApiKey", "TEXT NOT NULL"},
+		{"updatedAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"},
+	},
+}
+
 var schemaTables = []schemaTable{
 	{
 		Name: "user",
@@ -170,6 +189,7 @@ var schemaTables = []schemaTable{
 			{"updatedAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"},
 		},
 	},
+	userAIVisionSettingsTable,
 	{
 		Name: "account",
 		Create: `CREATE TABLE IF NOT EXISTS ` + "`account`" + ` (

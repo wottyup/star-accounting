@@ -2,7 +2,7 @@
 set -eu
 
 if [ -d /run/secrets/db ] || [ -d /run/secrets/api ]; then
-    for secret_file in /run/secrets/db/password /run/secrets/api/jwt_secret /run/secrets/api/account_admin_key; do
+    for secret_file in /run/secrets/db/password /run/secrets/api/jwt_secret /run/secrets/api/account_admin_key /run/secrets/api/ai_vision_encryption_key; do
         if [ ! -s "$secret_file" ]; then
             echo "Missing deployment credential: $secret_file" >&2
             exit 1
@@ -12,7 +12,8 @@ if [ -d /run/secrets/db ] || [ -d /run/secrets/api ]; then
     DB_PASSWORD=$(cat /run/secrets/db/password)
     JWT_SECRET=$(cat /run/secrets/api/jwt_secret)
     ACCOUNT_ADMIN_KEY=$(cat /run/secrets/api/account_admin_key)
-    export DB_PASSWORD JWT_SECRET ACCOUNT_ADMIN_KEY
+    AI_VISION_ENCRYPTION_KEY=$(cat /run/secrets/api/ai_vision_encryption_key)
+    export DB_PASSWORD JWT_SECRET ACCOUNT_ADMIN_KEY AI_VISION_ENCRYPTION_KEY
 fi
 
 exec /app/wotty-stark-api "$@"

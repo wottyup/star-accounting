@@ -7,6 +7,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-}
       ACCOUNT_ADMIN_KEY: ${ACCOUNT_ADMIN_KEY:-}
+      AI_VISION_ENCRYPTION_KEY: ${AI_VISION_ENCRYPTION_KEY:-}
     volumes:
       - mysql-data:/var/lib/mysql:ro
       - mysql-root-secret:/run/secrets/mysql-root
@@ -64,6 +65,7 @@ services:
       AI_VISION_BASE_URL: ${AI_VISION_BASE_URL:-https://api.openai.com/v1}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY:-}
       AI_VISION_MODEL: ${AI_VISION_MODEL:-gpt-4o-mini}
+      AI_VISION_ALLOW_PRIVATE_ENDPOINTS: ${AI_VISION_ALLOW_PRIVATE_ENDPOINTS:-false}
       # Deployment must initialise new databases and apply compatible additions.
       DB_AUTO_MIGRATE: "true"
       # 两种 Android 安装版分别公布更新信息；KT 混合版地址不能复用 Web 壳 APK。

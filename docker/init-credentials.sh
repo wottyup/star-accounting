@@ -5,6 +5,7 @@ root_file=/run/secrets/mysql-root/password
 db_file=/run/secrets/db/password
 jwt_file=/run/secrets/api/jwt_secret
 admin_file=/run/secrets/api/account_admin_key
+vision_file=/run/secrets/api/ai_vision_encryption_key
 
 for directory in /run/secrets/mysql-root /run/secrets/db /run/secrets/api; do
     mkdir -p "$directory"
@@ -57,5 +58,6 @@ ensure_secret "$root_file" "${MYSQL_ROOT_PASSWORD:-}" 1 MYSQL_ROOT_PASSWORD
 ensure_secret "$db_file" "${DB_PASSWORD:-}" 1 DB_PASSWORD
 ensure_secret "$jwt_file" "${JWT_SECRET:-}" 32 JWT_SECRET
 ensure_secret "$admin_file" "${ACCOUNT_ADMIN_KEY:-}" 12 ACCOUNT_ADMIN_KEY
+ensure_secret "$vision_file" "${AI_VISION_ENCRYPTION_KEY:-}" 32 AI_VISION_ENCRYPTION_KEY
 
 echo 'Deployment credentials are ready.'

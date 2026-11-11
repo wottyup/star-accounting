@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/wottyup/star-accounting/server-go/internal/auth"
 	"github.com/wottyup/star-accounting/server-go/internal/config"
+	"github.com/wottyup/star-accounting/server-go/internal/vision"
 )
 
 const (
@@ -40,11 +41,21 @@ type screenshotRecognition struct {
 	Warnings    []string `json:"warnings"`
 }
 
-func registerScreenshotRecognitionRoute(router chi.Router, authService *auth.Service, vision config.VisionConfig) {
+func registerScreenshotRecognitionRoute(router chi.Router, authService *auth.Service, settings VisionSettingsRepository, serverVision config.VisionConfig, encryptionKey string, allowPrivateEndpoints bool) {
 	router.Group(func(protected chi.Router) {
 		protected.Use(requireAuthentication(authService))
 		protected.Post("/api/transactions/recognize-screenshot", func(writer http.ResponseWriter, request *http.Request) {
-			if strings.TrimSpace(vision.APIKey) == "" {
+			user, exists := authenticatedUser(request.Context())
+			if !exists {
+				writeJSON(writer, http.StatusUnauthorized, map[string]string{"error": "请先登录云端账户"})
+				return
+			}
+			provider, _, err := resolveUserVisionConfig(request.Context(), settings, user.ID, serverVision, encryptionKey)
+			if err != nil {
+				writeJSON(writer, http.StatusServiceUnavailable, map[string]string{"error": "个人 AI 配置无法解密，请在设置中重新保存或联系管理员"})
+				return
+			}
+			if strings.TrimSpace(provider.APIKey) == "" {
 				writeJSON(writer, http.StatusServiceUnavailable, map[string]string{"error": "AI 识别服务尚未配置，请联系管理员"})
 				return
 			}
@@ -53,7 +64,7 @@ func registerScreenshotRecognitionRoute(router chi.Router, authService *auth.Ser
 				writeJSON(writer, status, map[string]string{"error": message})
 				return
 			}
-			result, err := requestScreenshotRecognition(request.Context(), vision, image, contentType)
+			result, err := requestScreenshotRecognition(request.Context(), provider, image, contentType, allowPrivateEndpoints)
 			if err != nil {
 				writeJSON(writer, http.StatusBadGateway, map[string]string{"error": "截图识别失败，请稍后重试"})
 				return
@@ -103,7 +114,7 @@ func readRecognitionImage(writer http.ResponseWriter, request *http.Request) ([]
 	return image, contentType, http.StatusOK, ""
 }
 
-func requestScreenshotRecognition(parent context.Context, vision config.VisionConfig, image []byte, contentType string) (screenshotRecognition, error) {
+func requestScreenshotRecognition(parent context.Context, provider vision.ProviderConfig, image []byte, contentType string, allowPrivateEndpoints bool) (screenshotRecognition, error) {
 	imageData := "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(image)
 	prompt := `识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
 - 金额优先取最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
@@ -117,7 +128,7 @@ func requestScreenshotRecognition(parent context.Context, vision config.VisionCo
 只输出 JSON 对象，字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。`
 
 	body, err := json.Marshal(map[string]interface{}{
-		"model":           vision.Model,
+		"model":           provider.Model,
 		"response_format": map[string]string{"type": "json_object"},
 		"messages": []interface{}{
 			map[string]interface{}{"role": "system", "content": prompt},
@@ -131,16 +142,19 @@ func requestScreenshotRecognition(parent context.Context, vision config.VisionCo
 		return screenshotRecognition{}, err
 	}
 
+	client, baseURL, err := vision.NewProviderClient(parent, provider.BaseURL, allowPrivateEndpoints, 55*time.Second)
+	if err != nil {
+		return screenshotRecognition{}, err
+	}
 	ctx, cancel := context.WithTimeout(parent, 50*time.Second)
 	defer cancel()
-	endpoint := strings.TrimRight(vision.BaseURL, "/") + "/chat/completions"
+	endpoint := strings.TrimRight(baseURL, "/") + "/chat/completions"
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return screenshotRecognition{}, err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+vision.APIKey)
-	client := &http.Client{Timeout: 55 * time.Second}
+	request.Header.Set("Authorization", "Bearer "+provider.APIKey)
 	response, err := client.Do(request)
 	if err != nil {
 		return screenshotRecognition{}, err

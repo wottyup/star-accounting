@@ -6,6 +6,7 @@ export type SettingPictogramType =
   | "EXPORT"
   | "REMARK"
   | "SUBSCRIPTIONS"
+  | "AI_VISION"
   | "LANGUAGE"
   | "FONT"
   | "HELP"
@@ -48,6 +49,14 @@ const artwork: Record<SettingPictogramType, ReactNode> = {
     <path d="M9 3v6M23 3v6" stroke="#5C4EB7" strokeWidth="3" strokeLinecap="round" />
     <circle cx="16" cy="19" r="6.1" fill="#F6C35F" />
     <path d="m12.8 19 2.2 2.2 4.2-4.3" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  </>,
+  AI_VISION: <>
+    <rect x="3" y="4" width="26" height="23" rx="6" fill="#4D83D6" />
+    <path d="M11 12.5a2 2 0 1 1 2-2 2 2 0 0 1-2 2Zm10 0a2 2 0 1 1 2-2 2 2 0 0 1-2 2Z" fill="#FFFFFF" />
+    <path d="M10 18c1.3 2 3.3 3 6 3s4.7-1 6-3" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+    <path d="m25.5 2 .8 1.8 1.8.7-1.8.8-.8 1.7-.8-1.7-1.8-.8 1.8-.7Z" fill="#F5C662" />
+    <circle cx="7" cy="25" r="4.2" fill="#50C49B" />
+    <path d="m5.3 25 1.2 1.2 2.3-2.5" fill="none" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
   </>,
   LANGUAGE: <>
     <path d="M4 6a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4v11a4 4 0 0 1-4 4h-7l-5 4v-4a4 4 0 0 1-3-4Z" fill="#43AFC1" />

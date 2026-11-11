@@ -69,6 +69,12 @@ data class AuthUser(
     val updatedAt: LocalDateTime,
 )
 
+data class UserAIVisionSettings(
+    val baseUrl: String,
+    val model: String,
+    val encryptedApiKey: String,
+)
+
 internal fun reportingMonthRange(month: String): ReportingMonthRange {
     require(Regex("^\\d{4}-(0[1-9]|1[0-2])$").matches(month)) { "Invalid reporting month" }
     val start = LocalDate.parse("$month-01").atStartOfDay()
@@ -116,6 +122,16 @@ object AuthSettings : Table("authsetting") {
     val updatedAt = datetime("updatedAt")
 
     override val primaryKey = PrimaryKey(settingKey)
+}
+
+object UserAIVisionSettingsTable : Table("useraivisionsetting") {
+    val userId = varchar("userId", 191)
+    val baseUrl = text("baseUrl")
+    val model = varchar("model", 191)
+    val encryptedApiKey = text("encryptedApiKey")
+    val updatedAt = datetime("updatedAt")
+
+    override val primaryKey = PrimaryKey(userId)
 }
 
 object Accounts : Table("account") {
@@ -376,6 +392,9 @@ object DatabaseFactory {
     fun init() {
         Database.connect(dataSource)
         transaction {
+            // The AI settings table is a small additive feature table. Create
+            // it even when optional full-schema migration is disabled.
+            SchemaUtils.createMissingTablesAndColumns(UserAIVisionSettingsTable)
             if (shouldAutoMigrateSchema()) {
                 SchemaUtils.createMissingTablesAndColumns(
                     Users,
@@ -396,6 +415,41 @@ object DatabaseFactory {
             }
             removeLegacySavingsDemoRecords()
         }
+    }
+
+    fun getUserAIVisionSettings(userId: String): UserAIVisionSettings? = transaction {
+        UserAIVisionSettingsTable.selectAll()
+            .where { UserAIVisionSettingsTable.userId eq userId }
+            .firstOrNull()
+            ?.let { row ->
+                UserAIVisionSettings(
+                    baseUrl = row[UserAIVisionSettingsTable.baseUrl],
+                    model = row[UserAIVisionSettingsTable.model],
+                    encryptedApiKey = row[UserAIVisionSettingsTable.encryptedApiKey],
+                )
+            }
+    }
+
+    fun saveUserAIVisionSettings(userId: String, settings: UserAIVisionSettings) = transaction {
+        val updated = UserAIVisionSettingsTable.update({ UserAIVisionSettingsTable.userId eq userId }) {
+            it[baseUrl] = settings.baseUrl
+            it[model] = settings.model
+            it[encryptedApiKey] = settings.encryptedApiKey
+            it[updatedAt] = LocalDateTime.now()
+        }
+        if (updated == 0) {
+            UserAIVisionSettingsTable.insert {
+                it[UserAIVisionSettingsTable.userId] = userId
+                it[baseUrl] = settings.baseUrl
+                it[model] = settings.model
+                it[encryptedApiKey] = settings.encryptedApiKey
+                it[updatedAt] = LocalDateTime.now()
+            }
+        }
+    }
+
+    fun deleteUserAIVisionSettings(userId: String) = transaction {
+        UserAIVisionSettingsTable.deleteWhere { UserAIVisionSettingsTable.userId eq userId }
     }
 
     fun findUserById(id: String): AuthUser? = transaction {

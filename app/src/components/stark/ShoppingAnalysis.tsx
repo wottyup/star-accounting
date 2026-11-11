@@ -116,8 +116,21 @@ function buildMerchantRanking(transactions: Transaction[]): ShoppingMerchant[] {
     .slice(0, 5);
 }
 
-function extractShoppingNoteKeywords(description: string | null | undefined) {
-  const parts = (description ?? "")
+function cleanShoppingDescription(description: string | null | undefined, orderId?: string | null) {
+  const normalizedOrderId = orderId?.trim().toLocaleLowerCase();
+  return (description ?? "")
+    .replace(/(?:商户|商家)?(?:订单号|单号|交易单号|交易号)\s*[:：]?\s*[A-Za-z0-9_-]+/gi, " ")
+    .split(/\r?\n/)
+    .map((line) => line
+      .replace(/^[\s\-—–,，、;；|]+|[\s\-—–,，、;；|]+$/g, "")
+      .replace(/[\t ]{2,}/g, " ")
+      .trim())
+    .filter((line) => line && (!normalizedOrderId || line.toLocaleLowerCase() !== normalizedOrderId))
+    .join("\n");
+}
+
+function extractShoppingNoteKeywords(description: string | null | undefined, orderId?: string | null) {
+  const parts = cleanShoppingDescription(description, orderId)
     .split(/[、，,;；/|＋+\n\r]+/)
     .map((part) => part.trim().replace(/^[\s"'“”‘’()[\]{}<>【】《》:：]+|[\s"'“”‘’()[\]{}<>【】《》:：]+$/g, ""))
     .filter(Boolean);
@@ -129,7 +142,7 @@ function buildKeywordRanking(transactions: Transaction[]): ShoppingKeyword[] {
   for (const transaction of transactions) {
     // Count at most one mention per bill so repeated text in one note does not
     // look like multiple purchased units.
-    for (const keyword of extractShoppingNoteKeywords(transaction.description)) {
+    for (const keyword of extractShoppingNoteKeywords(transaction.description, transaction.orderId)) {
       keywords.set(keyword, (keywords.get(keyword) ?? 0) + 1);
     }
   }
@@ -183,7 +196,7 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
     return shoppingTransactions
       .filter((transaction) => detailSelection.kind === "merchant"
         ? transaction.merchant?.trim() === detailSelection.value
-        : extractShoppingNoteKeywords(transaction.description).includes(detailSelection.value))
+        : extractShoppingNoteKeywords(transaction.description, transaction.orderId).includes(detailSelection.value))
       .sort((left, right) => Date.parse(right.date) - Date.parse(left.date));
   }, [detailSelection, shoppingTransactions]);
   const detailAmount = useMemo(
@@ -328,7 +341,9 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                   <time>{transactionDateLabel(transaction.date, locale)}</time>
                   <span>{translateValue(transaction.category, locale)} · {translateValue(transaction.platform, locale)}</span>
                 </div>
-                {transaction.description?.trim() ? <p>{transaction.description}</p> : null}
+                {cleanShoppingDescription(transaction.description, transaction.orderId) ? (
+                  <p>{cleanShoppingDescription(transaction.description, transaction.orderId)}</p>
+                ) : null}
               </article>
             ))}
           </div>

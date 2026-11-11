@@ -8021,7 +8021,7 @@ img[src$="/qita.webp"] {
 }
 
 .shopping-analysis-card > .trend-panel {
-  padding: 0;
+  padding: 12px 14px 14px;
 }
 
 .shopping-analysis-metrics {

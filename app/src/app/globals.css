@@ -7139,6 +7139,59 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
 }
 
+.journal-screenshot-recognition {
+  display: grid;
+  gap: 5px;
+}
+
+.journal-screenshot-recognition-input {
+  display: none;
+}
+
+.journal-screenshot-recognition-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.journal-screenshot-recognition-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d7e4f4;
+  border-radius: 10px;
+  background: #f5f9ff;
+  color: #1767b8;
+  font-size: calc(12px * var(--user-font-scale));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.journal-screenshot-recognition-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.journal-screenshot-recognition-row > span {
+  min-width: 0;
+  color: #718096;
+  font-size: calc(11px * var(--user-font-scale));
+  line-height: 1.45;
+}
+
+.journal-screenshot-recognition-notice {
+  margin: 0;
+  color: #315f93;
+  font-size: calc(12px * var(--user-font-scale));
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.journal-screenshot-recognition-notice.loading {
+  color: #64748b;
+}
+
 .currency-label {
   font-size: calc(26px * var(--user-font-scale));
   font-weight: 600;

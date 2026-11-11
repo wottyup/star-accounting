@@ -21,6 +21,7 @@ type Options struct {
 	Database      HealthChecker
 	Auth          *auth.Service
 	Ledger        *ledger.Service
+	Vision        config.VisionConfig
 	Version       config.AppVersion
 	KTWebVersion  config.AppVersion
 	SchemaVersion string
@@ -83,6 +84,7 @@ func NewHandler(options Options) http.Handler {
 	})
 	registerAuthRoutes(router, options.Auth)
 	registerLedgerRoutes(router, options.Auth, options.Ledger)
+	registerScreenshotRecognitionRoute(router, options.Auth, options.Vision)
 	router.NotFound(func(writer http.ResponseWriter, request *http.Request) {
 		writeJSON(writer, http.StatusNotFound, map[string]string{"error": "Not found"})
 	})

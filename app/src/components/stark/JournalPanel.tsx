@@ -7,7 +7,8 @@ import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
 import { nowText } from "@/lib/stark/utils/format";
 import { createId } from "@/lib/stark/utils/id";
 import { clearNewEntryDraft, readNewEntryDraft, saveNewEntryDraft, type NewEntryDraftKind } from "@/lib/stark/storage/new-entry-drafts";
-import { getCurrentAccountId } from "@/lib/stark/storage/local-config";
+import { getCloudApiUrl, getCurrentAccountId } from "@/lib/stark/storage/local-config";
+import { getCloudAuthToken } from "@/lib/stark/storage/cloud-auth";
 import { SHOWCASE_DEMO_MODE } from "@/lib/stark/runtime";
 import { recordSavingsPlanDeposit } from "@/lib/stark/savings/planner";
 import { buildSalaryBatchTransactions, SALARY_BATCH_MONTHS, salaryBatchMonthKeys, selectSalaryBatchMonths } from "@/lib/stark/journal/salary-batch";
@@ -136,6 +137,8 @@ export function JournalPanel({
   const [recordedDate, setRecordedDate] = useState(nowText().slice(0, 16));
   const [proofImage, setProofImage] = useState<string | null>(null);
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
+  const [screenshotRecognitionBusy, setScreenshotRecognitionBusy] = useState(false);
+  const [screenshotRecognitionNotice, setScreenshotRecognitionNotice] = useState("");
   const [recordSaving, setRecordSaving] = useState(false);
   const [recordNotice, setRecordNotice] = useState("");
   const [salaryEntryMode, setSalaryEntryMode] = useState<"single" | "batch">("single");
@@ -148,6 +151,7 @@ export function JournalPanel({
   const [batchSaving, setBatchSaving] = useState(false);
   const [batchNotice, setBatchNotice] = useState("");
   const proofImageInputRef = useRef<HTMLInputElement | null>(null);
+  const screenshotRecognitionInputRef = useRef<HTMLInputElement | null>(null);
   const closingRef = useRef(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [draftReady, setDraftReady] = useState(false);
@@ -406,6 +410,113 @@ export function JournalPanel({
     window.dispatchEvent(new Event("stark:transaction-saved"));
     onSaved?.();
     handleClose();
+  }
+
+  async function recognizeScreenshot(file: File | undefined) {
+    if (screenshotRecognitionInputRef.current) screenshotRecognitionInputRef.current.value = "";
+    if (!file) return;
+    setScreenshotRecognitionNotice("");
+    if (file.type && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setScreenshotRecognitionNotice("仅支持 PNG、JPG 或 WebP 图片");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setScreenshotRecognitionNotice("图片超过 10 MiB，请压缩后重试");
+      return;
+    }
+    const token = getCloudAuthToken();
+    if (!token) {
+      setScreenshotRecognitionNotice("请先登录云端账户以使用截图识别");
+      return;
+    }
+
+    const form = new FormData();
+    form.append("image", file);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 60_000);
+    setScreenshotRecognitionBusy(true);
+    setScreenshotRecognitionNotice("正在识别截图，请稍候…");
+    try {
+      const response = await fetch(`${getCloudApiUrl().replace(/\/$/, "")}/api/transactions/recognize-screenshot`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({})) as {
+        error?: string;
+        type?: string | null;
+        amount?: number | null;
+        merchant?: string | null;
+        date?: string | null;
+        platform?: string | null;
+        category?: string | null;
+        description?: string | null;
+        confidence?: string;
+        warnings?: string[];
+      };
+      if (!response.ok) {
+        const errorMessage = response.status === 401
+          ? payload.error || "登录已失效，请重新登录"
+          : response.status === 404
+            ? "当前 API 尚不支持截图识别，请重启 API 后重试"
+            : payload.error || `截图识别失败（${response.status}）`;
+        throw new Error(errorMessage);
+      }
+
+      const recognizedType = payload.type === "INCOME" || payload.type === "TRANSFER" || payload.type === "EXPENSE"
+        ? payload.type
+        : null;
+      const effectiveType = recognizedType ?? type;
+      if (recognizedType) setType(recognizedType);
+      const categoryOptions = effectiveType === "INCOME"
+        ? incomeCategories
+        : effectiveType === "TRANSFER"
+          ? transferCategories
+          : expenseCategories;
+      const suggestedCategory = payload.category && categoryOptions.includes(payload.category) && payload.confidence !== "low"
+        ? payload.category
+        : null;
+      if (suggestedCategory) setCategory(suggestedCategory);
+      else if (recognizedType && recognizedType !== type) {
+        setCategory(recognizedType === "INCOME" ? "工资" : recognizedType === "TRANSFER" ? "转账" : "餐饮");
+      }
+
+      if (typeof payload.amount === "number" && Number.isFinite(payload.amount) && payload.amount > 0) {
+        setAmount(String(payload.amount));
+      }
+      if (typeof payload.merchant === "string" && payload.merchant.trim()) setMerchant(payload.merchant.trim());
+      if (["支付宝", "微信", "银行卡", "现金", "其他"].includes(payload.platform ?? "")) {
+        setPlatform(payload.platform as string);
+      }
+      if (typeof payload.date === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(payload.date)) {
+        setDate(payload.date.slice(0, 16));
+      }
+      if (typeof payload.description === "string" && payload.description.trim()) {
+        setDescription(payload.description.trim());
+      }
+      const reviewMessage = payload.confidence === "low"
+        ? "识别结果把握较低，请重点核对金额和分类"
+        : "截图已识别，请核对后保存";
+      const warnings: string[] = [];
+      if (!(typeof payload.amount === "number" && Number.isFinite(payload.amount) && payload.amount > 0)) {
+        warnings.push("未识别到明确金额，请手工填写");
+      }
+      if (effectiveType === "EXPENSE" && !suggestedCategory) warnings.push("未能确定消费分类，请手动选择");
+      if (Array.isArray(payload.warnings)) {
+        warnings.push(...payload.warnings.filter((item) => typeof item === "string" && item.trim()));
+      }
+      setScreenshotRecognitionNotice(warnings.length ? `${reviewMessage}：${warnings.slice(0, 3).join("；")}` : reviewMessage);
+    } catch (error) {
+      setScreenshotRecognitionNotice(error instanceof Error && error.name === "AbortError"
+        ? "截图识别超时，请稍后重试"
+        : error instanceof Error ? error.message : "截图识别失败，请稍后重试");
+    } finally {
+      window.clearTimeout(timeout);
+      setScreenshotRecognitionBusy(false);
+      if (screenshotRecognitionInputRef.current) screenshotRecognitionInputRef.current.value = "";
+    }
   }
 
   async function saveRepayment() {
@@ -937,6 +1048,32 @@ export function JournalPanel({
                     </button>
                   ) : null}
                 </div>
+
+                {!salaryEntryOpen ? <div className="journal-screenshot-recognition">
+                  <input
+                    ref={screenshotRecognitionInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="journal-screenshot-recognition-input"
+                    onChange={(event) => void recognizeScreenshot(event.target.files?.[0])}
+                  />
+                  <div className="journal-screenshot-recognition-row">
+                    <button
+                      type="button"
+                      className="journal-screenshot-recognition-button"
+                      disabled={screenshotRecognitionBusy}
+                      onClick={() => screenshotRecognitionInputRef.current?.click()}
+                    >
+                      {screenshotRecognitionBusy ? "正在识别…" : "✨ 截图识别"}
+                    </button>
+                    <span>截图会发送到已配置的 AI 服务识别；不会保存原图或自动入账，请核对结果。</span>
+                  </div>
+                  {screenshotRecognitionNotice ? (
+                    <p className={`journal-screenshot-recognition-notice ${screenshotRecognitionBusy ? "loading" : ""}`} role="status">
+                      {screenshotRecognitionNotice}
+                    </p>
+                  ) : null}
+                </div> : null}
 
                 {/* 精致分类网格 */}
                 <div className="modern-section-block">

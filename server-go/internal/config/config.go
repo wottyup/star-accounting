@@ -17,11 +17,12 @@ const (
 type LookupEnv func(string) (string, bool)
 
 type Config struct {
-	Host        string
-	Port        int
-	Database    DatabaseConfig
-	Auth        AuthConfig
-	Version     AppVersion
+	Host         string
+	Port         int
+	Database     DatabaseConfig
+	Auth         AuthConfig
+	Vision       VisionConfig
+	Version      AppVersion
 	KTWebVersion AppVersion
 }
 
@@ -47,6 +48,12 @@ type AppVersion struct {
 type AuthConfig struct {
 	JWTSecret       string
 	AccountAdminKey string
+}
+
+type VisionConfig struct {
+	BaseURL string
+	APIKey  string
+	Model   string
 }
 
 func (config Config) PortString() string {
@@ -121,6 +128,14 @@ func Load(lookup LookupEnv) (Config, error) {
 	if len(jwtSecret) < 32 {
 		jwtSecret = defaultJWTSecret
 	}
+	visionBaseURL := value("AI_VISION_BASE_URL")
+	if visionBaseURL == "" {
+		visionBaseURL = "https://api.openai.com/v1"
+	}
+	visionModel := value("AI_VISION_MODEL")
+	if visionModel == "" {
+		visionModel = "gpt-4o-mini"
+	}
 
 	return Config{
 		Host:     host,
@@ -129,6 +144,11 @@ func Load(lookup LookupEnv) (Config, error) {
 		Auth: AuthConfig{
 			JWTSecret:       jwtSecret,
 			AccountAdminKey: value("ACCOUNT_ADMIN_KEY"),
+		},
+		Vision: VisionConfig{
+			BaseURL: strings.TrimRight(visionBaseURL, "/"),
+			APIKey:  value("AI_VISION_API_KEY"),
+			Model:   visionModel,
 		},
 		Version: AppVersion{
 			Code:        versionCode,

@@ -92,6 +92,8 @@ cp .env.example .env
 pnpm dev
 ```
 
+可选启用记账页的截图 AI 识别：在 `.env` 配置 `AI_VISION_API_KEY`，并按服务商填写 `AI_VISION_BASE_URL` 与 `AI_VISION_MODEL`。该功能会把用户选择的截图发送到此处配置的视觉模型服务进行分析；应用不会保存截图。API 密钥只放在服务器环境变量中。
+
 此命令同时启动 Next.js 前端和 Ktor API。默认地址为 Web `http://127.0.0.1:12366`、API `http://127.0.0.1:12367`；端口被占用时，启动脚本会输出实际使用的端口。只调试 Android 本地模式时，可以跳过数据库配置，但 API 的数据接口无法使用。
 
 Android 安装包内的 `localhost` 指手机本身。使用云端模式时，应填写 API 服务器的局域网地址或 HTTPS 域名，而不是电脑上的 `localhost`。
@@ -120,6 +122,8 @@ cp .env.example .env
 docker compose exec api-runtime cat /run/secrets/db/password
 docker compose exec api-runtime cat /run/secrets/api/account_admin_key
 ```
+
+如需启用记账页截图 AI 识别，在 `.env` 配置 `AI_VISION_API_KEY`，并按服务商填写 `AI_VISION_BASE_URL`、`AI_VISION_MODEL` 后重建 API。截图会发送到配置的视觉模型服务分析，不会保存在账本数据库或服务器文件中。
 
 Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访问时，在部署目录的 `.env` 中设置 `WEB_BIND_HOST=0.0.0.0`，再运行 `docker compose up -d --build`；随后打开 `http://<服务器局域网 IP>:12366`。也可以把 `WEB_BIND_HOST` 设为某个具体网卡 IP，仅开放该地址。网页会连接同一主机的 `12367` API 端口；MySQL 仍只通过 `127.0.0.1:3307` 暴露。通过公网提供服务时应配置 HTTPS 反向代理。数据库使用 `mysql-data` 命名卷；更新容器前请备份账本数据及密钥卷。[数据库配置与部署说明](docs/database-config.md)提供了更多细节。
 

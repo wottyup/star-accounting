@@ -401,7 +401,7 @@ export default function AccountsPage() {
       <section className="settings-center-group">
         <SettingsRow type="REMARK" title="账单归类" value="转账可归入支出分类" onClick={() => setActivePanel("REMARK")} />
         <SettingsRow type="SUBSCRIPTIONS" title="订阅/扣费管理" value="按月自动记账" onClick={() => setActivePanel("SUBSCRIPTIONS")} />
-        {mode === "CLOUD" && cloudUser ? <SettingsRow type="AI_VISION" title="AI 截图识别" value="配置截图识别模型" onClick={() => setActivePanel("AI_VISION")} /> : null}
+        <SettingsRow type="AI_VISION" title="AI 截图识别" value={cloudUser ? "配置截图识别模型" : "需云端账户"} onClick={() => setActivePanel("AI_VISION")} />
       </section>
 
       <section className="settings-center-group">
@@ -489,7 +489,7 @@ export default function AccountsPage() {
 
             {activePanel === "SUBSCRIPTIONS" ? <SubscriptionManagementSheet /> : null}
 
-            {activePanel === "AI_VISION" ? <AIVisionSettingsSheet /> : null}
+            {activePanel === "AI_VISION" ? <AIVisionSettingsSheet enabled={Boolean(cloudUser)} onOpenCloudLogin={openModeSwitch} /> : null}
 
             {activePanel === "LANGUAGE" ? <div className="settings-option-list">{(["SYSTEM", "ZH_CN", "EN_US"] as LanguageChoice[]).map((item) => <button type="button" key={item} className={uiSettings.language === item ? "active" : ""} onClick={() => updateUiSetting("language", item)}><span><strong>{languageLabels[item]}</strong><small>{item === "SYSTEM" ? "使用设备的语言偏好" : item === "ZH_CN" ? "固定使用简体中文" : "固定使用英文"}</small></span><em>{uiSettings.language === item ? "✓" : ""}</em></button>)}</div> : null}
             {activePanel === "FONT" ? <div className="settings-font-options">{(["SMALL", "STANDARD", "LARGE"] as FontChoice[]).map((item) => <button type="button" key={item} className={uiSettings.font === item ? "active" : ""} onClick={() => updateUiSetting("font", item)}><span style={{ fontSize: item === "SMALL" ? 13 : item === "LARGE" ? 19 : 16 }}>Aa</span><strong>{fontLabels[item]}</strong></button>)}</div> : null}

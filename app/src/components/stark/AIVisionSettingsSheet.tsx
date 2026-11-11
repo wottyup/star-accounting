@@ -9,7 +9,7 @@ import {
   type AIVisionSettings,
 } from "@/lib/stark/repository/ai-vision-settings";
 
-export function AIVisionSettingsSheet() {
+export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: boolean; onOpenCloudLogin: () => void }) {
   const [settings, setSettings] = useState<AIVisionSettings | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
@@ -38,7 +38,10 @@ export function AIVisionSettingsSheet() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (enabled) void load();
+    else setLoading(false);
+  }, [enabled, load]);
 
   function formValues() {
     return { baseUrl: baseUrl.trim(), model: model.trim(), apiKey };
@@ -93,6 +96,15 @@ export function AIVisionSettingsSheet() {
 
   const busy = loading || saving || testing || restoring;
   const needsPersonalKey = !settings?.hasPersonalConfiguration && !apiKey.trim();
+
+  if (!enabled) {
+    return (
+      <div className="settings-sheet-body ai-vision-settings">
+        <p className="settings-sheet-note">截图识别使用云端大模型，个人模型配置需要先登录云端账户。</p>
+        <button type="button" className="settings-sheet-primary" onClick={onOpenCloudLogin}>前往云端登录</button>
+      </div>
+    );
+  }
 
   return (
     <div className="settings-sheet-body ai-vision-settings">

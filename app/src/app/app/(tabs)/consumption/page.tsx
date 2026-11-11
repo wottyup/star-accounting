@@ -610,6 +610,7 @@ export default function ConsumptionPage() {
         transactions={displayChartTransactions}
         monthKey={reportingMonth}
         viewMode={viewMode}
+        showShoppingAnalysis={viewMode !== "income" && (categoryFilter === "全部分类" || categoryFilter === "购物")}
       />
 
       <section className="consumption-detail-card">

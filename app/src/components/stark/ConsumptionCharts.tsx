@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { EChartsCoreOption } from "echarts/core";
 import { EChartView } from "@/components/stark/EChartView";
+import { ShoppingAnalysis } from "@/components/stark/ShoppingAnalysis";
 import { formatMoney, isReportingYearKey, reportingMonthDate } from "@/lib/stark/utils/format";
 import type { HomeRatio, HomeTrend } from "@/lib/stark/dashboard/summary";
 import { buildDailyPlatformData, buildMonthlyPlatformData, buildPlatformCategoryFlow } from "@/lib/stark/dashboard/consumption-platforms";
@@ -501,12 +502,14 @@ export function ConsumptionCharts({
   transactions,
   monthKey,
   viewMode,
+  showShoppingAnalysis,
 }: {
   trend: HomeTrend;
   ratios: HomeRatio[];
   transactions: Transaction[];
   monthKey: string;
   viewMode: "expense" | "income" | "all";
+  showShoppingAnalysis: boolean;
 }) {
   const locale = useAppLocale();
   const incomeMode = viewMode === "income";
@@ -541,6 +544,8 @@ export function ConsumptionCharts({
           <EChartView option={trendOption} className="trend-chart consumption-trend-chart" />
         </div>
       </section>
+
+      {showShoppingAnalysis ? <ShoppingAnalysis transactions={transactions} period={monthKey} /> : null}
 
       {/* 核心分析：分类结构 */}
       <section className="home-card ratio-card consumption-chart-card">

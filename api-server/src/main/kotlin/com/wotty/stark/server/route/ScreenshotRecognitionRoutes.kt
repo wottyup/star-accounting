@@ -28,6 +28,8 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -196,8 +198,10 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
 - 必须识别截图中的所有独立订单或交易，最多 20 笔。禁止只返回第一笔，也不要把多笔金额合并成总额。
 - 对于购物平台的商品清单，如果每个商品行都显示各自的“实付”金额，每个商品行分别输出一笔 EXPENSE；description 写商品名、规格和数量，merchant 使用截图中可确认的商户。不要把这些商品行合并成整单一笔。
 - 如果商品行只有单价而没有各自的实付金额，则整单只输出一笔，并使用整单实付金额；不能把商品单价当成交款金额。同一商品的多个规格或数量仍按截图中的商品行处理。
-- 商品行金额已逐笔输出时，不要再把订单合计、优惠汇总或重复展示的同一订单作为额外支出。明确显示已完成或自动退款的金额，另作为一笔 INCOME、分类为退款；申请中或预计退款不记录。
-- 金额取每笔实际实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
+- 商品行金额已逐笔输出时，不要再把订单合计、优惠汇总或重复展示的同一订单作为额外支出。
+- 商品下方“重量不足退款”“差价已自动退款”等调整归属其上方最近的商品行：paidAmount 返回该行“实付”原金额，refundAmount 返回已完成的差价退款金额；不要把这类退款再作为独立收入。后端会计算 paidAmount - refundAmount 作为最终支出。申请中或预计退款的 refundAmount 为 0。无法确认退款归属时不要猜，在 warnings 说明。
+- 与商品无关、明确已完成的独立退款才作为一笔 INCOME，分类为退款。
+- paidAmount 取每笔实际实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。
 - 商户尽量提取实际收款商户（如小象超市、拼多多）；支付宝或微信只是支付平台时，不要把它当商户。
 - 分类必须从这些值中选最贴合的一项：餐饮、外卖、买菜、闲食、水果、肉类、水产、糖果、甜品、下午茶、饮品、酒类、烟草、购物、服装、鞋类、美容、个人护理、理发、宠物、母婴、玩具、礼物、红包、交通、公交地铁、打车、出行、旅游、加油、充电、汽车保养、停车费、住房、房租、物业费、家具、家电、装修、水费、电费、燃气、网费、清洁、清洁优化、日常清洁、家政、维修、日用、生活用品、通讯、电子产品、影音、打印、医疗、药品、门诊、体育、户外、教育、图书、娱乐、会员订阅、工具、保险、税费手续费、花圃、其他。依据商品明细分类；只知道平台而不知道商品时用购物或其他。
@@ -205,7 +209,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
 - 日期只提取截图中清晰可见的交易时间，格式 YYYY-MM-DDTHH:mm；否则返回 null。
 - description 只可写简短商品/订单内容摘要；绝不包含订单号、商户单号、流水号、手机号、账号或支付凭证编号。
 - confidence 为 high、medium、low 之一；任何关键字段不确定时降低置信度，并在 warnings 用中文简短说明。
-只输出 JSON 对象，格式为 {"transactions":[{...}]}。transactions 中每一笔都必须包含 type、amount、merchant、date、platform、category、description、confidence、warnings 字段；即使只有一笔也必须放在数组中。没有可识别交易时返回 {"transactions":[]}。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。"""
+只输出 JSON 对象，格式为 {"transactions":[{...}]}。transactions 中每一笔都必须包含 type、paidAmount、refundAmount、merchant、date、platform、category、description、confidence、warnings 字段；refundAmount 没有时返回 0。即使只有一笔也必须放在数组中。没有可识别交易时返回 {"transactions":[]}。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。"""
     val anthropic = provider.apiFormat == "anthropic"
     val requestJson = if (anthropic) {
         buildJsonObject {
@@ -304,9 +308,23 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
 
 private fun parseScreenshotRecognitionTransaction(parsed: JsonObject): ScreenshotRecognitionTransaction {
     fun stringValue(field: String) = (parsed[field] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+    fun numberValue(field: String) = (parsed[field] as? kotlinx.serialization.json.JsonPrimitive)?.doubleOrNull
     val type = stringValue("type")?.takeIf { it in setOf("EXPENSE", "INCOME", "TRANSFER") }
-    val amount = (parsed["amount"] as? kotlinx.serialization.json.JsonPrimitive)?.doubleOrNull
+    val explicitPaidAmount = numberValue("paidAmount")
         ?.takeIf { it > 0 && it <= 1_000_000_000 }
+    val paidAmount = (explicitPaidAmount ?: numberValue("amount"))
+        ?.takeIf { it > 0 && it <= 1_000_000_000 }
+    val refundAmount = numberValue("refundAmount")?.takeIf { it > 0 && it <= 1_000_000_000 } ?: 0.0
+    val amount = if (explicitPaidAmount != null) {
+        val paid = BigDecimal.valueOf(explicitPaidAmount).setScale(2, RoundingMode.HALF_UP)
+        val refund = BigDecimal.valueOf(refundAmount).setScale(2, RoundingMode.HALF_UP)
+        (if (refundAmount > 0) paid.subtract(refund) else paid)
+            .setScale(2, RoundingMode.HALF_UP)
+            .toDouble()
+            .takeIf { it > 0 && it <= 1_000_000_000 }
+    } else {
+        paidAmount
+    }
     val merchant = stringValue("merchant")?.safeRecognitionText(120)
     val rawDate = stringValue("date")
     val date = rawDate?.takeIf { runCatching { LocalDateTime.parse(it) }.isSuccess }
@@ -315,9 +333,22 @@ private fun parseScreenshotRecognitionTransaction(parsed: JsonObject): Screensho
     val description = stringValue("description")?.safeRecognitionDescription()
     val rawConfidence = stringValue("confidence")
     val confidence = rawConfidence?.takeIf { it == "high" || it == "medium" } ?: "low"
-    val warnings = (parsed["warnings"] as? JsonArray)?.mapNotNull {
+    val modelWarnings = (parsed["warnings"] as? JsonArray)?.mapNotNull {
         (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.safeRecognitionText(120)
-    }?.take(4).orEmpty()
+    }.orEmpty()
+    val refundWarning = if (explicitPaidAmount != null && refundAmount > 0) {
+        val gross = BigDecimal.valueOf(explicitPaidAmount).setScale(2, RoundingMode.HALF_UP)
+        val refund = BigDecimal.valueOf(refundAmount).setScale(2, RoundingMode.HALF_UP)
+        val grossText = gross.toPlainString()
+        val refundText = refund.toPlainString()
+        if (amount != null) {
+            val netText = BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP).toPlainString()
+            "原实付 ¥$grossText，已扣差价退款 ¥$refundText，最终记账 ¥$netText"
+        } else {
+            "差价退款 ¥$refundText 不低于原实付 ¥$grossText，请核对退款状态；该笔金额未自动填入"
+        }
+    } else null
+    val warnings = (modelWarnings + listOfNotNull(refundWarning)).take(4)
     return ScreenshotRecognitionTransaction(type, amount, merchant, date, platform, category, description, confidence, warnings)
 }
 

@@ -9,9 +9,9 @@ import { formatMoney, isReportingYearKey, reportingMonthDate } from "@/lib/stark
 import type { Transaction } from "@/lib/stark/models";
 import { formatMonthLabel, translateValue, useAppLocale } from "@/lib/stark/i18n";
 
-type ShoppingMerchant = { name: string; count: number; amount: number };
+type ShoppingPlatform = { name: string; count: number; amount: number };
 type ShoppingKeyword = { name: string; count: number };
-type ShoppingDetailSelection = { kind: "merchant" | "keyword"; value: string };
+type ShoppingDetailSelection = { kind: "platform" | "keyword"; value: string };
 
 function collectShoppingTransactions(transactions: Transaction[]) {
   return transactions.filter((transaction) =>
@@ -98,20 +98,20 @@ function buildShoppingTrendOption(
   };
 }
 
-function buildMerchantRanking(transactions: Transaction[]): ShoppingMerchant[] {
-  const merchants = new Map<string, ShoppingMerchant>();
+function buildPlatformRanking(transactions: Transaction[]): ShoppingPlatform[] {
+  const platforms = new Map<string, ShoppingPlatform>();
   for (const transaction of transactions) {
-    const name = transaction.merchant?.trim();
+    const name = transaction.shoppingPlatform?.trim();
     if (!name) continue;
-    const item = merchants.get(name);
+    const item = platforms.get(name);
     if (item) {
       item.count += 1;
       item.amount += transaction.amount;
     } else {
-      merchants.set(name, { name, count: 1, amount: transaction.amount });
+      platforms.set(name, { name, count: 1, amount: transaction.amount });
     }
   }
-  return [...merchants.values()]
+  return [...platforms.values()]
     .sort((a, b) => b.count - a.count || b.amount - a.amount || a.name.localeCompare(b.name, "zh-CN"))
     .slice(0, 5);
 }
@@ -189,13 +189,13 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
     () => buildShoppingTrendOption(trend, isReportingYearKey(period), locale),
     [locale, period, trend],
   );
-  const merchants = useMemo(() => buildMerchantRanking(shoppingTransactions), [shoppingTransactions]);
+  const shoppingPlatforms = useMemo(() => buildPlatformRanking(shoppingTransactions), [shoppingTransactions]);
   const keywords = useMemo(() => buildKeywordRanking(shoppingTransactions), [shoppingTransactions]);
   const detailTransactions = useMemo(() => {
     if (!detailSelection) return [];
     return shoppingTransactions
-      .filter((transaction) => detailSelection.kind === "merchant"
-        ? transaction.merchant?.trim() === detailSelection.value
+      .filter((transaction) => detailSelection.kind === "platform"
+        ? transaction.shoppingPlatform?.trim() === detailSelection.value
         : extractShoppingNoteKeywords(transaction.description, transaction.orderId).includes(detailSelection.value))
       .sort((left, right) => Date.parse(right.date) - Date.parse(left.date));
   }, [detailSelection, shoppingTransactions]);
@@ -205,8 +205,8 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
   );
   const hasShoppingBills = shoppingTransactions.length > 0;
   const detailTitle = detailSelection
-    ? detailSelection.kind === "merchant"
-      ? `${locale === "zh-CN" ? "商户账单" : "Merchant bills"} · ${detailSelection.value}`
+    ? detailSelection.kind === "platform"
+      ? `${locale === "zh-CN" ? "平台账单" : "Platform bills"} · ${detailSelection.value}`
       : `${locale === "zh-CN" ? "关键词账单" : "Keyword bills"} · ${detailSelection.value}`
     : "";
 
@@ -253,24 +253,24 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
               <div className="shopping-analysis-rankings">
                 <section>
                   <div className="shopping-analysis-list-head">
-                    <h3>{locale === "zh-CN" ? "高频商户" : "Frequent merchants"}</h3>
+                    <h3>{locale === "zh-CN" ? "高频购物平台" : "Frequent shopping platforms"}</h3>
                     <span>{locale === "zh-CN" ? "按账单笔数" : "By bill count"}</span>
                   </div>
-                  {merchants.length ? (
+                  {shoppingPlatforms.length ? (
                     <ol>
-                      {merchants.map((merchant, index) => (
-                        <li key={merchant.name}>
+                      {shoppingPlatforms.map((shoppingPlatform, index) => (
+                        <li key={shoppingPlatform.name}>
                           <button
                             type="button"
                             className="shopping-analysis-rank-button"
-                            aria-label={locale === "zh-CN" ? `查看商户 ${merchant.name} 的 ${merchant.count} 笔账单` : `View ${merchant.count} bills from ${merchant.name}`}
-                            onClick={() => setDetailSelection({ kind: "merchant", value: merchant.name })}
+                            aria-label={locale === "zh-CN" ? `查看购物平台 ${shoppingPlatform.name} 的 ${shoppingPlatform.count} 笔账单` : `View ${shoppingPlatform.count} bills from ${shoppingPlatform.name}`}
+                            onClick={() => setDetailSelection({ kind: "platform", value: shoppingPlatform.name })}
                           >
                             <i>{index + 1}</i>
-                            <span className="shopping-analysis-rank-name" title={merchant.name}>{merchant.name}</span>
+                            <span className="shopping-analysis-rank-name" title={shoppingPlatform.name}>{shoppingPlatform.name}</span>
                             <span className="shopping-analysis-rank-meta">
-                              <small>{billCountLabel(merchant.count, locale)}</small>
-                              <strong>¥{formatMoney(merchant.amount)}</strong>
+                              <small>{billCountLabel(shoppingPlatform.count, locale)}</small>
+                              <strong>¥{formatMoney(shoppingPlatform.amount)}</strong>
                             </span>
                             <span className="shopping-analysis-rank-arrow" aria-hidden="true">›</span>
                           </button>
@@ -278,7 +278,7 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                       ))}
                     </ol>
                   ) : (
-                    <p className="shopping-analysis-list-empty">{locale === "zh-CN" ? "还没有填写商户名称" : "No merchant names recorded"}</p>
+                    <p className="shopping-analysis-list-empty">{locale === "zh-CN" ? "还没有填写购物平台" : "No shopping platforms recorded"}</p>
                   )}
                 </section>
 

@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,15 +33,37 @@ var (
 )
 
 type screenshotRecognition struct {
-	Type        *string  `json:"type"`
-	Amount      *float64 `json:"amount"`
-	Merchant    *string  `json:"merchant"`
-	Date        *string  `json:"date"`
-	Platform    *string  `json:"platform"`
-	Category    *string  `json:"category"`
-	Description *string  `json:"description"`
-	Confidence  string   `json:"confidence"`
-	Warnings    []string `json:"warnings"`
+	Type        *string            `json:"type"`
+	Amount      *recognitionAmount `json:"amount"`
+	Merchant    *string            `json:"merchant"`
+	Date        *string            `json:"date"`
+	Platform    *string            `json:"platform"`
+	Category    *string            `json:"category"`
+	Description *string            `json:"description"`
+	Confidence  string             `json:"confidence"`
+	Warnings    []string           `json:"warnings"`
+}
+
+type recognitionAmount float64
+
+func (amount *recognitionAmount) UnmarshalJSON(data []byte) error {
+	value := strings.TrimSpace(string(data))
+	if strings.EqualFold(value, "null") {
+		return nil
+	}
+	if strings.HasPrefix(value, "\"") {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		value = strings.NewReplacer("¥", "", "￥", "", "元", "", ",", "", " ", "").Replace(strings.TrimSpace(text))
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return err
+	}
+	*amount = recognitionAmount(parsed)
+	return nil
 }
 
 func registerScreenshotRecognitionRoute(router chi.Router, authService *auth.Service, settings VisionSettingsRepository, serverVision config.VisionConfig, encryptionKey string, allowPrivateEndpoints bool) {
@@ -146,6 +170,9 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 				},
 			}},
 		}
+		if isDeepSeekAnthropicEndpoint(provider.BaseURL) {
+			requestPayload["thinking"] = map[string]string{"type": "disabled"}
+		}
 	} else {
 		requestPayload = map[string]interface{}{
 			"model":           provider.Model,
@@ -215,6 +242,7 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 			Type string `json:"type"`
 			Text string `json:"text"`
 		} `json:"content"`
+		StopReason string `json:"stop_reason"`
 	}
 	if err := json.Unmarshal(responseBody, &envelope); err != nil {
 		return screenshotRecognition{}, errors.New("invalid vision response")
@@ -237,12 +265,16 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	if content == "" {
 		return screenshotRecognition{}, errors.New("empty vision response")
 	}
-	content = strings.TrimPrefix(content, "```json")
-	content = strings.TrimPrefix(content, "```")
-	content = strings.TrimSuffix(strings.TrimSpace(content), "```")
+	if envelope.StopReason == "max_tokens" {
+		return screenshotRecognition{}, errors.New("model output reached max_tokens")
+	}
+	content, ok := extractRecognitionJSON(content)
+	if !ok {
+		return screenshotRecognition{}, errors.New("invalid recognition payload: no complete JSON object found")
+	}
 	var result screenshotRecognition
 	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &result); err != nil {
-		return screenshotRecognition{}, errors.New("invalid recognition payload")
+		return screenshotRecognition{}, fmt.Errorf("invalid recognition payload: %w", err)
 	}
 	result.Type = validTransactionType(result.Type)
 	result.Platform = validPlatform(result.Platform)
@@ -269,6 +301,83 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	}
 	result.Warnings = warnings
 	return result, nil
+}
+
+func isDeepSeekAnthropicEndpoint(baseURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(baseURL))
+	return err == nil && strings.EqualFold(parsed.Hostname(), "api.deepseek.com")
+}
+
+func extractRecognitionJSON(content string) (string, bool) {
+	content = strings.TrimSpace(removeThinkingSections(content))
+	if content == "" {
+		return "", false
+	}
+	var decoded string
+	if json.Unmarshal([]byte(content), &decoded) == nil {
+		content = strings.TrimSpace(decoded)
+	}
+	if strings.HasPrefix(content, "```") {
+		if newline := strings.IndexByte(content, '\n'); newline >= 0 {
+			content = strings.TrimSpace(content[newline+1:])
+		}
+		if fenceEnd := strings.LastIndex(content, "```"); fenceEnd >= 0 {
+			content = strings.TrimSpace(content[:fenceEnd])
+		}
+	}
+	start := strings.IndexByte(content, '{')
+	if start < 0 {
+		return "", false
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for index := start; index < len(content); index++ {
+		char := content[index]
+		if inString {
+			if escaped {
+				escaped = false
+			} else if char == '\\' {
+				escaped = true
+			} else if char == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch char {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return content[start : index+1], true
+			}
+		}
+	}
+	return "", false
+}
+
+func removeThinkingSections(content string) string {
+	for _, tag := range []string{"think", "thinking"} {
+		for {
+			lower := strings.ToLower(content)
+			start := strings.Index(lower, "<"+tag+">")
+			if start < 0 {
+				break
+			}
+			bodyStart := start + len(tag) + 2
+			endRelative := strings.Index(lower[bodyStart:], "</"+tag+">")
+			if endRelative < 0 {
+				content = content[:start]
+				break
+			}
+			end := bodyStart + endRelative + len(tag) + 3
+			content = content[:start] + content[end:]
+		}
+	}
+	return content
 }
 
 func providerErrorDescription(body []byte) string {
@@ -321,12 +430,17 @@ func publicScreenshotRecognitionError(err error, apiKey string) string {
 		return "模型服务返回错误：" + strings.TrimPrefix(message, "vision service returned ")
 	case strings.Contains(message, "context deadline exceeded") || strings.Contains(message, "Client.Timeout exceeded"):
 		return "模型服务请求超时，请检查模型服务状态后重试"
+	case strings.Contains(message, "model output reached max_tokens"):
+		return "模型输出被截断，请重试"
 	case strings.Contains(message, "vision service request failed:"):
 		return "连接模型服务失败：" + strings.TrimSpace(strings.TrimPrefix(message, "vision service request failed:"))
 	case message == "invalid vision response":
 		return "模型服务返回了无法解析的响应"
 	case message == "empty vision response":
 		return "模型服务没有返回识别内容"
+	case strings.HasPrefix(message, "invalid recognition payload:"):
+		detail := strings.TrimSpace(strings.TrimPrefix(message, "invalid recognition payload:"))
+		return "模型返回的内容不是有效记账数据：" + detail
 	case message == "invalid recognition payload":
 		return "模型返回的内容不是有效记账数据，请重试或调整识别模型"
 	default:

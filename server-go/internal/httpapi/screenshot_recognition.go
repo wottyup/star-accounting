@@ -42,8 +42,35 @@ type screenshotRecognition struct {
 	Category     *string                 `json:"category"`
 	Description  *string                 `json:"description"`
 	Confidence   string                  `json:"confidence"`
-	Warnings     []string                `json:"warnings"`
+	Warnings     recognitionWarnings     `json:"warnings"`
 	Transactions []screenshotRecognition `json:"transactions,omitempty"`
+}
+
+type recognitionWarnings []string
+
+func (warnings *recognitionWarnings) UnmarshalJSON(data []byte) error {
+	value := bytes.TrimSpace(data)
+	if bytes.Equal(value, []byte("null")) {
+		*warnings = nil
+		return nil
+	}
+	if len(value) > 0 && value[0] == '"' {
+		var warning string
+		if err := json.Unmarshal(value, &warning); err != nil {
+			return err
+		}
+		*warnings = recognitionWarnings{warning}
+		return nil
+	}
+	if len(value) > 0 && value[0] == '[' {
+		var items []string
+		if err := json.Unmarshal(value, &items); err != nil {
+			return err
+		}
+		*warnings = recognitionWarnings(items)
+		return nil
+	}
+	return errors.New("warnings must be a string or an array of strings")
 }
 
 type recognitionAmount float64
@@ -326,7 +353,7 @@ func sanitizeScreenshotRecognition(result screenshotRecognition) screenshotRecog
 			warnings = append(warnings, *safeWarning)
 		}
 	}
-	result.Warnings = warnings
+	result.Warnings = recognitionWarnings(warnings)
 	result.Transactions = nil
 	return result
 }

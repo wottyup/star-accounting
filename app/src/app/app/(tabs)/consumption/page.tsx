@@ -18,6 +18,7 @@ import { effectiveCategory, effectiveType, hasRemark, toAnalysisTransaction, toA
 import { normalizeConsumptionPlatform } from "@/lib/stark/dashboard/consumption-platforms";
 import { isShoppingAnalysisCategory } from "@/lib/stark/dashboard/shopping-analysis";
 import { categoryIconSrc, categoryIconSrcForCategory } from "@/lib/stark/utils/category-icon";
+import { paymentPlatformIconSrc, shoppingPlatformIconSrc } from "@/lib/stark/utils/platform-icons";
 import { withAppBasePath } from "@/lib/stark/runtime";
 import { getCurrentAccountId, getSelectedReportMonth, setSelectedReportMonth } from "@/lib/stark/storage/local-config";
 import { formatMoney, isReportingYearKey, reportingMonthDate, reportingMonthEndDate, reportingPeriodDate, reportingPeriodMonths } from "@/lib/stark/utils/format";
@@ -638,10 +639,20 @@ export default function ConsumptionPage() {
           {detailTransactions.length ? detailTransactions.map((item) => {
             const display = toAnalysisTransaction(item);
             const transferred = hasRemark(item) && item.type !== "EXPENSE";
+            const shoppingLogoSrc = shoppingPlatformIconSrc(item.shoppingPlatform);
+            const paymentLogoSrc = paymentPlatformIconSrc(item.platform);
             return (
               <div key={item.id} className="recent-row">
                 <span className="recent-icon"><img src={categoryIconSrc(display)} alt="" /></span>
-                <strong className="recent-title">{translateValue(display.category, locale)}</strong>
+                <div className="recent-title-row">
+                  <strong className="recent-title">{translateValue(display.category, locale)}</strong>
+                  {shoppingLogoSrc || paymentLogoSrc ? (
+                    <span className="consumption-platform-icons">
+                      {shoppingLogoSrc ? <img src={shoppingLogoSrc} alt={locale === "en-US" ? `${item.shoppingPlatform} shopping platform` : `购物平台：${item.shoppingPlatform}`} title={item.shoppingPlatform ?? undefined} /> : null}
+                      {paymentLogoSrc ? <img src={paymentLogoSrc} alt={locale === "en-US" ? `Payment platform: ${item.platform}` : `支付平台：${item.platform}`} title={item.platform} /> : null}
+                    </span>
+                  ) : null}
+                </div>
                 <span className="recent-category">{transferred ? `${locale === "en-US" ? "Transfer recategorized" : "转账归类"} · ${translateValue(item.remarkCategory || item.category, locale)} · ` : ""}{[item.shoppingPlatform?.trim(), item.merchant || item.description || translateValue(item.platform, locale)].filter(Boolean).join(" · ")}</span>
                 <strong className={`recent-amount ${display.type === "INCOME" ? "income" : display.type === "EXPENSE" ? "expense" : "transfer"}`}>
                   {display.type === "INCOME" ? "+¥ " : display.type === "EXPENSE" ? "-¥ " : "±¥ "}{formatMoney(item.amount)}

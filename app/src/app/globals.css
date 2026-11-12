@@ -8404,11 +8404,29 @@ img[src$="/qita.webp"] {
 .shopping-analysis-rank-name {
   grid-column: 2;
   grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
   overflow: hidden;
   color: #475569;
   font-size: calc(11px * var(--user-font-scale));
+  white-space: nowrap;
+}
+
+.shopping-analysis-rank-name-text {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.shopping-analysis-platform-logo {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: contain;
 }
 
 .shopping-analysis-rank-meta {
@@ -15580,7 +15598,30 @@ img[src$="/qita.webp"] {
 }
 
 .consumption-detail-list .recent-icon { grid-area: icon; }
-.consumption-detail-list .recent-title { grid-area: title; }
+.consumption-detail-list .recent-title-row {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.consumption-detail-list .recent-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.consumption-platform-icons {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+}
+.consumption-platform-icons img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: contain;
+}
 .consumption-detail-list .recent-amount { grid-area: amount; }
 .consumption-detail-list .recent-category { grid-area: category; }
 .consumption-detail-list .recent-meta {

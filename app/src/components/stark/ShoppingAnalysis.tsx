@@ -5,6 +5,7 @@ import type { EChartsCoreOption } from "echarts/core";
 import { BottomSheet } from "@/components/stark/BottomSheet";
 import { EChartView } from "@/components/stark/EChartView";
 import { isShoppingAnalysisCategory } from "@/lib/stark/dashboard/shopping-analysis";
+import { shoppingPlatformIconSrc } from "@/lib/stark/utils/platform-icons";
 import { formatMoney, isReportingYearKey, reportingMonthDate } from "@/lib/stark/utils/format";
 import type { Transaction } from "@/lib/stark/models";
 import { formatMonthLabel, translateValue, useAppLocale } from "@/lib/stark/i18n";
@@ -253,24 +254,30 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                   </div>
                   {shoppingPlatforms.length ? (
                     <ol>
-                      {shoppingPlatforms.map((shoppingPlatform, index) => (
-                        <li key={shoppingPlatform.name}>
-                          <button
-                            type="button"
-                            className="shopping-analysis-rank-button"
-                            aria-label={locale === "zh-CN" ? `查看购物平台 ${shoppingPlatform.name} 的 ${shoppingPlatform.count} 笔账单` : `View ${shoppingPlatform.count} bills from ${shoppingPlatform.name}`}
-                            onClick={() => setDetailSelection({ kind: "platform", value: shoppingPlatform.name })}
-                          >
-                            <i>{index + 1}</i>
-                            <span className="shopping-analysis-rank-name" title={shoppingPlatform.name}>{shoppingPlatform.name}</span>
-                            <span className="shopping-analysis-rank-meta">
-                              <small>{billCountLabel(shoppingPlatform.count, locale)}</small>
-                              <strong>¥{formatMoney(shoppingPlatform.amount)}</strong>
-                            </span>
-                            <span className="shopping-analysis-rank-arrow" aria-hidden="true">›</span>
-                          </button>
-                        </li>
-                      ))}
+                      {shoppingPlatforms.map((shoppingPlatform, index) => {
+                        const logoSrc = shoppingPlatformIconSrc(shoppingPlatform.name);
+                        return (
+                          <li key={shoppingPlatform.name}>
+                            <button
+                              type="button"
+                              className="shopping-analysis-rank-button"
+                              aria-label={locale === "zh-CN" ? `查看购物平台 ${shoppingPlatform.name} 的 ${shoppingPlatform.count} 笔账单` : `View ${shoppingPlatform.count} bills from ${shoppingPlatform.name}`}
+                              onClick={() => setDetailSelection({ kind: "platform", value: shoppingPlatform.name })}
+                            >
+                              <i>{index + 1}</i>
+                              <span className="shopping-analysis-rank-name" title={shoppingPlatform.name}>
+                                {logoSrc ? <img className="shopping-analysis-platform-logo" src={logoSrc} alt="" aria-hidden="true" /> : null}
+                                <span className="shopping-analysis-rank-name-text">{shoppingPlatform.name}</span>
+                              </span>
+                              <span className="shopping-analysis-rank-meta">
+                                <small>{billCountLabel(shoppingPlatform.count, locale)}</small>
+                                <strong>¥{formatMoney(shoppingPlatform.amount)}</strong>
+                              </span>
+                              <span className="shopping-analysis-rank-arrow" aria-hidden="true">›</span>
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ol>
                   ) : (
                     <p className="shopping-analysis-list-empty">{locale === "zh-CN" ? "还没有填写购物平台" : "No shopping platforms recorded"}</p>
@@ -293,7 +300,9 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                             onClick={() => setDetailSelection({ kind: "merchant", value: merchant.name })}
                           >
                             <i>{index + 1}</i>
-                            <span className="shopping-analysis-rank-name" title={merchant.name}>{merchant.name}</span>
+                            <span className="shopping-analysis-rank-name" title={merchant.name}>
+                              <span className="shopping-analysis-rank-name-text">{merchant.name}</span>
+                            </span>
                             <span className="shopping-analysis-rank-meta">
                               <small>{billCountLabel(merchant.count, locale)}</small>
                               <strong>¥{formatMoney(merchant.amount)}</strong>

@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
@@ -259,7 +260,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
         }
     }.getOrNull()?.trim()?.removePrefix("```json")?.removePrefix("```")?.trim()?.removeSuffix("```")?.trim()
         ?: return null
-    val parsed = runCatching { Json.parseToJsonElement(content).jsonObject }.getOrNull() ?: return null
+    val parsed = extractRecognitionJsonObject(content) ?: return null
     fun stringValue(field: String) = (parsed[field] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
     val type = stringValue("type")?.takeIf { it in setOf("EXPENSE", "INCOME", "TRANSFER") }
     val amount = (parsed["amount"] as? kotlinx.serialization.json.JsonPrimitive)?.doubleOrNull?.takeIf { it > 0 && it <= 1_000_000_000 }
@@ -275,6 +276,58 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
         (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.safeRecognitionText(120)
     }?.take(4).orEmpty()
     return ScreenshotRecognitionResponse(type, amount, merchant, date, platform, category, description, confidence, warnings)
+}
+
+private fun extractRecognitionJsonObject(raw: String): JsonObject? {
+    val text = raw.trim()
+        .removePrefix("```json")
+        .removePrefix("```")
+        .removeSuffix("```")
+        .trim()
+    runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull()?.let { return it }
+
+    var cursor = 0
+    var lastValidObject: JsonObject? = null
+    while (cursor < text.length) {
+        val start = text.indexOf('{', cursor)
+        if (start < 0) break
+
+        var depth = 0
+        var inString = false
+        var escaped = false
+        var end = -1
+        scan@ for (index in start until text.length) {
+            val char = text[index]
+            if (inString) {
+                if (escaped) escaped = false
+                else when (char) {
+                    '\\' -> escaped = true
+                    '"' -> inString = false
+                }
+            } else {
+                when (char) {
+                    '"' -> inString = true
+                    '{' -> depth += 1
+                    '}' -> {
+                        depth -= 1
+                        if (depth == 0) {
+                            end = index
+                            break@scan
+                        }
+                    }
+                }
+            }
+        }
+
+        if (end >= start) {
+            runCatching { Json.parseToJsonElement(text.substring(start, end + 1)).jsonObject }
+                .getOrNull()?.let { lastValidObject = it }
+            cursor = end + 1
+        } else {
+            cursor = start + 1
+        }
+    }
+    return lastValidObject
 }
 
 private fun String.safeRecognitionText(maxLength: Int): String? = trim().takeIf { it.isNotEmpty() }?.take(maxLength)

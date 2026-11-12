@@ -193,9 +193,11 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     val imageBase64 = Base64.getEncoder().encodeToString(image.bytes)
     val dataUrl = "data:${image.mimeType};base64,$imageBase64"
     val prompt = """识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
-- 必须识别截图中的所有独立订单或交易；每笔分别输出，最多 20 笔。禁止只返回第一笔，也不要把多笔金额合并成总额。
-- 同一订单包含多个商品仍算一笔；订单列表中的合计、优惠汇总和重复展示的同一订单不要当成额外交易。
-- 金额优先取每笔订单最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
+- 必须识别截图中的所有独立订单或交易，最多 20 笔。禁止只返回第一笔，也不要把多笔金额合并成总额。
+- 对于购物平台的商品清单，如果每个商品行都显示各自的“实付”金额，每个商品行分别输出一笔 EXPENSE；description 写商品名、规格和数量，merchant 使用截图中可确认的商户。不要把这些商品行合并成整单一笔。
+- 如果商品行只有单价而没有各自的实付金额，则整单只输出一笔，并使用整单实付金额；不能把商品单价当成交款金额。同一商品的多个规格或数量仍按截图中的商品行处理。
+- 商品行金额已逐笔输出时，不要再把订单合计、优惠汇总或重复展示的同一订单作为额外支出。明确显示已完成或自动退款的金额，另作为一笔 INCOME、分类为退款；申请中或预计退款不记录。
+- 金额取每笔实际实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。
 - 商户尽量提取实际收款商户（如小象超市、拼多多）；支付宝或微信只是支付平台时，不要把它当商户。
 - 分类必须从这些值中选最贴合的一项：餐饮、外卖、买菜、闲食、水果、肉类、水产、糖果、甜品、下午茶、饮品、酒类、烟草、购物、服装、鞋类、美容、个人护理、理发、宠物、母婴、玩具、礼物、红包、交通、公交地铁、打车、出行、旅游、加油、充电、汽车保养、停车费、住房、房租、物业费、家具、家电、装修、水费、电费、燃气、网费、清洁、清洁优化、日常清洁、家政、维修、日用、生活用品、通讯、电子产品、影音、打印、医疗、药品、门诊、体育、户外、教育、图书、娱乐、会员订阅、工具、保险、税费手续费、花圃、其他。依据商品明细分类；只知道平台而不知道商品时用购物或其他。
@@ -208,7 +210,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     val requestJson = if (anthropic) {
         buildJsonObject {
             put("model", provider.model)
-            put("max_tokens", 700)
+            put("max_tokens", 2600)
             if (URI.create(baseUrl).host.equals("api.deepseek.com", ignoreCase = true)) {
                 put("thinking", buildJsonObject { put("type", "disabled") })
             }
@@ -233,7 +235,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     } else {
         buildJsonObject {
             put("model", provider.model)
-            put("max_tokens", 700)
+            put("max_tokens", 2600)
             put("response_format", buildJsonObject { put("type", "json_object") })
             put("messages", buildJsonArray {
                 add(buildJsonObject { put("role", "system"); put("content", prompt) })

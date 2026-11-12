@@ -34,7 +34,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       },
     });
     const body = await response.json().catch(() => ({})) as T & MessageResponse;
-    if (!response.ok) throw new Error(body.error || "云端请求失败，请稍后重试");
+    if (!response.ok) throw new Error(body.error || body.message || "云端请求失败，请稍后重试");
     return body as T;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw new Error("AI 设置请求超时，请检查网络");

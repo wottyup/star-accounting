@@ -199,7 +199,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
 - 对于购物平台的商品清单，如果每个商品行都显示各自的“实付”金额，每个商品行分别输出一笔 EXPENSE；description 写商品名、规格和数量，merchant 使用截图中可确认的商户。不要把这些商品行合并成整单一笔。
 - 如果商品行只有单价而没有各自的实付金额，则整单只输出一笔，并使用整单实付金额；不能把商品单价当成交款金额。同一商品的多个规格或数量仍按截图中的商品行处理。
 - 商品行金额已逐笔输出时，不要再把订单合计、优惠汇总或重复展示的同一订单作为额外支出。
-- 商品下方“重量不足退款”“差价已自动退款”等调整归属其上方最近的商品行：paidAmount 返回该行“实付”原金额，refundAmount 返回已完成的差价退款金额；不要把这类退款再作为独立收入。后端会计算 paidAmount - refundAmount 作为最终支出。申请中或预计退款的 refundAmount 为 0。无法确认退款归属时不要猜，在 warnings 说明。
+- 商品下方的退款行严格按截图从上到下的顺序归属：某商品下方、下一商品上方显示的“重量不足退款”“差价已自动退款”等，只属于紧挨在它上面的商品；绝不能归给退款行下面的下一件商品。refundAmount 只能填在上方商品对应的交易中，paidAmount 仍填该商品原“实付”。例如：商品 A 实付 63.60，A 下方显示差价退款 2.23，随后才是商品 B 实付 3.89，则 A 的 paidAmount=63.60、refundAmount=2.23，B 的 paidAmount=3.89、refundAmount=0；最终 A 记 61.37，B 记 3.89，绝不能从 B 扣 2.23。同一商品下方、下一商品之前有多条已完成差价退款时，将退款金额累计到该商品。不要把关联商品的差价退款另记为收入。申请中或预计退款的 refundAmount 为 0。无法确认退款归属时不要猜，在 warnings 说明。后端会计算 paidAmount - refundAmount 作为最终支出。
 - 与商品无关、明确已完成的独立退款才作为一笔 INCOME，分类为退款。
 - paidAmount 取每笔实际实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。

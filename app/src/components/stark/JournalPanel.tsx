@@ -32,6 +32,7 @@ const expenseCategories = expenseCategoryOptions;
 const incomeCategories = ["工资", "奖金", "兼职", "经营收入", "报销", "退款", "租金", "利息分红", "补贴", "二手转卖", "理财", "其他"];
 const transferCategories = ["转账"];
 const platforms = ["支付宝", "微信", "银行卡", "现金", "其他"];
+const identifiablePaymentPlatforms = ["支付宝", "微信", "银行卡", "现金"];
 const assetTypes: AssetType[] = ["CASH", "BANK_CARD", "ALIPAY", "WECHAT", "INVESTMENT", "OTHER"];
 const assetTypeLabels: Record<AssetType, string> = {
   CASH: "现金",
@@ -603,14 +604,20 @@ export function JournalPanel({
             : expenseCategories;
         const hasCategory = typeof item.category === "string" && categoryOptions.includes(item.category);
         const amountValid = typeof item.amount === "number" && Number.isFinite(item.amount) && item.amount > 0;
-        const platformValid = ["支付宝", "微信", "银行卡", "现金", "其他"].includes(item.platform ?? "");
+        const recognizedPlatform = identifiablePaymentPlatforms.includes(item.platform ?? "")
+          ? item.platform as string
+          : null;
         const dateValid = typeof item.date === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(item.date);
         const warnings = Array.isArray(item.warnings)
           ? item.warnings.filter((warning) => typeof warning === "string" && warning.trim())
           : [];
         if (!amountValid) warnings.push(translateText("第 {number} 笔没有识别出金额，请手工填写。", locale).replace("{number}", String(index + 1)));
         if (!hasCategory) warnings.push(translateText("第 {number} 笔分类未确认，请核对。", locale).replace("{number}", String(index + 1)));
-        if (!platformValid) warnings.push(translateText("第 {number} 笔未识别支付账户，已设为其他。", locale).replace("{number}", String(index + 1)));
+        if (!recognizedPlatform) {
+          warnings.push(translateText("第 {number} 笔未识别支付账户，已保留当前选择：{platform}，请核对。", locale)
+            .replace("{number}", String(index + 1))
+            .replace("{platform}", translateText(platform, locale)));
+        }
         if (!dateValid) warnings.push(translateText("第 {number} 笔未识别交易时间，已填当前时间。", locale).replace("{number}", String(index + 1)));
         return {
           id: createId("screenshot-transaction"),
@@ -619,7 +626,7 @@ export function JournalPanel({
           category: hasCategory && item.confidence !== "low"
             ? item.category as string
             : recognizedType === "INCOME" ? "工资" : recognizedType === "TRANSFER" ? "转账" : "餐饮",
-          platform: platformValid ? item.platform as string : "其他",
+          platform: recognizedPlatform ?? platform,
           merchant: typeof item.merchant === "string" ? item.merchant.trim() : "",
           description: typeof item.description === "string" ? item.description.trim() : "",
           date: dateValid ? item.date!.slice(0, 16) : nowText().slice(0, 16),

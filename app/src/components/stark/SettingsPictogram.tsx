@@ -7,6 +7,7 @@ export type SettingPictogramType =
   | "REMARK"
   | "SUBSCRIPTIONS"
   | "AI_VISION"
+  | "FLOATING"
   | "LANGUAGE"
   | "FONT"
   | "HELP"
@@ -57,6 +58,11 @@ const artwork: Record<SettingPictogramType, ReactNode> = {
     <path d="m25.5 2 .8 1.8 1.8.7-1.8.8-.8 1.7-.8-1.7-1.8-.8 1.8-.7Z" fill="#F5C662" />
     <circle cx="7" cy="25" r="4.2" fill="#50C49B" />
     <path d="m5.3 25 1.2 1.2 2.3-2.5" fill="none" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </>,
+  FLOATING: <>
+    <circle cx="16" cy="16" r="12" fill="#4C8DDD" />
+    <path d="M16 8.5v15M8.5 16h15" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" />
+    <circle cx="26" cy="7" r="4.5" fill="#51C69A" />
   </>,
   LANGUAGE: <>
     <path d="M4 6a4 4 0 0 1 4-4h11a4 4 0 0 1 4 4v11a4 4 0 0 1-4 4h-7l-5 4v-4a4 4 0 0 1-3-4Z" fill="#43AFC1" />

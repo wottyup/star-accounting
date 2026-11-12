@@ -10620,6 +10620,13 @@ img[src$="/qita.webp"] {
 .settings-center-icon.update { background: #e8f5fc; }
 .settings-center-icon.update_source { background: #e8f4fa; }
 .settings-center-icon.mode { background: #e9f4f6; }
+.settings-center-icon.floating { background: #eaf2ff; }
+.floating-journal-settings .floating-journal-permission-status { display: grid; gap: 10px; padding: 14px 15px; border-radius: 15px; background: #f5f7fb; }
+.floating-journal-settings .floating-journal-permission-status > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.floating-journal-settings .floating-journal-permission-status span { color: #6f7b8c; }
+.floating-journal-settings .floating-journal-permission-status strong { color: #27364d; font-weight: 650; }
+.floating-journal-settings .floating-journal-disable,
+.floating-journal-settings .floating-journal-stop-capture { width: 100%; margin-top: 10px; }
 
 /* ── 账单归类（账户设置页） ── */
 .bill-remark-sheet {

@@ -7,6 +7,7 @@ import { LazyJournalPanel as JournalPanel, preloadJournalPanel } from "@/compone
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { usePrimaryTabBackGuard } from "@/components/stark/usePrimaryTabBackGuard";
 import { hasActiveLayerHistoryMarker } from "@/lib/stark/navigation/layered-history";
+import { floatingJournal, isFloatingJournalAvailable, type FloatingJournalAction } from "@/lib/stark/floating-journal";
 
 const KT_HYBRID_TAB_PATHS = new Set([
   "/app",
@@ -28,11 +29,14 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   const isAssetsRoute = pathname.startsWith("/app/assets");
   const isLoansRoute = pathname.startsWith("/app/loans");
   const [journalVariant, setJournalVariant] = useState<"journal" | "savings" | "asset" | "loan" | null>(null);
+  const [floatingAction, setFloatingAction] = useState<FloatingJournalAction | null>(null);
+  const handledFloatingActionsRef = useRef(new Set<string>());
   const journalOpenPathRef = useRef<string | null>(null);
   const dismissJournal = useCallback(() => {
     journalOpenPathRef.current = null;
     document.documentElement.removeAttribute("data-stark-journal-opening");
     setJournalVariant(null);
+    setFloatingAction(null);
   }, []);
   const consumeJournalHistory = useLayeredHistoryMarker(Boolean(journalVariant), "starkJournal", dismissJournal);
 
@@ -83,12 +87,55 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   }, [ktHybridShell, router]);
 
   const openJournal = useCallback(() => {
+    setFloatingAction(null);
     journalOpenPathRef.current = pathname;
     document.documentElement.setAttribute("data-stark-journal-opening", "true");
     const variant = isLoansRoute ? "loan" : isAssetsRoute ? "asset" : isSavingsRoute ? "savings" : "journal";
     setJournalVariant(variant);
     void preloadJournalPanel().catch(dismissJournal);
   }, [dismissJournal, isAssetsRoute, isLoansRoute, isSavingsRoute, pathname]);
+
+  const handleFloatingJournalAction = useCallback((action: Partial<FloatingJournalAction>) => {
+    if (typeof action.actionId !== "string" || !action.actionId
+      || (action.mode !== "screen" && action.mode !== "upload")
+      || handledFloatingActionsRef.current.has(action.actionId)) return;
+    handledFloatingActionsRef.current.add(action.actionId);
+    if (handledFloatingActionsRef.current.size > 32) {
+      const oldest = handledFloatingActionsRef.current.values().next().value;
+      if (oldest) handledFloatingActionsRef.current.delete(oldest);
+    }
+    const request: FloatingJournalAction = {
+      actionId: action.actionId,
+      mode: action.mode,
+      ...(typeof action.imageData === "string" ? { imageData: action.imageData } : {}),
+      ...(typeof action.message === "string" ? { message: action.message } : {}),
+    };
+    setFloatingAction(request);
+    journalOpenPathRef.current = pathname;
+    document.documentElement.setAttribute("data-stark-journal-opening", "true");
+    setJournalVariant("journal");
+    void preloadJournalPanel().catch(dismissJournal);
+    void floatingJournal().acknowledgeAction({ actionId: action.actionId }).catch(() => undefined);
+  }, [dismissJournal, pathname]);
+
+  useEffect(() => {
+    if (!isFloatingJournalAvailable()) return;
+    let active = true;
+    let listener: { remove: () => Promise<void> } | null = null;
+    void floatingJournal().addListener("journalAction", (action) => {
+      if (active) handleFloatingJournalAction(action);
+    }).then((registered) => {
+      if (!active) void registered.remove();
+      else listener = registered;
+    }).catch(() => undefined);
+    void floatingJournal().getPendingAction().then((action) => {
+      if (active) handleFloatingJournalAction(action);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+      if (listener) void listener.remove();
+    };
+  }, [handleFloatingJournalAction]);
 
   useEffect(() => {
     if (!ktHybridShell) return;
@@ -118,6 +165,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
           mode="page"
           variant={journalVariant}
           historyMode="route"
+          floatingAction={floatingAction}
           onClose={closeJournal}
           onSaved={closeJournal}
         />

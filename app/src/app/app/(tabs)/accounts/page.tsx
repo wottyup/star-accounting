@@ -22,6 +22,7 @@ import { importedTransactionId } from "@/lib/stark/import/import-id";
 import { BillRemarkSheet } from "@/components/stark/BillRemarkSheet";
 import { SubscriptionManagementSheet } from "@/components/stark/SubscriptionManagementSheet";
 import { AIVisionSettingsSheet } from "@/components/stark/AIVisionSettingsSheet";
+import { FloatingJournalSettings } from "@/components/stark/FloatingJournalSettings";
 import { BottomSheet } from "@/components/stark/BottomSheet";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { applyUiSettings, defaultUiSettings, readUiSettings, saveUiSettings, type FontChoice, type LanguageChoice, type UiSettings } from "@/lib/stark/storage/ui-settings";
@@ -75,6 +76,7 @@ function SettingsRow({ type, title, value, onClick, disabled = false, updateAvai
 export default function AccountsPage() {
   const router = useRouter();
   const [activePanel, setActivePanel] = useState<PanelKey | null>(null);
+  const [isAndroidApp, setIsAndroidApp] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [mode, setMode] = useState<DataMode>("CLOUD");
   const [newPassword, setNewPassword] = useState("");
@@ -109,6 +111,7 @@ export default function AccountsPage() {
   }, [consumeLogoutHistory, dismissLogoutConfirm]);
 
   useEffect(() => {
+    setIsAndroidApp(Capacitor.getPlatform() === "android");
     const saved = readUiSettings();
     setUiSettings(saved);
     applyUiSettings(saved);
@@ -402,6 +405,7 @@ export default function AccountsPage() {
         <SettingsRow type="REMARK" title="账单归类" value="转账可归入支出分类" onClick={() => setActivePanel("REMARK")} />
         <SettingsRow type="SUBSCRIPTIONS" title="订阅/扣费管理" value="按月自动记账" onClick={() => setActivePanel("SUBSCRIPTIONS")} />
         <SettingsRow type="AI_VISION" title="AI 截图识别" value={cloudUser ? "配置截图识别模型" : "需云端账户"} onClick={() => setActivePanel("AI_VISION")} />
+        {isAndroidApp ? <SettingsRow type="FLOATING" title="悬浮记账" value="屏幕识别 / 上传图片" onClick={() => setActivePanel("FLOATING")} /> : null}
       </section>
 
       <section className="settings-center-group">
@@ -438,7 +442,7 @@ export default function AccountsPage() {
 
       {activePanel ? (
         <BottomSheet
-          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "AI_VISION" ? "AI 截图识别" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
+          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "AI_VISION" ? "AI 截图识别" : activePanel === "FLOATING" ? "悬浮记账" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
           className="settings-sheet"
           overlayClassName="settings-sheet-overlay"
           onClose={() => setActivePanel(null)}
@@ -490,6 +494,8 @@ export default function AccountsPage() {
             {activePanel === "SUBSCRIPTIONS" ? <SubscriptionManagementSheet /> : null}
 
             {activePanel === "AI_VISION" ? <AIVisionSettingsSheet enabled={Boolean(cloudUser)} onOpenCloudLogin={openModeSwitch} /> : null}
+
+            {activePanel === "FLOATING" ? <FloatingJournalSettings /> : null}
 
             {activePanel === "LANGUAGE" ? <div className="settings-option-list">{(["SYSTEM", "ZH_CN", "EN_US"] as LanguageChoice[]).map((item) => <button type="button" key={item} className={uiSettings.language === item ? "active" : ""} onClick={() => updateUiSetting("language", item)}><span><strong>{languageLabels[item]}</strong><small>{item === "SYSTEM" ? "使用设备的语言偏好" : item === "ZH_CN" ? "固定使用简体中文" : "固定使用英文"}</small></span><em>{uiSettings.language === item ? "✓" : ""}</em></button>)}</div> : null}
             {activePanel === "FONT" ? <div className="settings-font-options">{(["SMALL", "STANDARD", "LARGE"] as FontChoice[]).map((item) => <button type="button" key={item} className={uiSettings.font === item ? "active" : ""} onClick={() => updateUiSetting("font", item)}><span style={{ fontSize: item === "SMALL" ? 13 : item === "LARGE" ? 19 : 16 }}>Aa</span><strong>{fontLabels[item]}</strong></button>)}</div> : null}

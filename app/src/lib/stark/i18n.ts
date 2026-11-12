@@ -4,6 +4,9 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "批量录入 {count} 笔": "Bulk entry: {count} transactions",
+  "每笔填写金额、备注和详细明细；上方的记账类型、分类、支付账户和时间将应用到全部订单。": "Enter an amount, note, and details for each transaction. The type, category, payment account, and date selected above apply to all orders.",
+  金额: "Amount", 备注: "Note", 详细明细: "Details", 实付金额: "Paid amount", 商户或简短备注: "Merchant or short note", 商品名称或消费内容: "Items or spending details", 记账时间: "Transaction time",
   "读取账单失败，请确认文件未损坏且为 CSV / XLS / XLSX 格式。": "Could not read the bill file. Check that it is intact and uses CSV / XLS / XLSX format.", "登录已失效": "Session expired", "请求超时": "Request timed out", "网络或数据源异常": "Network or data source error", "云端请求超时，请检查网络后重试": "Cloud request timed out. Check your network and try again.",
   "正在保存账单到系统文件...": "Saving bills to a system file…", "已取消账单导出": "Bill export canceled", "当前安装包尚未包含账单保存功能，请安装新版本后再导出": "This installed app does not support saving bills yet. Install a newer version and try again.", "账单数量超出单次导出上限，请联系开发者": "Too many bills for one export. Contact the developer.",
   "重试": "Retry", "加载中…": "Loading…", "正在读取归类规则…": "Loading classification rules…", "归类规则读取失败，请重试": "Could not load classification rules. Try again.", "账单读取失败，请重试": "Could not load bills. Try again.", "更早的账单读取失败，已加载的账单仍可查看": "Could not load older bills. The bills already loaded remain available.", "归类已保存，账单列表刷新失败，请重试": "Classification was saved, but the bill list could not refresh. Try again.", "已加载账单中暂无匹配，正在查找更早账单…": "No match in loaded bills yet. Searching older bills…",

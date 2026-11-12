@@ -172,6 +172,7 @@ export function JournalPanel({
     if (type === "TRANSFER") return transferCategories;
     return expenseCategories;
   }, [type]);
+  const isBatchRecognition = recognizedDrafts.length > 1;
 
   useEffect(() => {
     if (transaction) {
@@ -386,16 +387,11 @@ export function JournalPanel({
   }
 
   function currentJournalDraft(): JournalDraft {
-    return {
-      ...(recognizedDrafts[activeRecognizedDraftIndex] ?? {}),
-      type,
-      amount,
-      category,
-      platform,
-      merchant,
-      description,
-      date,
-    };
+    const activeDraft = recognizedDrafts[activeRecognizedDraftIndex] ?? {};
+    if (recognizedDrafts.length > 1) {
+      return { ...activeDraft, type, category, platform, date } as JournalDraft;
+    }
+    return { ...activeDraft, type, amount, category, platform, merchant, description, date } as JournalDraft;
   }
 
   function applyJournalDraft(draft: JournalDraft) {
@@ -413,10 +409,25 @@ export function JournalPanel({
     const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === activeRecognizedDraftIndex ? currentJournalDraft() : draft);
     setRecognizedDrafts(drafts);
     setActiveRecognizedDraftIndex(index);
-    applyJournalDraft(drafts[index]);
+    if (drafts.length <= 1) applyJournalDraft(drafts[index]);
+  }
+
+  function updateRecognizedDraft(index: number, changes: Partial<Pick<JournalDraft, "amount" | "merchant" | "description">>) {
+    setRecognizedDrafts((drafts) => drafts.map((draft, draftIndex) => (
+      draftIndex === index
+        ? {
+          ...draft,
+          ...changes,
+          warnings: changes.amount && Number(changes.amount) > 0
+            ? draft.warnings?.filter((warning) => !warning.includes("没有识别出金额") && !warning.includes("amount was not recognized"))
+            : draft.warnings,
+        }
+        : draft
+    )));
   }
 
   function removeRecognizedDraft(index: number) {
+    const wasBatchMode = recognizedDrafts.length > 1;
     const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === activeRecognizedDraftIndex ? currentJournalDraft() : draft);
     const remaining = drafts.filter((_, draftIndex) => draftIndex !== index);
     setRecognizedDrafts(remaining);
@@ -437,7 +448,11 @@ export function JournalPanel({
         ? Math.min(index, remaining.length - 1)
         : activeRecognizedDraftIndex;
     setActiveRecognizedDraftIndex(nextIndex);
-    applyJournalDraft(remaining[nextIndex]);
+    if (remaining.length === 1) {
+      applyJournalDraft(wasBatchMode
+        ? { ...remaining[0], type, category, platform, date }
+        : remaining[0]);
+    }
     setScreenshotRecognitionNotice(translateText("已移除这笔订单，剩余 {count} 笔。", locale).replace("{count}", String(remaining.length)));
   }
 
@@ -457,20 +472,22 @@ export function JournalPanel({
     if (recognizedDrafts.length > 0) setRecognizedDrafts(drafts);
     try {
       const now = nowText();
+      const batchMode = recognizedDrafts.length > 1;
       for (const [index, draft] of drafts.entries()) {
         const existingTransaction = transaction && (recognizedDrafts.length === 0 || index === 0)
           ? transaction
           : null;
+        const entryDate = batchMode ? date : draft.date;
         await repo.saveTransaction({
           id: existingTransaction?.id ?? draft.id ?? createId("transaction"),
           userId: existingTransaction?.userId ?? "local-user",
           accountId: existingTransaction?.accountId ?? getCurrentAccountId(),
           amount: Number(draft.amount),
-          type: draft.type,
-          category: draft.category,
-          platform: draft.platform,
+          type: batchMode ? type : draft.type,
+          category: batchMode ? category : draft.category,
+          platform: batchMode ? platform : draft.platform,
           merchant: draft.merchant || null,
-          date: draft.date.length === 16 ? `${draft.date}:00` : draft.date,
+          date: entryDate.length === 16 ? `${entryDate}:00` : entryDate,
           description: draft.description || null,
           orderId: existingTransaction?.orderId ?? null,
           paymentMethod: existingTransaction?.paymentMethod ?? null,
@@ -604,7 +621,17 @@ export function JournalPanel({
       });
       setRecognizedDrafts(drafts);
       setActiveRecognizedDraftIndex(0);
-      applyJournalDraft(drafts[0]);
+      if (drafts.length > 1) {
+        setType(drafts[0].type);
+        setCategory(drafts[0].category);
+        setPlatform(drafts[0].platform);
+        setDate(drafts[0].date);
+        setAmount("");
+        setMerchant("");
+        setDescription("");
+      } else {
+        applyJournalDraft(drafts[0]);
+      }
       const reviewMessage = drafts.length > 1
         ? translateText("识别到 {count} 笔订单，请逐笔核对后保存。", locale).replace("{count}", String(drafts.length))
         : drafts[0].confidence === "low"
@@ -1135,23 +1162,25 @@ export function JournalPanel({
                   ))}
                 </div>
 
-                {/* 大字号计算器式金额大屏 */}
-                <div className="modern-amount-hero">
-                  <span className="currency-label">¥</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-                    placeholder="0.00"
-                    className="amount-huge-input"
-                  />
-                  {amount ? (
-                    <button type="button" className="amount-clear-btn" onClick={() => setAmount("")}>
-                      ×
-                    </button>
-                  ) : null}
-                </div>
+                {/* 单笔使用大金额输入；多笔识别时每笔在下方分别填写金额。 */}
+                {recognizedDrafts.length <= 1 ? (
+                  <div className="modern-amount-hero">
+                    <span className="currency-label">¥</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
+                      placeholder="0.00"
+                      className="amount-huge-input"
+                    />
+                    {amount ? (
+                      <button type="button" className="amount-clear-btn" onClick={() => setAmount("")}>
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {!salaryEntryOpen ? <div className="journal-screenshot-recognition">
                   <input
@@ -1176,48 +1205,6 @@ export function JournalPanel({
                     <p className={`journal-screenshot-recognition-notice ${screenshotRecognitionBusy ? "loading" : ""}`} role="status">
                       {screenshotRecognitionNotice}
                     </p>
-                  ) : null}
-                  {recognizedDrafts.length > 1 ? (
-                    <div className="journal-screenshot-recognition-list">
-                      <div className="journal-screenshot-recognition-list-head">
-                        <strong>{translateText("识别到 {count} 笔订单", locale).replace("{count}", String(recognizedDrafts.length))}</strong>
-                        <span>{translateText("点选逐笔核对，删除不需要记录的订单。", locale)}</span>
-                      </div>
-                      <div className="journal-screenshot-recognition-items">
-                        {recognizedDrafts.map((draft, index) => (
-                          <div key={draft.id ?? index} className={`journal-screenshot-recognition-item ${index === activeRecognizedDraftIndex ? "active" : ""}`}>
-                            <button
-                              type="button"
-                              className="journal-screenshot-recognition-item-select"
-                              onClick={() => selectRecognizedDraft(index)}
-                              aria-pressed={index === activeRecognizedDraftIndex}
-                            >
-                              <span>{translateText("第 {number} 笔", locale).replace("{number}", String(index + 1))}</span>
-                              <strong>{draft.merchant || translateText("订单", locale)}</strong>
-                              <b>{Number(draft.amount) > 0 ? `¥ ${Number(draft.amount).toFixed(2)}` : translateText("待填金额", locale)}</b>
-                            </button>
-                            <button
-                              type="button"
-                              className="journal-screenshot-recognition-item-remove"
-                              aria-label={translateText("删除这笔订单", locale)}
-                              onClick={() => removeRecognizedDraft(index)}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="journal-screenshot-recognition-list-hint">
-                        {translateText("正在编辑第 {number} 笔；保存会把保留的 {count} 笔分别记账。", locale)
-                          .replace("{number}", String(activeRecognizedDraftIndex + 1))
-                          .replace("{count}", String(recognizedDrafts.length))}
-                      </p>
-                      {recognizedDrafts[activeRecognizedDraftIndex]?.warnings?.length ? (
-                        <p className="journal-screenshot-recognition-list-warning">
-                          {recognizedDrafts[activeRecognizedDraftIndex].warnings?.slice(0, 3).join("；")}
-                        </p>
-                      ) : null}
-                    </div>
                   ) : null}
                 </div> : null}
 
@@ -1260,8 +1247,8 @@ export function JournalPanel({
 
                 {/* 补充信息：日期、商户、备注 */}
                 <div className="modern-section-block">
-                  <span className="section-mini-title">明细备注</span>
-                  <div className="modern-meta-grid">
+                  <span className="section-mini-title">{isBatchRecognition ? translateText("记账时间", locale) : "明细备注"}</span>
+                  <div className={`modern-meta-grid ${isBatchRecognition ? "journal-batch-shared-date" : ""}`}>
                     <DateTimePicker
                       mode="datetime"
                       className="meta-input"
@@ -1269,22 +1256,97 @@ export function JournalPanel({
                       onChange={setDate}
                       ariaLabel="选择账单日期和时间"
                     />
-                    <input
-                      type="text"
-                      className="meta-input"
-                      value={merchant}
-                      onChange={(e) => setMerchant(e.target.value)}
-                      placeholder="商户名称（选填）"
-                    />
-                    <input
-                      type="text"
-                      className="meta-input span-2"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="添加消费备注..."
-                    />
+                    {!isBatchRecognition ? <>
+                      <input
+                        type="text"
+                        className="meta-input"
+                        value={merchant}
+                        onChange={(e) => setMerchant(e.target.value)}
+                        placeholder="商户名称（选填）"
+                      />
+                      <input
+                        type="text"
+                        className="meta-input span-2"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="添加消费备注..."
+                      />
+                    </> : null}
                   </div>
                 </div>
+
+                {isBatchRecognition ? (
+                  <div className="journal-screenshot-recognition-list">
+                    <div className="journal-screenshot-recognition-list-head">
+                      <strong>{translateText("批量录入 {count} 笔", locale).replace("{count}", String(recognizedDrafts.length))}</strong>
+                      <span>{translateText("每笔填写金额、备注和详细明细；上方的记账类型、分类、支付账户和时间将应用到全部订单。", locale)}</span>
+                    </div>
+                    <div className="journal-screenshot-recognition-items">
+                      {recognizedDrafts.map((draft, index) => (
+                        <div key={draft.id ?? index} className={`journal-screenshot-recognition-item ${index === activeRecognizedDraftIndex ? "active" : ""}`}>
+                          <div className="journal-screenshot-recognition-item-header">
+                            <button
+                              type="button"
+                              className="journal-screenshot-recognition-item-select"
+                              onClick={() => selectRecognizedDraft(index)}
+                              aria-pressed={index === activeRecognizedDraftIndex}
+                            >
+                              {translateText("第 {number} 笔", locale).replace("{number}", String(index + 1))}
+                            </button>
+                            <button
+                              type="button"
+                              className="journal-screenshot-recognition-item-remove"
+                              aria-label={translateText("删除这笔订单", locale)}
+                              onClick={() => removeRecognizedDraft(index)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div className="journal-screenshot-recognition-fields">
+                            <label className="journal-screenshot-recognition-field">
+                              <span>{translateText("金额", locale)}</span>
+                              <div className="journal-screenshot-recognition-amount-input">
+                                <span>¥</span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={draft.amount}
+                                  onFocus={() => selectRecognizedDraft(index)}
+                                  onChange={(event) => updateRecognizedDraft(index, { amount: event.target.value.replace(/[^\d.]/g, "") })}
+                                  placeholder={translateText("实付金额", locale)}
+                                  aria-label={`${translateText("第 {number} 笔", locale).replace("{number}", String(index + 1))} ${translateText("金额", locale)}`}
+                                />
+                              </div>
+                            </label>
+                            <label className="journal-screenshot-recognition-field">
+                              <span>{translateText("备注", locale)}</span>
+                              <input
+                                type="text"
+                                value={draft.merchant}
+                                onFocus={() => selectRecognizedDraft(index)}
+                                onChange={(event) => updateRecognizedDraft(index, { merchant: event.target.value })}
+                                placeholder={translateText("商户或简短备注", locale)}
+                              />
+                            </label>
+                            <label className="journal-screenshot-recognition-field journal-screenshot-recognition-field-full">
+                              <span>{translateText("详细明细", locale)}</span>
+                              <input
+                                type="text"
+                                value={draft.description}
+                                onFocus={() => selectRecognizedDraft(index)}
+                                onChange={(event) => updateRecognizedDraft(index, { description: event.target.value })}
+                                placeholder={translateText("商品名称或消费内容", locale)}
+                              />
+                            </label>
+                          </div>
+                          {draft.warnings?.length ? (
+                            <p className="journal-screenshot-recognition-list-warning">{draft.warnings.slice(0, 3).join("；")}</p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* 底部行动操作 */}
                 <JournalActionDock className="modern-action-bar">
@@ -1306,7 +1368,9 @@ export function JournalPanel({
                     type="button"
                     className="action-main-btn"
                     onClick={() => void saveTransaction()}
-                    disabled={transactionSaving || screenshotRecognitionBusy || !amount || Number(amount) <= 0 || recognizedDrafts.some((draft, index) => index !== activeRecognizedDraftIndex && (!draft.amount || Number(draft.amount) <= 0))}
+                    disabled={transactionSaving || screenshotRecognitionBusy || (isBatchRecognition
+                      ? recognizedDrafts.some((draft) => !draft.amount || Number(draft.amount) <= 0)
+                      : !amount || Number(amount) <= 0)}
                   >
                     {transactionSaving
                       ? translateText("正在保存…", locale)

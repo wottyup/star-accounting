@@ -48,6 +48,7 @@ type JournalDraft = {
   amount: string;
   category: string;
   platform: string;
+  shoppingPlatform?: string;
   merchant: string;
   description: string;
   date: string;
@@ -125,6 +126,7 @@ export function JournalPanel({
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("餐饮");
   const [platform, setPlatform] = useState("支付宝");
+  const [shoppingPlatform, setShoppingPlatform] = useState("");
   const [merchant, setMerchant] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(nowText().slice(0, 16));
@@ -180,6 +182,7 @@ export function JournalPanel({
       setAmount(String(transaction.amount));
       setCategory(transaction.category);
       setPlatform(transaction.platform);
+      setShoppingPlatform(transaction.shoppingPlatform ?? "");
       setMerchant(transaction.merchant ?? "");
       setDescription(transaction.description ?? "");
       setDate(transaction.date.slice(0, 16));
@@ -252,6 +255,7 @@ export function JournalPanel({
         setAmount(draft.amount);
         setCategory(draft.category);
         setPlatform(draft.platform);
+        setShoppingPlatform(draft.shoppingPlatform ?? "");
         setMerchant(draft.merchant);
         setDescription(draft.description);
         setDate(draft.date);
@@ -275,9 +279,9 @@ export function JournalPanel({
     } else if (draftKind === "loan") {
       saveNewEntryDraft(draftKind, { loanPlatform, loanMatchKeywords, loanTotalAmount, loanRemainingAmount, loanMonthlyPayment, loanPeriods, loanDueDay } satisfies LoanDraft);
     } else {
-      saveNewEntryDraft(draftKind, { type, amount, category, platform, merchant, description, date } satisfies JournalDraft);
+      saveNewEntryDraft(draftKind, { type, amount, category, platform, shoppingPlatform, merchant, description, date } satisfies JournalDraft);
     }
-  }, [assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, type]);
+  }, [assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, shoppingPlatform, type]);
 
   useEffect(() => {
     if (sheetReady && !closingRef.current) setVisible(true);
@@ -389,9 +393,9 @@ export function JournalPanel({
   function currentJournalDraft(): JournalDraft {
     const activeDraft = recognizedDrafts[activeRecognizedDraftIndex] ?? {};
     if (recognizedDrafts.length > 1) {
-      return { ...activeDraft, type, category, platform, date } as JournalDraft;
+      return { ...activeDraft, type, category, platform, shoppingPlatform, date } as JournalDraft;
     }
-    return { ...activeDraft, type, amount, category, platform, merchant, description, date } as JournalDraft;
+    return { ...activeDraft, type, amount, category, platform, shoppingPlatform, merchant, description, date } as JournalDraft;
   }
 
   function applyJournalDraft(draft: JournalDraft) {
@@ -399,6 +403,7 @@ export function JournalPanel({
     setAmount(draft.amount);
     setCategory(draft.category);
     setPlatform(draft.platform);
+    setShoppingPlatform(draft.shoppingPlatform ?? "");
     setMerchant(draft.merchant);
     setDescription(draft.description);
     setDate(draft.date);
@@ -436,6 +441,7 @@ export function JournalPanel({
       setAmount("");
       setCategory("餐饮");
       setPlatform("其他");
+      setShoppingPlatform("");
       setMerchant("");
       setDescription("");
       setDate(nowText().slice(0, 16));
@@ -450,7 +456,7 @@ export function JournalPanel({
     setActiveRecognizedDraftIndex(nextIndex);
     if (remaining.length === 1) {
       applyJournalDraft(wasBatchMode
-        ? { ...remaining[0], type, category, platform, date }
+        ? { ...remaining[0], type, category, platform, shoppingPlatform, date }
         : remaining[0]);
     }
     setScreenshotRecognitionNotice(translateText("已移除这笔订单，剩余 {count} 笔。", locale).replace("{count}", String(remaining.length)));
@@ -486,6 +492,7 @@ export function JournalPanel({
           type: batchMode ? type : draft.type,
           category: batchMode ? category : draft.category,
           platform: batchMode ? platform : draft.platform,
+          shoppingPlatform: (batchMode ? type : draft.type) === "EXPENSE" ? shoppingPlatform.trim() || null : null,
           merchant: draft.merchant || null,
           date: entryDate.length === 16 ? `${entryDate}:00` : entryDate,
           description: draft.description || null,
@@ -503,6 +510,7 @@ export function JournalPanel({
       setRecognizedDrafts([]);
       setActiveRecognizedDraftIndex(0);
       setAmount("");
+      setShoppingPlatform("");
       setMerchant("");
       setDescription("");
       setDate(nowText().slice(0, 16));
@@ -1245,6 +1253,24 @@ export function JournalPanel({
                   </div>
                 </div>
 
+                {type === "EXPENSE" ? (
+                  <div className="modern-section-block">
+                    <label className="section-mini-title" htmlFor="journal-shopping-platform">
+                      {translateText("购物平台（选填）", locale)}
+                    </label>
+                    <input
+                      id="journal-shopping-platform"
+                      type="text"
+                      className="meta-input"
+                      value={shoppingPlatform}
+                      onChange={(event) => setShoppingPlatform(event.target.value)}
+                      placeholder={translateText("例如：淘宝、拼多多", locale)}
+                      autoComplete="off"
+                      maxLength={191}
+                    />
+                  </div>
+                ) : null}
+
                 {/* 补充信息：日期、商户、备注 */}
                 <div className="modern-section-block">
                   <span className="section-mini-title">{isBatchRecognition ? translateText("记账时间", locale) : "明细备注"}</span>
@@ -1279,7 +1305,7 @@ export function JournalPanel({
                   <div className="journal-screenshot-recognition-list">
                     <div className="journal-screenshot-recognition-list-head">
                       <strong>{translateText("批量录入 {count} 笔", locale).replace("{count}", String(recognizedDrafts.length))}</strong>
-                      <span>{translateText("每笔填写金额、备注和详细明细；上方的记账类型、分类、支付账户和时间将应用到全部订单。", locale)}</span>
+                      <span>{translateText("每笔填写金额、备注和详细明细；上方的记账类型、分类、支付账户、购物平台和时间将应用到全部订单。", locale)}</span>
                     </div>
                     <div className="journal-screenshot-recognition-items">
                       {recognizedDrafts.map((draft, index) => (
@@ -1355,6 +1381,7 @@ export function JournalPanel({
                     className="action-sub-btn"
                     onClick={() => {
                       setAmount("");
+                      setShoppingPlatform("");
                       setMerchant("");
                       setDescription("");
                       setRecognizedDrafts([]);

@@ -339,7 +339,7 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                 </div>
                 <div className="shopping-detail-row-meta">
                   <time>{transactionDateLabel(transaction.date, locale)}</time>
-                  <span>{translateValue(transaction.category, locale)} · {translateValue(transaction.platform, locale)}</span>
+                  <span>{[translateValue(transaction.category, locale), translateValue(transaction.platform, locale), transaction.shoppingPlatform?.trim()].filter(Boolean).join(" · ")}</span>
                 </div>
                 {cleanShoppingDescription(transaction.description, transaction.orderId) ? (
                   <p>{cleanShoppingDescription(transaction.description, transaction.orderId)}</p>

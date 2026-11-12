@@ -68,7 +68,7 @@ var entitySpecs = map[ledger.EntityType]entitySpec{
 		Fields: []entityField{
 			{"id", "id", stringField}, {"userId", "userId", stringField}, {"accountId", "accountId", stringField},
 			{"amount", "amount", decimalField}, {"type", "type", stringField}, {"category", "category", stringField},
-			{"platform", "platform", stringField}, {"merchant", "merchant", nullableStringField}, {"date", "date", dateTimeField},
+			{"platform", "platform", stringField}, {"merchant", "merchant", nullableStringField}, {"shoppingPlatform", "shoppingPlatform", nullableStringField}, {"date", "date", dateTimeField},
 			{"description", "description", nullableStringField}, {"orderId", "orderId", nullableStringField},
 			{"paymentMethod", "paymentMethod", nullableStringField}, {"status", "status", nullableStringField},
 			{"loanId", "loanId", nullableStringField}, {"remarkCategory", "remarkCategory", nullableStringField},

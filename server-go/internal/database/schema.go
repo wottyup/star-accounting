@@ -445,6 +445,7 @@ var schemaTables = []schemaTable{
 			` + "`category`" + ` VARCHAR(191) NOT NULL,
 			` + "`platform`" + ` VARCHAR(191) NOT NULL,
 			` + "`merchant`" + ` TEXT NULL,
+			` + "`shoppingPlatform`" + ` VARCHAR(191) NULL,
 			` + "`date`" + ` DATETIME(6) NOT NULL,
 			` + "`description`" + ` TEXT NULL,
 			` + "`orderId`" + ` VARCHAR(191) NULL,
@@ -460,7 +461,7 @@ var schemaTables = []schemaTable{
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 		Columns: []schemaColumn{
 			{"id", "VARCHAR(191) NOT NULL"}, {"userId", "VARCHAR(191) NOT NULL"}, {"accountId", "VARCHAR(191) NOT NULL"}, {"amount", "DECIMAL(65,30) NOT NULL DEFAULT 0"},
-			{"type", "VARCHAR(32) NOT NULL DEFAULT ''"}, {"category", "VARCHAR(191) NOT NULL DEFAULT ''"}, {"platform", "VARCHAR(191) NOT NULL DEFAULT ''"}, {"merchant", "TEXT NULL"},
+			{"type", "VARCHAR(32) NOT NULL DEFAULT ''"}, {"category", "VARCHAR(191) NOT NULL DEFAULT ''"}, {"platform", "VARCHAR(191) NOT NULL DEFAULT ''"}, {"merchant", "TEXT NULL"}, {"shoppingPlatform", "VARCHAR(191) NULL"},
 			{"date", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"}, {"description", "TEXT NULL"}, {"orderId", "VARCHAR(191) NULL"}, {"paymentMethod", "VARCHAR(191) NULL"},
 			{"status", "VARCHAR(191) NULL"}, {"loanId", "VARCHAR(191) NULL"}, {"remarkCategory", "VARCHAR(191) NULL"},
 			{"createdAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"}, {"updatedAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"},

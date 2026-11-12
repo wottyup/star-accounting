@@ -12,6 +12,8 @@ export interface Transaction {
   type: TransactionType;
   category: string;
   platform: string;
+  /** 用户手动填写的购物应用或渠道，如淘宝、拼多多；与支付账户 platform 区分。 */
+  shoppingPlatform?: string | null;
   merchant?: string | null;
   date: string;
   description?: string | null;

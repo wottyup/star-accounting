@@ -283,6 +283,7 @@ object Transactions : Table("transaction") {
     val category = varchar("category", 191)
     val platform = varchar("platform", 191)
     val merchant = text("merchant").nullable()
+    val shoppingPlatform = varchar("shoppingPlatform", 191).nullable()
     val date = datetime("date")
     val description = text("description").nullable()
     val orderId = varchar("orderId", 191).nullable()
@@ -1022,6 +1023,7 @@ private fun ResultRow.toTransactionRecord() = SyncRecordRow(
         "category" to this[Transactions.category],
         "platform" to this[Transactions.platform],
         "merchant" to this[Transactions.merchant],
+        "shoppingPlatform" to this[Transactions.shoppingPlatform],
         "date" to formatDateTime(this[Transactions.date]),
         "description" to this[Transactions.description],
         "orderId" to this[Transactions.orderId],
@@ -1271,6 +1273,7 @@ private fun upsertTransaction(payload: JsonObject) = upsertById(Transactions, Tr
         row[Transactions.category] = payload.getString("category")
         row[Transactions.platform] = payload.getString("platform")
         row[Transactions.merchant] = payload.getNullableString("merchant")
+        row[Transactions.shoppingPlatform] = payload.getNullableString("shoppingPlatform")
         row[Transactions.date] = payload.getDateTime("date")
         row[Transactions.description] = payload.getNullableString("description")
         row[Transactions.orderId] = payload.getNullableString("orderId")

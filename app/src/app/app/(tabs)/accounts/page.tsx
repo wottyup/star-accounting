@@ -261,7 +261,7 @@ export default function AccountsPage() {
         id: importedTransactionId(accountId, file.name, importPlatform, row, index), sourceId: row.sourceId ?? null,
         userId: "local-user", accountId,
         amount: row.amount, type: row.type, category: row.category, platform: row.platform,
-        merchant: row.merchant, date: row.date, description: row.description,
+        shoppingPlatform: row.shoppingPlatform ?? null, merchant: row.merchant, date: row.date, description: row.description,
         orderId: row.orderId, paymentMethod: row.paymentMethod, status: row.status, loanId: null, remarkCategory: row.remarkCategory ?? null,
         createdAt: now, updatedAt: now,
       }));
@@ -477,7 +477,7 @@ export default function AccountsPage() {
             </div> : null}
 
             {activePanel === "EXPORT" ? <div className="settings-sheet-body">
-              <p className="settings-sheet-note">导出当前账本的全部流水，不会修改本地或云端数据。CSV 文件包含日期、类型、分类、备注归类、商户、平台、金额、支付方式、状态和订单号等字段。</p>
+              <p className="settings-sheet-note">导出当前账本的全部流水，不会修改本地或云端数据。CSV 文件包含日期、类型、分类、备注归类、商户、支付账户、购物平台、金额、支付方式、状态和订单号等字段。</p>
               <div className="bill-import-message">{exportMessage}</div>
               <button type="button" className="settings-sheet-primary" disabled={exporting} onClick={() => void exportBills()}>{exporting ? "正在导出..." : "导出全部账单"}</button>
               <p className="settings-sheet-tip">文件使用 UTF-8 编码并兼容 Excel / WPS；导出范围仅限当前账本。</p>

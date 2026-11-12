@@ -298,7 +298,7 @@ export default function ConsumptionPage() {
     return monthTransactions.filter((item) => {
       const matchesCategory = categoryFilter === "全部分类" || effectiveCategory(item) === categoryFilter;
       const matchesPlatform = platformFilter === "全部账户" || normalizeConsumptionPlatform(item.platform) === platformFilter;
-      const text = `${effectiveCategory(item)} ${item.category} ${item.merchant || ""} ${item.description || ""} ${item.platform}`.toLowerCase();
+      const text = `${effectiveCategory(item)} ${item.category} ${item.shoppingPlatform || ""} ${item.merchant || ""} ${item.description || ""} ${item.platform}`.toLowerCase();
       return matchesCategory && matchesPlatform && (!normalizedQuery || text.includes(normalizedQuery));
     });
   }, [categoryFilter, monthTransactions, platformFilter, query]);
@@ -373,7 +373,7 @@ export default function ConsumptionPage() {
     const normalizedQuery = detailQuery.trim().toLowerCase();
     return filteredTransactions.filter((item) => {
       if (!normalizedQuery) return true;
-      return `${effectiveCategory(item)} ${item.category} ${item.merchant || ""} ${item.description || ""} ${item.platform}`.toLowerCase().includes(normalizedQuery);
+      return `${effectiveCategory(item)} ${item.category} ${item.shoppingPlatform || ""} ${item.merchant || ""} ${item.description || ""} ${item.platform}`.toLowerCase().includes(normalizedQuery);
     });
   }, [detailQuery, filteredTransactions]);
 
@@ -635,7 +635,7 @@ export default function ConsumptionPage() {
               <div key={item.id} className="recent-row">
                 <span className="recent-icon"><img src={categoryIconSrc(display)} alt="" /></span>
                 <strong className="recent-title">{translateValue(display.category, locale)}</strong>
-                <span className="recent-category">{transferred ? `${locale === "en-US" ? "Transfer recategorized" : "转账归类"} · ${translateValue(item.remarkCategory || item.category, locale)} · ` : ""}{item.merchant || item.description || translateValue(item.platform, locale)}</span>
+                <span className="recent-category">{transferred ? `${locale === "en-US" ? "Transfer recategorized" : "转账归类"} · ${translateValue(item.remarkCategory || item.category, locale)} · ` : ""}{[item.shoppingPlatform?.trim(), item.merchant || item.description || translateValue(item.platform, locale)].filter(Boolean).join(" · ")}</span>
                 <strong className={`recent-amount ${display.type === "INCOME" ? "income" : display.type === "EXPENSE" ? "expense" : "transfer"}`}>
                   {display.type === "INCOME" ? "+¥ " : display.type === "EXPENSE" ? "-¥ " : "±¥ "}{formatMoney(item.amount)}
                 </strong>

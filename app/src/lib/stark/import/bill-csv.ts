@@ -11,6 +11,7 @@ export type BillImportRow = {
   type: TransactionType;
   category: string;
   platform: string;
+  shoppingPlatform?: string | null;
   merchant: string | null;
   date: string;
   description: string | null;
@@ -255,6 +256,7 @@ function normalizeRows(rows: BillRecord[], platform: BillPlatform): BillImportRo
       type,
       category: category || (type === "INCOME" ? "收入" : type === "TRANSFER" ? "转账" : "其他"),
       platform,
+      shoppingPlatform: valueAt(row, headers, ["购物平台", "购物应用", "电商平台"]) || null,
       merchant,
       date,
       description,
@@ -283,6 +285,7 @@ function normalizeStarkExportRows(rows: BillRecord[]): BillImportRow[] {
       category: valueAt(row, headers, ["分类"]) || (type === "INCOME" ? "收入" : type === "TRANSFER" ? "转账" : type === "REPAYMENT" ? "还款" : "其他"),
       remarkCategory: valueAt(row, headers, ["备注归类"]) || null,
       platform: valueAt(row, headers, ["平台"]) || "其他",
+      shoppingPlatform: valueAt(row, headers, ["购物平台", "购物应用", "电商平台"]) || null,
       merchant: valueAt(row, headers, ["商户"]) || null,
       date,
       description: valueAt(row, headers, ["说明"]) || null,

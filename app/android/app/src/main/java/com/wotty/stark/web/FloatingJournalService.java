@@ -20,25 +20,45 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.media.projection.MediaProjection;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.json.JSONObject;
 
 /** User-started floating controls and on-demand screen capture for journal entry. */
 public class FloatingJournalService extends Service {
@@ -48,11 +68,18 @@ public class FloatingJournalService extends Service {
     public static final String ACTION_STOP = "com.wotty.stark.action.STOP_FLOATING_JOURNAL";
     private static final String ACTION_CAPTURE_SCREEN = "com.wotty.stark.action.CAPTURE_CURRENT_SCREEN";
     private static final String ACTION_UPLOAD_IMAGE = "com.wotty.stark.action.UPLOAD_JOURNAL_IMAGE";
+    private static final String ACTION_OPEN_MANUAL = "com.wotty.stark.action.OPEN_MANUAL_JOURNAL";
     private static final String PREFS = "floating_journal";
+    private static final String PREF_OVERLAY_PENDING_ID = "overlay_pending_action_id";
+    private static final String PREF_OVERLAY_PENDING_MODE = "overlay_pending_action_mode";
+    private static final String PREF_OVERLAY_PENDING_MESSAGE = "overlay_pending_action_message";
+    private static final String PREF_OVERLAY_PENDING_FILE = "overlay_pending_action_file";
+    private static final long MAX_CAPTURE_BYTES = 10L * 1024L * 1024L;
     private static final String NOTIFICATION_CHANNEL = "floating-journal";
     private static final int NOTIFICATION_ID = 7321;
     private static final long CAPTURE_TIMEOUT_MS = 5_000L;
     private static volatile boolean running;
+    private static volatile FloatingJournalService currentService;
 
     private final AtomicBoolean captureRequested = new AtomicBoolean(false);
     private final AtomicBoolean captureInProgress = new AtomicBoolean(false);
@@ -62,6 +89,12 @@ public class FloatingJournalService extends Service {
     private LinearLayout menuPanel;
     private TextView bubble;
     private WindowManager.LayoutParams overlayParams;
+    private FrameLayout journalOverlayRoot;
+    private WebView journalWebView;
+    private TextView journalOverlayErrorClose;
+    private WindowManager.LayoutParams journalOverlayParams;
+    private boolean journalOverlayAttached;
+    private ValueCallback<Uri[]> fileChooserCallback;
     private HandlerThread captureThread;
     private Handler captureHandler;
     private MediaProjection mediaProjection;
@@ -81,6 +114,7 @@ public class FloatingJournalService extends Service {
     public void onCreate() {
         super.onCreate();
         running = true;
+        currentService = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         createNotificationChannel();
         startCaptureThread();
@@ -117,6 +151,9 @@ public class FloatingJournalService extends Service {
             captureCurrentScreen();
         } else if (ACTION_UPLOAD_IMAGE.equals(action)) {
             publishAction("upload", null, null);
+        } else if (ACTION_OPEN_MANUAL.equals(action)) {
+            clearOverlayPendingAction();
+            openJournalOverlay();
         }
         return START_NOT_STICKY;
     }
@@ -126,6 +163,7 @@ public class FloatingJournalService extends Service {
         shuttingDown = true;
         running = false;
         removeOverlay();
+        removeJournalOverlay();
         stopProjection();
         if (captureThread != null) {
             captureThread.quitSafely();
@@ -134,6 +172,7 @@ public class FloatingJournalService extends Service {
         }
         setServiceState(false, false);
         stopForeground(true);
+        if (currentService == this) currentService = null;
         super.onDestroy();
     }
 
@@ -388,24 +427,321 @@ public class FloatingJournalService extends Service {
 
     private void publishAction(String mode, @Nullable String message, @Nullable String fileName) {
         SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
-        String previousFile = preferences.getString(FloatingJournalPlugin.PREF_PENDING_FILE, "");
+        String previousFile = preferences.getString(PREF_OVERLAY_PENDING_FILE, "");
         if (previousFile != null && previousFile.matches("floating-screen-[A-Za-z0-9-]+\\.jpg")) {
             //noinspection ResultOfMethodCallIgnored
             new File(getCacheDir(), previousFile).delete();
         }
         String actionId = UUID.randomUUID().toString();
         preferences.edit()
-                .putString(FloatingJournalPlugin.PREF_PENDING_ID, actionId)
-                .putString(FloatingJournalPlugin.PREF_PENDING_MODE, mode)
-                .putString(FloatingJournalPlugin.PREF_PENDING_MESSAGE, message == null ? "" : message)
-                .putString(FloatingJournalPlugin.PREF_PENDING_FILE, fileName == null ? "" : fileName)
+                .putString(PREF_OVERLAY_PENDING_ID, actionId)
+                .putString(PREF_OVERLAY_PENDING_MODE, mode)
+                .putString(PREF_OVERLAY_PENDING_MESSAGE, message == null ? "" : message)
+                .putString(PREF_OVERLAY_PENDING_FILE, fileName == null ? "" : fileName)
                 .apply();
-        Intent event = new Intent(FloatingJournalPlugin.ACTION_PENDING).setPackage(getPackageName());
-        sendBroadcast(event);
-        Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        if (launch != null) {
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            try { startActivity(launch); } catch (RuntimeException ignored) { }
+        openJournalOverlay();
+    }
+
+    private void clearOverlayPendingAction() {
+        SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+        deletePendingCapture(preferences.getString(PREF_OVERLAY_PENDING_FILE, ""));
+        preferences.edit().remove(PREF_OVERLAY_PENDING_ID).remove(PREF_OVERLAY_PENDING_MODE)
+                .remove(PREF_OVERLAY_PENDING_MESSAGE).remove(PREF_OVERLAY_PENDING_FILE).apply();
+    }
+
+    private void deletePendingCapture(String fileName) {
+        if (fileName == null || !fileName.matches("floating-screen-[A-Za-z0-9-]+\\.jpg")) return;
+        File capture = new File(getCacheDir(), fileName);
+        //noinspection ResultOfMethodCallIgnored
+        capture.delete();
+    }
+
+    private void openJournalOverlay() {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            mainHandler.post(this::openJournalOverlay);
+            return;
+        }
+        if (!canDrawOverlays() || windowManager == null) {
+            android.widget.Toast.makeText(this, "请先开启星会计悬浮窗权限。", android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (overlayRoot == null) addOverlayIfNeeded();
+        if (overlayRoot != null) overlayRoot.setVisibility(View.GONE);
+        if (menuPanel != null) menuPanel.setVisibility(View.GONE);
+        if (journalOverlayRoot == null) createJournalOverlay();
+        try {
+            if (!journalOverlayAttached) {
+                windowManager.addView(journalOverlayRoot, journalOverlayParams);
+                journalOverlayAttached = true;
+            }
+            journalOverlayRoot.setVisibility(View.VISIBLE);
+            if (journalOverlayErrorClose != null) journalOverlayErrorClose.setVisibility(View.GONE);
+            journalWebView.loadUrl("http://localhost/app/journal/?floating=1&session=" + UUID.randomUUID());
+        } catch (RuntimeException error) {
+            journalOverlayAttached = false;
+            if (overlayRoot != null) overlayRoot.setVisibility(View.VISIBLE);
+            android.widget.Toast.makeText(this, "悬浮记账页面暂时无法打开，请重新开启悬浮记账。", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void createJournalOverlay() {
+        journalOverlayRoot = new FrameLayout(this);
+        journalOverlayRoot.setBackgroundColor(0x66000000);
+        journalOverlayRoot.setFocusableInTouchMode(true);
+
+        journalWebView = new WebView(this);
+        WebSettings settings = journalWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(true);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setUserAgentString(settings.getUserAgentString() + " WottyStarkFloatingOverlay");
+        journalWebView.setBackgroundColor(Color.WHITE);
+        journalWebView.addJavascriptInterface(new FloatingOverlayBridge(), "AndroidFloatingJournal");
+        journalWebView.setWebViewClient(new WebViewClient() {
+            @Nullable
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return serveLocalAsset(request);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                return !isLocalAppUrl(uri);
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
+                if (request.isForMainFrame()) {
+                    mainHandler.post(() -> {
+                        if (journalOverlayErrorClose != null) journalOverlayErrorClose.setVisibility(View.VISIBLE);
+                        android.widget.Toast.makeText(FloatingJournalService.this, "悬浮记账页面加载失败，请检查安装包后重试。", android.widget.Toast.LENGTH_LONG).show();
+                    });
+                }
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (journalOverlayErrorClose != null) journalOverlayErrorClose.setVisibility(View.GONE);
+            }
+        });
+        journalWebView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                return launchFilePicker(callback, params);
+            }
+        });
+        journalOverlayRoot.addView(journalWebView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        journalOverlayErrorClose = new TextView(this);
+        journalOverlayErrorClose.setText("关闭");
+        journalOverlayErrorClose.setTextColor(Color.WHITE);
+        journalOverlayErrorClose.setTextSize(14);
+        journalOverlayErrorClose.setGravity(Gravity.CENTER);
+        journalOverlayErrorClose.setBackground(background(0xFF3178DC, dp(20), 0x00000000));
+        journalOverlayErrorClose.setVisibility(View.GONE);
+        journalOverlayErrorClose.setOnClickListener(view -> closeJournalOverlay());
+        FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(dp(64), dp(40), Gravity.TOP | Gravity.END);
+        closeParams.topMargin = dp(44);
+        closeParams.rightMargin = dp(12);
+        journalOverlayRoot.addView(journalOverlayErrorClose, closeParams);
+
+        int overlayType = Build.VERSION.SDK_INT >= 26
+                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                : WindowManager.LayoutParams.TYPE_PHONE;
+        journalOverlayParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                overlayType,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT);
+        journalOverlayParams.gravity = Gravity.TOP | Gravity.START;
+        journalOverlayParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
+    }
+
+    private boolean isLocalAppUrl(Uri uri) {
+        if (uri == null || !"http".equalsIgnoreCase(uri.getScheme()) || !"localhost".equalsIgnoreCase(uri.getHost())) return false;
+        int port = uri.getPort();
+        return port == -1 || port == 80;
+    }
+
+    @Nullable
+    private WebResourceResponse serveLocalAsset(WebResourceRequest request) {
+        Uri uri = request.getUrl();
+        if (!isLocalAppUrl(uri) || !"GET".equalsIgnoreCase(request.getMethod())) return null;
+        String path = uri.getPath();
+        if (path == null || path.contains("..")) return null;
+        String relativePath = path.startsWith("/") ? path.substring(1) : path;
+        String assetPath = "public/" + relativePath;
+        if (relativePath.isEmpty() || relativePath.endsWith("/")) assetPath += "index.html";
+        InputStream stream = openAsset(assetPath);
+        if (stream == null && !relativePath.isEmpty() && !relativePath.contains(".")) {
+            stream = openAsset("public/" + relativePath + "/index.html");
+            if (stream == null) stream = openAsset("public/" + relativePath + ".html");
+        }
+        if (stream == null) {
+            return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found",
+                    Collections.singletonMap("Cache-Control", "no-store"),
+                    new ByteArrayInputStream("Not found".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }
+        return new WebResourceResponse(mimeType(assetPath), "UTF-8", 200, "OK",
+                Collections.singletonMap("Cache-Control", "no-cache"), stream);
+    }
+
+    @Nullable
+    private InputStream openAsset(String path) {
+        try { return getAssets().open(path); } catch (IOException ignored) { return null; }
+    }
+
+    private String mimeType(String path) {
+        String lower = path.toLowerCase(java.util.Locale.ROOT);
+        if (lower.endsWith(".html")) return "text/html";
+        if (lower.endsWith(".js")) return "application/javascript";
+        if (lower.endsWith(".css")) return "text/css";
+        if (lower.endsWith(".json")) return "application/json";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".woff2")) return "font/woff2";
+        if (lower.endsWith(".woff")) return "font/woff";
+        if (lower.endsWith(".ico")) return "image/x-icon";
+        if (lower.endsWith(".txt")) return "text/plain";
+        return "application/octet-stream";
+    }
+
+    private boolean launchFilePicker(ValueCallback<Uri[]> callback, WebChromeClient.FileChooserParams params) {
+        if (fileChooserCallback != null) fileChooserCallback.onReceiveValue(null);
+        fileChooserCallback = callback;
+        try {
+            Intent picker = new Intent(this, FloatingJournalFilePickerActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(FloatingJournalFilePickerActivity.EXTRA_CHOOSER_INTENT, params.createIntent());
+            hideJournalOverlayForFilePicker();
+            startActivity(picker);
+            return true;
+        } catch (RuntimeException error) {
+            fileChooserCallback = null;
+            callback.onReceiveValue(null);
+            restoreJournalOverlayAfterFilePicker();
+            return false;
+        }
+    }
+
+    private void hideJournalOverlayForFilePicker() {
+        if (journalOverlayRoot == null) return;
+        journalOverlayRoot.setVisibility(View.GONE);
+        if (!journalOverlayAttached || windowManager == null) return;
+        try {
+            windowManager.removeView(journalOverlayRoot);
+            journalOverlayAttached = false;
+        } catch (RuntimeException ignored) { }
+    }
+
+    private void restoreJournalOverlayAfterFilePicker() {
+        if (journalOverlayRoot == null || windowManager == null) return;
+        try {
+            if (!journalOverlayAttached) {
+                windowManager.addView(journalOverlayRoot, journalOverlayParams);
+                journalOverlayAttached = true;
+            }
+            journalOverlayRoot.setVisibility(View.VISIBLE);
+        } catch (RuntimeException ignored) { }
+    }
+
+    public static void deliverFileSelection(@Nullable Uri[] selected) {
+        FloatingJournalService service = currentService;
+        if (service == null) return;
+        service.mainHandler.post(() -> {
+            ValueCallback<Uri[]> callback = service.fileChooserCallback;
+            service.fileChooserCallback = null;
+            if (callback != null) callback.onReceiveValue(selected);
+            service.restoreJournalOverlayAfterFilePicker();
+        });
+    }
+
+    private void closeJournalOverlay() {
+        mainHandler.post(() -> {
+            if (journalOverlayAttached && windowManager != null && journalOverlayRoot != null) {
+                try { windowManager.removeView(journalOverlayRoot); } catch (RuntimeException ignored) { }
+                journalOverlayAttached = false;
+            }
+            if (fileChooserCallback != null) {
+                fileChooserCallback.onReceiveValue(null);
+                fileChooserCallback = null;
+            }
+            if (overlayRoot != null) overlayRoot.setVisibility(View.VISIBLE);
+        });
+    }
+
+    private void removeJournalOverlay() {
+        if (journalOverlayAttached && windowManager != null && journalOverlayRoot != null) {
+            try { windowManager.removeView(journalOverlayRoot); } catch (RuntimeException ignored) { }
+        }
+        journalOverlayAttached = false;
+        if (fileChooserCallback != null) {
+            fileChooserCallback.onReceiveValue(null);
+            fileChooserCallback = null;
+        }
+        if (journalWebView != null) {
+            journalWebView.stopLoading();
+            journalWebView.removeJavascriptInterface("AndroidFloatingJournal");
+            journalWebView.destroy();
+            journalWebView = null;
+        }
+        journalOverlayRoot = null;
+        journalOverlayErrorClose = null;
+        journalOverlayParams = null;
+    }
+
+    private final class FloatingOverlayBridge {
+        @JavascriptInterface
+        public String getPendingAction() {
+            SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+            String actionId = preferences.getString(PREF_OVERLAY_PENDING_ID, "");
+            String mode = preferences.getString(PREF_OVERLAY_PENDING_MODE, "");
+            if (actionId == null || actionId.isEmpty() || mode == null || mode.isEmpty()) return "";
+            try {
+                JSONObject action = new JSONObject();
+                action.put("actionId", actionId);
+                action.put("mode", mode);
+                String message = preferences.getString(PREF_OVERLAY_PENDING_MESSAGE, "");
+                if (message != null && !message.isEmpty()) action.put("message", message);
+                String fileName = preferences.getString(PREF_OVERLAY_PENDING_FILE, "");
+                if (fileName != null && fileName.matches("floating-screen-[A-Za-z0-9-]+\\.jpg")) {
+                    File capture = new File(getCacheDir(), fileName);
+                    if (capture.isFile() && capture.length() <= MAX_CAPTURE_BYTES) {
+                        try (InputStream input = new FileInputStream(capture); ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                            byte[] buffer = new byte[8192];
+                            int read;
+                            while ((read = input.read(buffer)) != -1) bytes.write(buffer, 0, read);
+                            action.put("imageData", Base64.encodeToString(bytes.toByteArray(), Base64.NO_WRAP));
+                        }
+                    }
+                }
+                return action.toString();
+            } catch (Exception ignored) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
+        public void acknowledgeAction(String actionId) {
+            SharedPreferences preferences = getSharedPreferences(PREFS, MODE_PRIVATE);
+            String pendingId = preferences.getString(PREF_OVERLAY_PENDING_ID, "");
+            if (actionId == null || !actionId.equals(pendingId)) return;
+            deletePendingCapture(preferences.getString(PREF_OVERLAY_PENDING_FILE, ""));
+            preferences.edit().remove(PREF_OVERLAY_PENDING_ID).remove(PREF_OVERLAY_PENDING_MODE)
+                    .remove(PREF_OVERLAY_PENDING_MESSAGE).remove(PREF_OVERLAY_PENDING_FILE).apply();
+        }
+
+        @JavascriptInterface
+        public void close() {
+            closeJournalOverlay();
         }
     }
 
@@ -431,14 +767,15 @@ public class FloatingJournalService extends Service {
         menuPanel.setElevation(dp(8));
         menuPanel.setVisibility(View.GONE);
         TextView title = new TextView(this);
-        title.setText("星会计 · 快速记账");
+        title.setText("星会计 · 悬浮记账");
         title.setTextColor(0xFF24334B);
         title.setTextSize(14);
-        title.setTypeface(null, Paint.FAKE_BOLD_TEXT_FLAG);
+        title.getPaint().setFakeBoldText(true);
         title.setPadding(dp(3), dp(2), dp(2), dp(8));
         menuPanel.addView(title);
         menuPanel.addView(actionButton("识别当前屏幕", 0xFFEAF2FF, 0xFF2367C9, v -> sendServiceAction(ACTION_CAPTURE_SCREEN)));
         menuPanel.addView(actionButton("上传图片识别", 0xFFEAF7F2, 0xFF168765, v -> sendServiceAction(ACTION_UPLOAD_IMAGE)));
+        menuPanel.addView(actionButton("手动记账", 0xFFF1F4F8, 0xFF34445B, v -> sendServiceAction(ACTION_OPEN_MANUAL)));
         TextView hint = new TextView(this);
         hint.setText("识别后可修改并手动保存");
         hint.setTextColor(0xFF758195);
@@ -452,7 +789,7 @@ public class FloatingJournalService extends Service {
         bubble.setText("记");
         bubble.setTextColor(Color.WHITE);
         bubble.setTextSize(18);
-        bubble.setTypeface(null, Paint.FAKE_BOLD_TEXT_FLAG);
+        bubble.getPaint().setFakeBoldText(true);
         bubble.setGravity(Gravity.CENTER);
         bubble.setElevation(dp(9));
         bubble.setBackground(background(0xFF3178DC, dp(28), 0x00000000));
@@ -538,7 +875,7 @@ public class FloatingJournalService extends Service {
 
     private void setOverlayVisible(boolean visible) {
         mainHandler.post(() -> {
-            if (overlayRoot != null) overlayRoot.setVisibility(visible ? View.VISIBLE : View.GONE);
+            if (overlayRoot != null) overlayRoot.setVisibility(visible && !journalOverlayAttached ? View.VISIBLE : View.GONE);
         });
     }
 
@@ -553,6 +890,8 @@ public class FloatingJournalService extends Service {
 
     private void stopEverything() {
         removeOverlay();
+        removeJournalOverlay();
+        clearOverlayPendingAction();
         stopProjection();
         setServiceState(false, false);
         stopForeground(true);

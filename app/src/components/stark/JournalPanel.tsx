@@ -694,7 +694,7 @@ export function JournalPanel({
     }
 
     if (!isFloatingJournalAvailable()) {
-      window.setTimeout(() => screenshotRecognitionInputRef.current?.click(), 100);
+      setScreenshotRecognitionNotice(translateText("表单已就绪，点击“截图识别”后选择支付图片；也可以直接手动记账。", locale));
       return;
     }
     setScreenshotRecognitionNotice(translateText("请选择要识别的支付图片；也可以取消后手动记账。", locale));

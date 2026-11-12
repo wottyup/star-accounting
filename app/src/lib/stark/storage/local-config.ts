@@ -36,9 +36,10 @@ export function setCurrentDataMode(mode: "LOCAL" | "CLOUD") {
   writeValue("data-mode", mode);
 }
 
-/** 浏览器版只使用云端数据；本地模式仅对 Capacitor 套壳 App 开放。 */
+/** 浏览器版只使用云端数据；本地模式仅对 Capacitor App 及其悬浮 WebView 开放。 */
 export function isNativeAppRuntime() {
-  return typeof window !== "undefined" && Capacitor.isNativePlatform();
+  return typeof window !== "undefined"
+    && (Capacitor.isNativePlatform() || window.navigator.userAgent.includes("WottyStarkFloatingOverlay"));
 }
 
 function isStandardWebOrigin(protocol: string, port: string) {

@@ -97,6 +97,24 @@ export function getCloudApiUrl() {
         writeValue("cloud-api-url", apiUrl);
         return apiUrl;
       }
+      // LAN browsers can retain the deployment API port (12367) after the
+      // development launcher moves to an alternate web/API pair such as
+      // 12368/12369. The localhost-only repair below cannot catch that case.
+      const isAlternateDevelopmentServer = window.location.protocol === "http:"
+        && !isStandardWebOrigin(window.location.protocol, window.location.port)
+        && DEFAULT_CLOUD_API_PORT !== 12367;
+      const pagePort = Number(window.location.port);
+      const savedPort = Number(savedUrl.port);
+      const likelyStaleDevelopmentPort = savedPort === 12367
+        || savedPort === pagePort
+        || savedPort === pagePort - 1;
+      if (isCurrentHost && savedUrl.protocol === window.location.protocol
+        && isAlternateDevelopmentServer && likelyStaleDevelopmentPort) {
+        savedUrl.port = String(DEFAULT_CLOUD_API_PORT);
+        const apiUrl = savedUrl.toString().replace(/\/$/, "");
+        writeValue("cloud-api-url", apiUrl);
+        return apiUrl;
+      }
       // The development launcher may choose a new API port after Windows
       // restarts. A saved localhost API port from the previous run is stale;
       // follow the current Web origin's adjacent API port instead.

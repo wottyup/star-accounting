@@ -10,8 +10,8 @@ import type { Transaction } from "@/lib/stark/models";
 import { formatMonthLabel, translateValue, useAppLocale } from "@/lib/stark/i18n";
 
 type ShoppingPlatform = { name: string; count: number; amount: number };
-type ShoppingKeyword = { name: string; count: number };
-type ShoppingDetailSelection = { kind: "platform" | "keyword"; value: string };
+type ShoppingMerchant = { name: string; count: number; amount: number };
+type ShoppingDetailSelection = { kind: "platform" | "merchant"; value: string };
 
 function collectShoppingTransactions(transactions: Transaction[]) {
   return transactions.filter((transaction) =>
@@ -116,6 +116,24 @@ function buildPlatformRanking(transactions: Transaction[]): ShoppingPlatform[] {
     .slice(0, 5);
 }
 
+function buildMerchantRanking(transactions: Transaction[]): ShoppingMerchant[] {
+  const merchants = new Map<string, ShoppingMerchant>();
+  for (const transaction of transactions) {
+    const name = transaction.merchant?.trim();
+    if (!name) continue;
+    const item = merchants.get(name);
+    if (item) {
+      item.count += 1;
+      item.amount += transaction.amount;
+    } else {
+      merchants.set(name, { name, count: 1, amount: transaction.amount });
+    }
+  }
+  return [...merchants.values()]
+    .sort((a, b) => b.count - a.count || b.amount - a.amount || a.name.localeCompare(b.name, "zh-CN"))
+    .slice(0, 5);
+}
+
 function cleanShoppingDescription(description: string | null | undefined, orderId?: string | null) {
   const normalizedOrderId = orderId?.trim().toLocaleLowerCase();
   return (description ?? "")
@@ -127,29 +145,6 @@ function cleanShoppingDescription(description: string | null | undefined, orderI
       .trim())
     .filter((line) => line && (!normalizedOrderId || line.toLocaleLowerCase() !== normalizedOrderId))
     .join("\n");
-}
-
-function extractShoppingNoteKeywords(description: string | null | undefined, orderId?: string | null) {
-  const parts = cleanShoppingDescription(description, orderId)
-    .split(/[、，,;；/|＋+\n\r]+/)
-    .map((part) => part.trim().replace(/^[\s"'“”‘’()[\]{}<>【】《》:：]+|[\s"'“”‘’()[\]{}<>【】《》:：]+$/g, ""))
-    .filter(Boolean);
-  return [...new Set(parts)];
-}
-
-function buildKeywordRanking(transactions: Transaction[]): ShoppingKeyword[] {
-  const keywords = new Map<string, number>();
-  for (const transaction of transactions) {
-    // Count at most one mention per bill so repeated text in one note does not
-    // look like multiple purchased units.
-    for (const keyword of extractShoppingNoteKeywords(transaction.description, transaction.orderId)) {
-      keywords.set(keyword, (keywords.get(keyword) ?? 0) + 1);
-    }
-  }
-  return [...keywords.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"))
-    .slice(0, 5);
 }
 
 function billCountLabel(count: number, locale: "zh-CN" | "en-US") {
@@ -190,13 +185,13 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
     [locale, period, trend],
   );
   const shoppingPlatforms = useMemo(() => buildPlatformRanking(shoppingTransactions), [shoppingTransactions]);
-  const keywords = useMemo(() => buildKeywordRanking(shoppingTransactions), [shoppingTransactions]);
+  const merchants = useMemo(() => buildMerchantRanking(shoppingTransactions), [shoppingTransactions]);
   const detailTransactions = useMemo(() => {
     if (!detailSelection) return [];
     return shoppingTransactions
       .filter((transaction) => detailSelection.kind === "platform"
         ? transaction.shoppingPlatform?.trim() === detailSelection.value
-        : extractShoppingNoteKeywords(transaction.description, transaction.orderId).includes(detailSelection.value))
+        : transaction.merchant?.trim() === detailSelection.value)
       .sort((left, right) => Date.parse(right.date) - Date.parse(left.date));
   }, [detailSelection, shoppingTransactions]);
   const detailAmount = useMemo(
@@ -207,7 +202,7 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
   const detailTitle = detailSelection
     ? detailSelection.kind === "platform"
       ? `${locale === "zh-CN" ? "平台账单" : "Platform bills"} · ${detailSelection.value}`
-      : `${locale === "zh-CN" ? "关键词账单" : "Keyword bills"} · ${detailSelection.value}`
+      : `${locale === "zh-CN" ? "商户账单" : "Merchant bills"} · ${detailSelection.value}`
     : "";
 
   return (
@@ -284,24 +279,24 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
 
                 <section>
                   <div className="shopping-analysis-list-head">
-                    <h3>{locale === "zh-CN" ? "备注关键词" : "Note keywords"}</h3>
-                    <span>{locale === "zh-CN" ? "按提及账单数" : "Bills mentioning each term"}</span>
+                    <h3>{locale === "zh-CN" ? "高频商户" : "Frequent merchants"}</h3>
+                    <span>{locale === "zh-CN" ? "按账单笔数" : "By bill count"}</span>
                   </div>
-                  {keywords.length ? (
+                  {merchants.length ? (
                     <ol>
-                      {keywords.map((keyword, index) => (
-                        <li key={keyword.name}>
+                      {merchants.map((merchant, index) => (
+                        <li key={merchant.name}>
                           <button
                             type="button"
                             className="shopping-analysis-rank-button"
-                            aria-label={locale === "zh-CN" ? `查看提及 ${keyword.name} 的 ${keyword.count} 笔账单` : `View ${keyword.count} bills mentioning ${keyword.name}`}
-                            onClick={() => setDetailSelection({ kind: "keyword", value: keyword.name })}
+                            aria-label={locale === "zh-CN" ? `查看商户 ${merchant.name} 的 ${merchant.count} 笔账单和商品明细` : `View ${merchant.count} bills and item details from ${merchant.name}`}
+                            onClick={() => setDetailSelection({ kind: "merchant", value: merchant.name })}
                           >
                             <i>{index + 1}</i>
-                            <span className="shopping-analysis-rank-name" title={keyword.name}>{keyword.name}</span>
+                            <span className="shopping-analysis-rank-name" title={merchant.name}>{merchant.name}</span>
                             <span className="shopping-analysis-rank-meta">
-                              <small>{locale === "zh-CN" ? "提及账单" : "Bills mentioning"}</small>
-                              <strong>{keyword.count}</strong>
+                              <small>{billCountLabel(merchant.count, locale)}</small>
+                              <strong>¥{formatMoney(merchant.amount)}</strong>
                             </span>
                             <span className="shopping-analysis-rank-arrow" aria-hidden="true">›</span>
                           </button>
@@ -309,15 +304,15 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                       ))}
                     </ol>
                   ) : (
-                    <p className="shopping-analysis-list-empty">{locale === "zh-CN" ? "还没有填写商品备注" : "No product notes recorded"}</p>
+                    <p className="shopping-analysis-list-empty">{locale === "zh-CN" ? "还没有填写商户名称" : "No merchant names recorded"}</p>
                   )}
                 </section>
               </div>
 
               <p className="shopping-analysis-footnote">
                 {locale === "zh-CN"
-                  ? "把商品名称写在明细备注中，多个名称可用顿号或逗号分隔。关键词按账单提及次数统计，不代表购买件数或商品金额。"
-                  : "Add product names to transaction notes and separate multiple names with commas. Keyword counts show bills mentioning each term, not item quantities or product-level spending."}
+                  ? "点击商户可查看对应账单和商品明细；商品信息来自每笔账单的详细明细。"
+                  : "Select a merchant to view its bills and item details. Item information comes from each bill’s details."}
               </p>
             </>
           )}

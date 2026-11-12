@@ -192,6 +192,9 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
         buildJsonObject {
             put("model", provider.model)
             put("max_tokens", 700)
+            if (URI.create(baseUrl).host.equals("api.deepseek.com", ignoreCase = true)) {
+                put("thinking", buildJsonObject { put("type", "disabled") })
+            }
             put("system", prompt)
             put("messages", buildJsonArray {
                 add(buildJsonObject {

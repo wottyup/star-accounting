@@ -15622,6 +15622,9 @@ img[src$="/qita.webp"] {
   border-radius: 4px;
   object-fit: contain;
 }
+.consumption-platform-icons img[src$="/zhifubao.webp"] {
+  object-fit: cover;
+}
 .consumption-detail-list .recent-amount { grid-area: amount; }
 .consumption-detail-list .recent-category { grid-area: category; }
 .consumption-detail-list .recent-meta {

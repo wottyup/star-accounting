@@ -217,8 +217,16 @@ private suspend fun testAIVisionConnection(provider: AIVisionProviderConfig, all
     } catch (_: Exception) {
         throw IllegalArgumentException("连接模型服务失败，请检查地址、网络和证书")
     }
-    if (response.statusCode() !in 200..299) {
-        throw IllegalArgumentException("模型服务拒绝连接，请检查模型服务地址和 API Key")
+    val statusCode = response.statusCode()
+    if (statusCode !in 200..299) {
+        val reason = when (statusCode) {
+            401, 403 -> "API Key 无效或权限不足"
+            402 -> "模型服务账户额度或余额不足"
+            400, 404 -> "接口地址或模型名称不受支持"
+            429 -> "模型服务请求过于频繁或额度不足"
+            else -> "模型服务返回错误"
+        }
+        throw IllegalArgumentException("$reason（HTTP $statusCode）")
     }
 }
 

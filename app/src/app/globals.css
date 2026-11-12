@@ -6517,6 +6517,40 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   visibility: visible;
 }
 
+html.stark-floating-journal,
+html.stark-floating-journal body,
+html.stark-floating-journal #__next {
+  background: transparent !important;
+}
+
+.journal-overlay.floating,
+.journal-overlay.floating.visible {
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: none;
+}
+
+.journal-overlay.floating .journal-panel.floating {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  max-width: none;
+  padding-top: 10px;
+  border: 1px solid rgba(116, 137, 167, 0.28);
+  border-radius: 24px;
+  background: #ffffff;
+  transform: none !important;
+  visibility: visible !important;
+  pointer-events: auto;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  transition: none;
+}
+
 .journal-panel > .journal-sheet-handle {
   flex-shrink: 0;
   margin: 0 auto 6px;

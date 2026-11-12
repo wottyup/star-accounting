@@ -8,6 +8,7 @@ import { SHOWCASE_DEMO_MODE, withAppBasePath } from "@/lib/stark/runtime";
 type FloatingJournalOverlayBridge = {
   getPendingAction(): string;
   acknowledgeAction(actionId: string): void;
+  onFormReady(): void;
   close(): void;
 };
 
@@ -71,6 +72,12 @@ export function JournalRoute({ variant }: { variant?: "journal" | "savings" | "a
     }
   }, []);
 
+  useEffect(() => {
+    if (!floatingOverlay) return;
+    document.documentElement.classList.add("stark-floating-journal");
+    return () => document.documentElement.classList.remove("stark-floating-journal");
+  }, [floatingOverlay]);
+
   if (!routeReady || !resolvedVariant) return null;
 
   function closePanel() {
@@ -85,5 +92,5 @@ export function JournalRoute({ variant }: { variant?: "journal" | "savings" | "a
     window.history.back();
   }
 
-  return <JournalPanel mode="page" variant={resolvedVariant} historyMode="route" preset={preset} savingsGoalId={savingsGoalId} floatingAction={floatingAction} onClose={closePanel} onSaved={closePanel} />;
+  return <JournalPanel mode="page" variant={resolvedVariant} historyMode="route" preset={preset} savingsGoalId={savingsGoalId} floatingAction={floatingAction} floatingOverlay={floatingOverlay} onClose={closePanel} onSaved={closePanel} />;
 }

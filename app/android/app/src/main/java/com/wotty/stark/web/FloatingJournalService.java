@@ -94,6 +94,8 @@ public class FloatingJournalService extends Service {
     private TextView journalOverlayErrorClose;
     private WindowManager.LayoutParams journalOverlayParams;
     private boolean journalOverlayAttached;
+    private String journalOverlayExpectedUrl;
+    private Runnable journalOverlayReadyTimeout;
     private ValueCallback<Uri[]> fileChooserCallback;
     private HandlerThread captureThread;
     private Handler captureHandler;
@@ -466,19 +468,29 @@ public class FloatingJournalService extends Service {
             return;
         }
         if (overlayRoot == null) addOverlayIfNeeded();
-        if (overlayRoot != null) overlayRoot.setVisibility(View.GONE);
         if (menuPanel != null) menuPanel.setVisibility(View.GONE);
         if (journalOverlayRoot == null) createJournalOverlay();
+        String targetUrl = "http://localhost/app/journal/?floating=1&session=" + UUID.randomUUID();
+        journalOverlayExpectedUrl = targetUrl;
+        journalOverlayRoot.setVisibility(View.INVISIBLE);
+        journalOverlayParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
         try {
             if (!journalOverlayAttached) {
                 windowManager.addView(journalOverlayRoot, journalOverlayParams);
                 journalOverlayAttached = true;
+            } else {
+                windowManager.updateViewLayout(journalOverlayRoot, journalOverlayParams);
             }
-            journalOverlayRoot.setVisibility(View.VISIBLE);
             if (journalOverlayErrorClose != null) journalOverlayErrorClose.setVisibility(View.GONE);
-            journalWebView.loadUrl("http://localhost/app/journal/?floating=1&session=" + UUID.randomUUID());
+            journalWebView.loadUrl(targetUrl);
         } catch (RuntimeException error) {
-            journalOverlayAttached = false;
+            journalOverlayExpectedUrl = null;
+            if (journalOverlayAttached) {
+                try { windowManager.removeView(journalOverlayRoot); } catch (RuntimeException ignored) { }
+                journalOverlayAttached = false;
+            }
             if (overlayRoot != null) overlayRoot.setVisibility(View.VISIBLE);
             android.widget.Toast.makeText(this, "悬浮记账页面暂时无法打开，请重新开启悬浮记账。", android.widget.Toast.LENGTH_LONG).show();
         }
@@ -486,8 +498,9 @@ public class FloatingJournalService extends Service {
 
     private void createJournalOverlay() {
         journalOverlayRoot = new FrameLayout(this);
-        journalOverlayRoot.setBackgroundColor(0x66000000);
+        journalOverlayRoot.setBackgroundColor(Color.TRANSPARENT);
         journalOverlayRoot.setFocusableInTouchMode(true);
+        journalOverlayRoot.setVisibility(View.INVISIBLE);
 
         journalWebView = new WebView(this);
         WebSettings settings = journalWebView.getSettings();
@@ -498,7 +511,7 @@ public class FloatingJournalService extends Service {
         settings.setAllowContentAccess(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setUserAgentString(settings.getUserAgentString() + " WottyStarkFloatingOverlay");
-        journalWebView.setBackgroundColor(Color.WHITE);
+        journalWebView.setBackgroundColor(Color.TRANSPARENT);
         journalWebView.addJavascriptInterface(new FloatingOverlayBridge(), "AndroidFloatingJournal");
         journalWebView.setWebViewClient(new WebViewClient() {
             @Nullable
@@ -517,8 +530,7 @@ public class FloatingJournalService extends Service {
             public void onReceivedError(WebView view, WebResourceRequest request, android.webkit.WebResourceError error) {
                 if (request.isForMainFrame()) {
                     mainHandler.post(() -> {
-                        if (journalOverlayErrorClose != null) journalOverlayErrorClose.setVisibility(View.VISIBLE);
-                        android.widget.Toast.makeText(FloatingJournalService.this, "悬浮记账页面加载失败，请检查安装包后重试。", android.widget.Toast.LENGTH_LONG).show();
+                        failJournalOverlay(journalOverlayExpectedUrl);
                     });
                 }
             }
@@ -526,6 +538,8 @@ public class FloatingJournalService extends Service {
             @Override
             public void onPageFinished(WebView view, String url) {
                 if (journalOverlayErrorClose != null) journalOverlayErrorClose.setVisibility(View.GONE);
+                String expectedUrl = journalOverlayExpectedUrl;
+                if (expectedUrl != null && expectedUrl.equals(url)) scheduleJournalOverlayReadyTimeout(expectedUrl);
             }
         });
         journalWebView.setWebChromeClient(new WebChromeClient() {
@@ -553,14 +567,65 @@ public class FloatingJournalService extends Service {
         int overlayType = Build.VERSION.SDK_INT >= 26
                 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 : WindowManager.LayoutParams.TYPE_PHONE;
+        DisplayMetrics overlayMetrics = getResources().getDisplayMetrics();
         journalOverlayParams = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
+                Math.max(dp(260), Math.min(dp(420), overlayMetrics.widthPixels - dp(72))),
+                Math.max(dp(400), Math.min(dp(760), overlayMetrics.heightPixels - dp(80))),
                 overlayType,
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                        | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
                 PixelFormat.TRANSLUCENT);
-        journalOverlayParams.gravity = Gravity.TOP | Gravity.START;
+        journalOverlayParams.gravity = Gravity.CENTER;
         journalOverlayParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
+    }
+
+    private void scheduleJournalOverlayReadyTimeout(String expectedUrl) {
+        cancelJournalOverlayReadyTimeout();
+        journalOverlayReadyTimeout = () -> failJournalOverlay(expectedUrl);
+        mainHandler.postDelayed(journalOverlayReadyTimeout, 12_000L);
+    }
+
+    private void cancelJournalOverlayReadyTimeout() {
+        if (journalOverlayReadyTimeout != null) {
+            mainHandler.removeCallbacks(journalOverlayReadyTimeout);
+            journalOverlayReadyTimeout = null;
+        }
+    }
+
+    private void failJournalOverlay(String expectedUrl) {
+        if (expectedUrl == null || !expectedUrl.equals(journalOverlayExpectedUrl)) return;
+        journalOverlayExpectedUrl = null;
+        cancelJournalOverlayReadyTimeout();
+        if (journalOverlayAttached && windowManager != null && journalOverlayRoot != null) {
+            try { windowManager.removeView(journalOverlayRoot); } catch (RuntimeException ignored) { }
+            journalOverlayAttached = false;
+        }
+        if (overlayRoot != null) overlayRoot.setVisibility(View.VISIBLE);
+        android.widget.Toast.makeText(this, "悬浮记账页面加载失败，请重试。", android.widget.Toast.LENGTH_LONG).show();
+    }
+
+    private void presentJournalOverlay(String expectedUrl) {
+        if (expectedUrl == null || !expectedUrl.equals(journalOverlayExpectedUrl)
+                || journalOverlayRoot == null || journalOverlayParams == null || windowManager == null) return;
+        journalOverlayExpectedUrl = null;
+        cancelJournalOverlayReadyTimeout();
+        journalOverlayParams.flags = WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+        try {
+            if (journalOverlayAttached) {
+                windowManager.updateViewLayout(journalOverlayRoot, journalOverlayParams);
+            } else {
+                windowManager.addView(journalOverlayRoot, journalOverlayParams);
+                journalOverlayAttached = true;
+            }
+            if (overlayRoot != null) overlayRoot.setVisibility(View.GONE);
+            journalOverlayRoot.setVisibility(View.VISIBLE);
+        } catch (RuntimeException error) {
+            journalOverlayExpectedUrl = null;
+            if (overlayRoot != null) overlayRoot.setVisibility(View.VISIBLE);
+            android.widget.Toast.makeText(this, "悬浮记账页面暂时无法显示，请重新开启悬浮记账。", android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     private boolean isLocalAppUrl(Uri uri) {
@@ -666,6 +731,8 @@ public class FloatingJournalService extends Service {
 
     private void closeJournalOverlay() {
         mainHandler.post(() -> {
+            journalOverlayExpectedUrl = null;
+            cancelJournalOverlayReadyTimeout();
             if (journalOverlayAttached && windowManager != null && journalOverlayRoot != null) {
                 try { windowManager.removeView(journalOverlayRoot); } catch (RuntimeException ignored) { }
                 journalOverlayAttached = false;
@@ -679,6 +746,8 @@ public class FloatingJournalService extends Service {
     }
 
     private void removeJournalOverlay() {
+        journalOverlayExpectedUrl = null;
+        cancelJournalOverlayReadyTimeout();
         if (journalOverlayAttached && windowManager != null && journalOverlayRoot != null) {
             try { windowManager.removeView(journalOverlayRoot); } catch (RuntimeException ignored) { }
         }
@@ -737,6 +806,14 @@ public class FloatingJournalService extends Service {
             deletePendingCapture(preferences.getString(PREF_OVERLAY_PENDING_FILE, ""));
             preferences.edit().remove(PREF_OVERLAY_PENDING_ID).remove(PREF_OVERLAY_PENDING_MODE)
                     .remove(PREF_OVERLAY_PENDING_MESSAGE).remove(PREF_OVERLAY_PENDING_FILE).apply();
+        }
+
+        @JavascriptInterface
+        public void onFormReady() {
+            mainHandler.post(() -> {
+                String expectedUrl = journalOverlayExpectedUrl;
+                if (expectedUrl != null) presentJournalOverlay(expectedUrl);
+            });
         }
 
         @JavascriptInterface

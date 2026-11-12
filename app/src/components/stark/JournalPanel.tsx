@@ -91,6 +91,7 @@ export type JournalPanelProps = {
   savingsGoal?: SavingsGoal;
   transaction?: Transaction;
   floatingAction?: FloatingJournalAction | null;
+  floatingOverlay?: boolean;
   asset?: Asset;
   loan?: Loan;
 };
@@ -107,6 +108,7 @@ export function JournalPanel({
   savingsGoal,
   transaction,
   floatingAction,
+  floatingOverlay = false,
   asset,
   loan,
 }: JournalPanelProps) {
@@ -125,7 +127,8 @@ export function JournalPanel({
   const isSalaryPreset = variant === "journal" && preset?.type === "INCOME" && preset.category === "工资";
   const draftKind: NewEntryDraftKind = isSavings ? "savings" : isAsset ? "asset" : isLoan ? "loan" : isSalaryPreset ? "salary" : "journal";
   const [visible, setVisible] = useState(false);
-  const sheetReady = useSheetPresentation();
+  const nativeSheetReady = useSheetPresentation(!floatingOverlay);
+  const sheetReady = floatingOverlay || nativeSheetReady;
   const [type, setType] = useState<TransactionType>("EXPENSE");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("餐饮");
@@ -293,6 +296,11 @@ export function JournalPanel({
   }, [sheetReady]);
 
   useEffect(() => {
+    if (!floatingOverlay || !sheetReady || !visible) return;
+    window.AndroidFloatingJournal?.onFormReady();
+  }, [floatingOverlay, sheetReady, visible]);
+
+  useEffect(() => {
     if (!window.visualViewport) return;
     const viewport = window.visualViewport;
     const updateKeyboardViewport = () => {
@@ -342,8 +350,8 @@ export function JournalPanel({
     if (isSavings) window.sessionStorage.removeItem(SHOWCASE_DEMO_MODE ? "showcase:stark:journal-variant" : "stark:journal-variant");
     closingRef.current = true;
     setVisible(false);
-    closeTimerRef.current = setTimeout(onClose, 220);
-  }, [isSavings, onClose]);
+    closeTimerRef.current = setTimeout(onClose, floatingOverlay ? 0 : 220);
+  }, [floatingOverlay, isSavings, onClose]);
   const consumeHistoryEntry = useLayeredHistoryMarker(historyMode === "marker", "starkJournalPanel", beginClose);
   const handleClose = useCallback(() => {
     if (closingRef.current) return;
@@ -914,7 +922,7 @@ export function JournalPanel({
 
   return (
     <div
-      className={`journal-overlay ${isPage ? "page" : ""} ${keyboardViewport ? "keyboard-open" : ""} ${visible ? "visible" : ""}`}
+      className={`journal-overlay ${isPage ? "page" : ""} ${floatingOverlay ? "floating" : ""} ${keyboardViewport ? "keyboard-open" : ""} ${visible ? "visible" : ""}`}
       style={keyboardViewportStyle}
       onClick={handleClose}
       onTouchStart={handleTouchStart}
@@ -923,7 +931,7 @@ export function JournalPanel({
     >
       <div
         ref={panelRef}
-        className={`journal-panel modern-journal-shell ${isPage ? "page" : ""} ${isSavings ? "savings" : ""} ${isSavingsRecord ? "savings-record" : ""} ${isAsset ? "asset" : ""} ${isLoan ? "loan" : ""} ${sheetReady ? "ready" : ""} ${visible ? "visible" : ""}`}
+        className={`journal-panel modern-journal-shell ${isPage ? "page" : ""} ${floatingOverlay ? "floating" : ""} ${isSavings ? "savings" : ""} ${isSavingsRecord ? "savings-record" : ""} ${isAsset ? "asset" : ""} ${isLoan ? "loan" : ""} ${sheetReady ? "ready" : ""} ${visible ? "visible" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 顶部标题栏 */}

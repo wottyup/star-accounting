@@ -24,6 +24,7 @@ import (
 const (
 	maxRecognitionImageBytes = 10 << 20
 	maxMultipartOverhead     = 256 << 10
+	maxRecognitionEntries    = 20
 )
 
 var (
@@ -33,15 +34,16 @@ var (
 )
 
 type screenshotRecognition struct {
-	Type        *string            `json:"type"`
-	Amount      *recognitionAmount `json:"amount"`
-	Merchant    *string            `json:"merchant"`
-	Date        *string            `json:"date"`
-	Platform    *string            `json:"platform"`
-	Category    *string            `json:"category"`
-	Description *string            `json:"description"`
-	Confidence  string             `json:"confidence"`
-	Warnings    []string           `json:"warnings"`
+	Type         *string                 `json:"type"`
+	Amount       *recognitionAmount      `json:"amount"`
+	Merchant     *string                 `json:"merchant"`
+	Date         *string                 `json:"date"`
+	Platform     *string                 `json:"platform"`
+	Category     *string                 `json:"category"`
+	Description  *string                 `json:"description"`
+	Confidence   string                  `json:"confidence"`
+	Warnings     []string                `json:"warnings"`
+	Transactions []screenshotRecognition `json:"transactions,omitempty"`
 }
 
 type recognitionAmount float64
@@ -143,6 +145,9 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	imageBase64 := base64.StdEncoding.EncodeToString(image)
 	imageData := "data:" + contentType + ";base64," + imageBase64
 	prompt := `识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
+- 识别截图中所有互相独立且明确已支付或已完成的订单；每笔订单各输出一条记录，不得只取第一笔。
+- 同一订单含有多件商品时仍只输出一条；金额取该订单最终实付总额，不得把商品行、优惠金额和订单实付重复相加。
+- 忽略待付款、已取消订单；明确退款时按 INCOME 处理。最多输出 20 笔，超过时优先保留截图中完整可见的订单，并在 warnings 说明未覆盖数量。
 - 金额优先取最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。
 - 商户尽量提取实际收款商户（如小象超市、拼多多）；支付宝或微信只是支付平台时，不要把它当商户。
@@ -151,7 +156,7 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 - 日期只提取截图中清晰可见的交易时间，格式 YYYY-MM-DDTHH:mm；否则返回 null。
 - description 只可写简短商品/订单内容摘要；绝不包含订单号、商户单号、流水号、手机号、账号或支付凭证编号。
 - confidence 为 high、medium、low 之一；任何关键字段不确定时降低置信度，并在 warnings 用中文简短说明。
-只输出 JSON 对象，字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。`
+只输出一个 JSON 对象，顶层字段为 transactions。transactions 是数组，每个元素的字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。只有一笔时数组也必须包含这一笔；多笔时逐笔列出。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。`
 
 	apiFormat, err := vision.NormalizeAPIFormat(provider.APIFormat)
 	if err != nil {
@@ -160,7 +165,7 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	var requestPayload map[string]interface{}
 	if apiFormat == vision.APIFormatAnthropic {
 		requestPayload = map[string]interface{}{
-			"model": provider.Model, "max_tokens": 700, "system": prompt,
+			"model": provider.Model, "max_tokens": 3000, "system": prompt,
 			"messages": []interface{}{map[string]interface{}{
 				"role": "user", "content": []interface{}{
 					map[string]string{"type": "text", "text": "请识别这张截图。"},
@@ -276,6 +281,28 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &result); err != nil {
 		return screenshotRecognition{}, fmt.Errorf("invalid recognition payload: %w", err)
 	}
+	entries := result.Transactions
+	if len(entries) == 0 {
+		legacyEntry := result
+		legacyEntry.Transactions = nil
+		entries = []screenshotRecognition{legacyEntry}
+	}
+	truncated := len(entries) > maxRecognitionEntries
+	if truncated {
+		entries = entries[:maxRecognitionEntries]
+	}
+	for index := range entries {
+		entries[index] = sanitizeScreenshotRecognition(entries[index])
+	}
+	if truncated {
+		entries[0].Warnings = append(entries[0].Warnings, "截图订单较多，仅返回前 20 笔，请分批识别")
+	}
+	result = entries[0]
+	result.Transactions = entries
+	return result, nil
+}
+
+func sanitizeScreenshotRecognition(result screenshotRecognition) screenshotRecognition {
 	result.Type = validTransactionType(result.Type)
 	result.Platform = validPlatform(result.Platform)
 	if result.Amount != nil && (*result.Amount <= 0 || *result.Amount > 1_000_000_000) {
@@ -300,7 +327,8 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 		}
 	}
 	result.Warnings = warnings
-	return result, nil
+	result.Transactions = nil
+	return result
 }
 
 func isDeepSeekAnthropicEndpoint(baseURL string) bool {

@@ -19,6 +19,7 @@ import { ProofImageViewer } from "@/components/stark/ProofImageViewer";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { useSheetPresentation } from "@/components/stark/useSheetPresentation";
 import { JournalActionDock, JournalActionTargetContext } from "@/components/stark/JournalActionDock";
+import { translateText, useAppLocale } from "@/lib/stark/i18n";
 
 const SavingsPlanner = dynamic(
   () => import("@/components/stark/SavingsPlanner").then((module) => module.SavingsPlanner),
@@ -42,6 +43,7 @@ const assetTypeLabels: Record<AssetType, string> = {
 };
 
 type JournalDraft = {
+  id?: string;
   type: TransactionType;
   amount: string;
   category: string;
@@ -49,6 +51,8 @@ type JournalDraft = {
   merchant: string;
   description: string;
   date: string;
+  confidence?: string;
+  warnings?: string[];
 };
 
 type AssetDraft = {
@@ -112,6 +116,7 @@ export function JournalPanel({
   const isEditingAsset = isAsset && Boolean(asset);
   const isEditingLoan = isLoan && Boolean(loan);
   const isEditingEntity = isEditingTransaction || isEditingAsset || isEditingLoan || isRepayment;
+  const locale = useAppLocale();
   const isSalaryPreset = variant === "journal" && preset?.type === "INCOME" && preset.category === "工资";
   const draftKind: NewEntryDraftKind = isSavings ? "savings" : isAsset ? "asset" : isLoan ? "loan" : isSalaryPreset ? "salary" : "journal";
   const [visible, setVisible] = useState(false);
@@ -139,6 +144,9 @@ export function JournalPanel({
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
   const [screenshotRecognitionBusy, setScreenshotRecognitionBusy] = useState(false);
   const [screenshotRecognitionNotice, setScreenshotRecognitionNotice] = useState("");
+  const [recognizedDrafts, setRecognizedDrafts] = useState<JournalDraft[]>([]);
+  const [activeRecognizedDraftIndex, setActiveRecognizedDraftIndex] = useState(0);
+  const [transactionSaving, setTransactionSaving] = useState(false);
   const [recordSaving, setRecordSaving] = useState(false);
   const [recordNotice, setRecordNotice] = useState("");
   const [salaryEntryMode, setSalaryEntryMode] = useState<"single" | "batch">("single");
@@ -377,39 +385,119 @@ export function JournalPanel({
     if (isHorizontal) handleClose();
   }
 
-  async function saveTransaction() {
-    const value = Number(amount);
-    if (!Number.isFinite(value) || value <= 0) return;
-    const now = nowText();
-    await repo.saveTransaction({
-      id: transaction?.id ?? createId("transaction"),
-      userId: transaction?.userId ?? "local-user",
-      accountId: transaction?.accountId ?? getCurrentAccountId(),
-      amount: value,
+  function currentJournalDraft(): JournalDraft {
+    return {
+      ...(recognizedDrafts[activeRecognizedDraftIndex] ?? {}),
       type,
+      amount,
       category,
       platform,
-      merchant: merchant || null,
-      date: date.length === 16 ? `${date}:00` : date,
-      description: description || null,
-      orderId: transaction?.orderId ?? null,
-      paymentMethod: transaction?.paymentMethod ?? null,
-      status: transaction?.status ?? null,
-      loanId: transaction?.loanId ?? null,
-      remarkCategory: transaction?.remarkCategory ?? null,
-      createdAt: transaction?.createdAt ?? now,
-      updatedAt: now,
-    });
-    draftSubmittedRef.current = true;
-    clearNewEntryDraft(draftKind);
-    setAmount("");
-    setMerchant("");
-    setDescription("");
-    setDate(nowText().slice(0, 16));
-    if (type !== "TRANSFER") setCategory(type === "INCOME" ? "工资" : "餐饮");
-    window.dispatchEvent(new Event("stark:transaction-saved"));
-    onSaved?.();
-    handleClose();
+      merchant,
+      description,
+      date,
+    };
+  }
+
+  function applyJournalDraft(draft: JournalDraft) {
+    setType(draft.type);
+    setAmount(draft.amount);
+    setCategory(draft.category);
+    setPlatform(draft.platform);
+    setMerchant(draft.merchant);
+    setDescription(draft.description);
+    setDate(draft.date);
+  }
+
+  function selectRecognizedDraft(index: number) {
+    if (index < 0 || index >= recognizedDrafts.length || index === activeRecognizedDraftIndex) return;
+    const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === activeRecognizedDraftIndex ? currentJournalDraft() : draft);
+    setRecognizedDrafts(drafts);
+    setActiveRecognizedDraftIndex(index);
+    applyJournalDraft(drafts[index]);
+  }
+
+  function removeRecognizedDraft(index: number) {
+    const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === activeRecognizedDraftIndex ? currentJournalDraft() : draft);
+    const remaining = drafts.filter((_, draftIndex) => draftIndex !== index);
+    setRecognizedDrafts(remaining);
+    if (remaining.length === 0) {
+      setActiveRecognizedDraftIndex(0);
+      setAmount("");
+      setCategory("餐饮");
+      setPlatform("其他");
+      setMerchant("");
+      setDescription("");
+      setDate(nowText().slice(0, 16));
+      setScreenshotRecognitionNotice(translateText("已移除全部识别订单，可继续手动记账。", locale));
+      return;
+    }
+    const nextIndex = index < activeRecognizedDraftIndex
+      ? activeRecognizedDraftIndex - 1
+      : index === activeRecognizedDraftIndex
+        ? Math.min(index, remaining.length - 1)
+        : activeRecognizedDraftIndex;
+    setActiveRecognizedDraftIndex(nextIndex);
+    applyJournalDraft(remaining[nextIndex]);
+    setScreenshotRecognitionNotice(translateText("已移除这笔订单，剩余 {count} 笔。", locale).replace("{count}", String(remaining.length)));
+  }
+
+  async function saveTransaction() {
+    if (transactionSaving) return;
+    const drafts = recognizedDrafts.length > 0
+      ? recognizedDrafts.map((draft, index) => index === activeRecognizedDraftIndex ? currentJournalDraft() : draft)
+      : [currentJournalDraft()];
+    const invalidIndex = drafts.findIndex((draft) => !Number.isFinite(Number(draft.amount)) || Number(draft.amount) <= 0);
+    if (invalidIndex >= 0) {
+      setScreenshotRecognitionNotice(translateText("第 {number} 笔金额无效，请修改或移除。", locale).replace("{number}", String(invalidIndex + 1)));
+      return;
+    }
+
+    setTransactionSaving(true);
+    setScreenshotRecognitionNotice("");
+    if (recognizedDrafts.length > 0) setRecognizedDrafts(drafts);
+    try {
+      const now = nowText();
+      for (const [index, draft] of drafts.entries()) {
+        const existingTransaction = transaction && (recognizedDrafts.length === 0 || index === 0)
+          ? transaction
+          : null;
+        await repo.saveTransaction({
+          id: existingTransaction?.id ?? draft.id ?? createId("transaction"),
+          userId: existingTransaction?.userId ?? "local-user",
+          accountId: existingTransaction?.accountId ?? getCurrentAccountId(),
+          amount: Number(draft.amount),
+          type: draft.type,
+          category: draft.category,
+          platform: draft.platform,
+          merchant: draft.merchant || null,
+          date: draft.date.length === 16 ? `${draft.date}:00` : draft.date,
+          description: draft.description || null,
+          orderId: existingTransaction?.orderId ?? null,
+          paymentMethod: existingTransaction?.paymentMethod ?? null,
+          status: existingTransaction?.status ?? null,
+          loanId: existingTransaction?.loanId ?? null,
+          remarkCategory: existingTransaction?.remarkCategory ?? null,
+          createdAt: existingTransaction?.createdAt ?? now,
+          updatedAt: now,
+        });
+      }
+      draftSubmittedRef.current = true;
+      clearNewEntryDraft(draftKind);
+      setRecognizedDrafts([]);
+      setActiveRecognizedDraftIndex(0);
+      setAmount("");
+      setMerchant("");
+      setDescription("");
+      setDate(nowText().slice(0, 16));
+      if (type !== "TRANSFER") setCategory(type === "INCOME" ? "工资" : "餐饮");
+      window.dispatchEvent(new Event("stark:transaction-saved"));
+      onSaved?.();
+      handleClose();
+    } catch (error) {
+      setScreenshotRecognitionNotice(error instanceof Error ? `保存失败：${error.message}` : "保存失败，请稍后重试");
+    } finally {
+      setTransactionSaving(false);
+    }
   }
 
   async function recognizeScreenshot(file: File | undefined) {
@@ -455,6 +543,17 @@ export function JournalPanel({
         description?: string | null;
         confidence?: string;
         warnings?: string[];
+        transactions?: Array<{
+          type?: string | null;
+          amount?: number | null;
+          merchant?: string | null;
+          date?: string | null;
+          platform?: string | null;
+          category?: string | null;
+          description?: string | null;
+          confidence?: string;
+          warnings?: string[];
+        }>;
       };
       if (!response.ok) {
         const errorMessage = response.status === 401
@@ -465,49 +564,54 @@ export function JournalPanel({
         throw new Error(errorMessage);
       }
 
-      const recognizedType = payload.type === "INCOME" || payload.type === "TRANSFER" || payload.type === "EXPENSE"
-        ? payload.type
-        : null;
-      const effectiveType = recognizedType ?? type;
-      if (recognizedType) setType(recognizedType);
-      const categoryOptions = effectiveType === "INCOME"
-        ? incomeCategories
-        : effectiveType === "TRANSFER"
-          ? transferCategories
-          : expenseCategories;
-      const suggestedCategory = payload.category && categoryOptions.includes(payload.category) && payload.confidence !== "low"
-        ? payload.category
-        : null;
-      if (suggestedCategory) setCategory(suggestedCategory);
-      else if (recognizedType && recognizedType !== type) {
-        setCategory(recognizedType === "INCOME" ? "工资" : recognizedType === "TRANSFER" ? "转账" : "餐饮");
-      }
-
-      if (typeof payload.amount === "number" && Number.isFinite(payload.amount) && payload.amount > 0) {
-        setAmount(String(payload.amount));
-      }
-      if (typeof payload.merchant === "string" && payload.merchant.trim()) setMerchant(payload.merchant.trim());
-      if (["支付宝", "微信", "银行卡", "现金", "其他"].includes(payload.platform ?? "")) {
-        setPlatform(payload.platform as string);
-      }
-      if (typeof payload.date === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(payload.date)) {
-        setDate(payload.date.slice(0, 16));
-      }
-      if (typeof payload.description === "string" && payload.description.trim()) {
-        setDescription(payload.description.trim());
-      }
-      const reviewMessage = payload.confidence === "low"
-        ? "识别结果把握较低，请重点核对金额和分类"
-        : "截图已识别，请核对后保存";
-      const warnings: string[] = [];
-      if (!(typeof payload.amount === "number" && Number.isFinite(payload.amount) && payload.amount > 0)) {
-        warnings.push("未识别到明确金额，请手工填写");
-      }
-      if (effectiveType === "EXPENSE" && !suggestedCategory) warnings.push("未能确定消费分类，请手动选择");
-      if (Array.isArray(payload.warnings)) {
-        warnings.push(...payload.warnings.filter((item) => typeof item === "string" && item.trim()));
-      }
-      setScreenshotRecognitionNotice(warnings.length ? `${reviewMessage}：${warnings.slice(0, 3).join("；")}` : reviewMessage);
+      const items = Array.isArray(payload.transactions) && payload.transactions.length > 0
+        ? payload.transactions
+        : [payload];
+      const drafts = items.slice(0, 20).map((item, index): JournalDraft => {
+        const recognizedType = item.type === "INCOME" || item.type === "TRANSFER" || item.type === "EXPENSE"
+          ? item.type
+          : "EXPENSE";
+        const categoryOptions = recognizedType === "INCOME"
+          ? incomeCategories
+          : recognizedType === "TRANSFER"
+            ? transferCategories
+            : expenseCategories;
+        const hasCategory = typeof item.category === "string" && categoryOptions.includes(item.category);
+        const amountValid = typeof item.amount === "number" && Number.isFinite(item.amount) && item.amount > 0;
+        const platformValid = ["支付宝", "微信", "银行卡", "现金", "其他"].includes(item.platform ?? "");
+        const dateValid = typeof item.date === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(item.date);
+        const warnings = Array.isArray(item.warnings)
+          ? item.warnings.filter((warning) => typeof warning === "string" && warning.trim())
+          : [];
+        if (!amountValid) warnings.push(translateText("第 {number} 笔没有识别出金额，请手工填写。", locale).replace("{number}", String(index + 1)));
+        if (!hasCategory) warnings.push(translateText("第 {number} 笔分类未确认，请核对。", locale).replace("{number}", String(index + 1)));
+        if (!platformValid) warnings.push(translateText("第 {number} 笔未识别支付账户，已设为其他。", locale).replace("{number}", String(index + 1)));
+        if (!dateValid) warnings.push(translateText("第 {number} 笔未识别交易时间，已填当前时间。", locale).replace("{number}", String(index + 1)));
+        return {
+          id: createId("screenshot-transaction"),
+          type: recognizedType,
+          amount: amountValid ? String(item.amount) : "",
+          category: hasCategory && item.confidence !== "low"
+            ? item.category as string
+            : recognizedType === "INCOME" ? "工资" : recognizedType === "TRANSFER" ? "转账" : "餐饮",
+          platform: platformValid ? item.platform as string : "其他",
+          merchant: typeof item.merchant === "string" ? item.merchant.trim() : "",
+          description: typeof item.description === "string" ? item.description.trim() : "",
+          date: dateValid ? item.date!.slice(0, 16) : nowText().slice(0, 16),
+          confidence: item.confidence,
+          warnings,
+        };
+      });
+      setRecognizedDrafts(drafts);
+      setActiveRecognizedDraftIndex(0);
+      applyJournalDraft(drafts[0]);
+      const reviewMessage = drafts.length > 1
+        ? translateText("识别到 {count} 笔订单，请逐笔核对后保存。", locale).replace("{count}", String(drafts.length))
+        : drafts[0].confidence === "low"
+          ? translateText("识别结果把握较低，请重点核对金额和分类", locale)
+          : translateText("截图已识别，请核对后保存", locale);
+      const warnings = drafts.flatMap((draft) => draft.warnings ?? []).filter((warning, index, all) => all.indexOf(warning) === index);
+      setScreenshotRecognitionNotice(warnings.length ? `${reviewMessage} ${warnings.slice(0, 3).join("；")}` : reviewMessage);
     } catch (error) {
       setScreenshotRecognitionNotice(error instanceof Error && error.name === "AbortError"
         ? "截图识别超时，请稍后重试"
@@ -1073,6 +1177,48 @@ export function JournalPanel({
                       {screenshotRecognitionNotice}
                     </p>
                   ) : null}
+                  {recognizedDrafts.length > 1 ? (
+                    <div className="journal-screenshot-recognition-list">
+                      <div className="journal-screenshot-recognition-list-head">
+                        <strong>{translateText("识别到 {count} 笔订单", locale).replace("{count}", String(recognizedDrafts.length))}</strong>
+                        <span>{translateText("点选逐笔核对，删除不需要记录的订单。", locale)}</span>
+                      </div>
+                      <div className="journal-screenshot-recognition-items">
+                        {recognizedDrafts.map((draft, index) => (
+                          <div key={draft.id ?? index} className={`journal-screenshot-recognition-item ${index === activeRecognizedDraftIndex ? "active" : ""}`}>
+                            <button
+                              type="button"
+                              className="journal-screenshot-recognition-item-select"
+                              onClick={() => selectRecognizedDraft(index)}
+                              aria-pressed={index === activeRecognizedDraftIndex}
+                            >
+                              <span>{translateText("第 {number} 笔", locale).replace("{number}", String(index + 1))}</span>
+                              <strong>{draft.merchant || translateText("订单", locale)}</strong>
+                              <b>{Number(draft.amount) > 0 ? `¥ ${Number(draft.amount).toFixed(2)}` : translateText("待填金额", locale)}</b>
+                            </button>
+                            <button
+                              type="button"
+                              className="journal-screenshot-recognition-item-remove"
+                              aria-label={translateText("删除这笔订单", locale)}
+                              onClick={() => removeRecognizedDraft(index)}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="journal-screenshot-recognition-list-hint">
+                        {translateText("正在编辑第 {number} 笔；保存会把保留的 {count} 笔分别记账。", locale)
+                          .replace("{number}", String(activeRecognizedDraftIndex + 1))
+                          .replace("{count}", String(recognizedDrafts.length))}
+                      </p>
+                      {recognizedDrafts[activeRecognizedDraftIndex]?.warnings?.length ? (
+                        <p className="journal-screenshot-recognition-list-warning">
+                          {recognizedDrafts[activeRecognizedDraftIndex].warnings?.slice(0, 3).join("；")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div> : null}
 
                 {/* 精致分类网格 */}
@@ -1149,6 +1295,9 @@ export function JournalPanel({
                       setAmount("");
                       setMerchant("");
                       setDescription("");
+                      setRecognizedDrafts([]);
+                      setActiveRecognizedDraftIndex(0);
+                      setScreenshotRecognitionNotice("");
                     }}
                   >
                     清空重填
@@ -1157,9 +1306,13 @@ export function JournalPanel({
                     type="button"
                     className="action-main-btn"
                     onClick={() => void saveTransaction()}
-                    disabled={!amount || Number(amount) <= 0}
+                    disabled={transactionSaving || screenshotRecognitionBusy || !amount || Number(amount) <= 0 || recognizedDrafts.some((draft, index) => index !== activeRecognizedDraftIndex && (!draft.amount || Number(draft.amount) <= 0))}
                   >
-                    保存记账
+                    {transactionSaving
+                      ? translateText("正在保存…", locale)
+                      : recognizedDrafts.length > 1
+                        ? translateText("保存 {count} 笔记账", locale).replace("{count}", String(recognizedDrafts.length))
+                        : translateText("保存记账", locale)}
                   </button>
                 </JournalActionDock>
                 </> : (

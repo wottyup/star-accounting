@@ -7192,6 +7192,107 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   color: #64748b;
 }
 
+.journal-screenshot-recognition-list {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d9e4f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.journal-screenshot-recognition-list-head {
+  display: grid;
+  gap: 2px;
+}
+
+.journal-screenshot-recognition-list-head strong {
+  color: #172033;
+  font-size: calc(13px * var(--user-font-scale));
+}
+
+.journal-screenshot-recognition-list-head > span,
+.journal-screenshot-recognition-list-hint,
+.journal-screenshot-recognition-list-warning {
+  margin: 0;
+  color: #718096;
+  font-size: calc(11px * var(--user-font-scale));
+  line-height: 1.45;
+}
+
+.journal-screenshot-recognition-items {
+  display: grid;
+  gap: 6px;
+}
+
+.journal-screenshot-recognition-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 5px 2px 10px;
+  border: 1px solid #e3eaf2;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.journal-screenshot-recognition-item.active {
+  border-color: #7db2e8;
+  background: #f3f8ff;
+}
+
+.journal-screenshot-recognition-item-select {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #334155;
+  text-align: left;
+}
+
+.journal-screenshot-recognition-item-select > span {
+  color: #1767b8;
+  font-size: calc(11px * var(--user-font-scale));
+  white-space: nowrap;
+}
+
+.journal-screenshot-recognition-item-select > strong {
+  overflow: hidden;
+  font-size: calc(12px * var(--user-font-scale));
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-screenshot-recognition-item-select > b {
+  color: #172033;
+  font-size: calc(12px * var(--user-font-scale));
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.journal-screenshot-recognition-item-remove {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: #eef2f7;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.journal-screenshot-recognition-list-warning {
+  color: #9a6700;
+}
+
 .currency-label {
   font-size: calc(26px * var(--user-font-scale));
   font-weight: 600;

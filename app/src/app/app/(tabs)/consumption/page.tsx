@@ -40,6 +40,8 @@ async function getTransactionsForReportingPeriod(accountId: string, period: stri
 }
 
 type ViewMode = "expense" | "income" | "all";
+const INITIAL_DETAIL_LIMIT = 5;
+const DETAIL_LOAD_STEP = 20;
 
 type FilterOption = {
   label: string;
@@ -121,6 +123,7 @@ export default function ConsumptionPage() {
   const [platformFilter, setPlatformFilter] = useState("全部账户");
   const [query, setQuery] = useState("");
   const [detailQuery, setDetailQuery] = useState("");
+  const [detailVisibleCount, setDetailVisibleCount] = useState(INITIAL_DETAIL_LIMIT);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [filterMenuReady, setFilterMenuReady] = useState(false);
@@ -380,9 +383,13 @@ export default function ConsumptionPage() {
   const detailTransactions = useMemo(
     () => [...detailMatchedTransactions]
       .sort((a, b) => transactionTimestamp(b.date) - transactionTimestamp(a.date))
-      .slice(0, 5),
-    [detailMatchedTransactions],
+      .slice(0, detailVisibleCount),
+    [detailMatchedTransactions, detailVisibleCount],
   );
+
+  useEffect(() => {
+    setDetailVisibleCount(INITIAL_DETAIL_LIMIT);
+  }, [accountId, categoryFilter, detailQuery, platformFilter, query, reportingMonth, viewMode]);
 
   function handleReportingMonthChange(month: string) {
     setSelectedReportMonth(month);
@@ -622,7 +629,7 @@ export default function ConsumptionPage() {
             <strong>¥{formatMoney(monthSummary.topCategoryAmount)}</strong>
           </span>
         </div>
-        <p className="consumption-detail-count">{locale === "en-US" ? `${filteredTransactions.length} filtered results · showing the latest ${Math.min(detailMatchedTransactions.length, 5)}` : `${filteredTransactions.length} 笔筛选结果 · 显示最近 ${Math.min(detailMatchedTransactions.length, 5)} 笔`}</p>
+        <p className="consumption-detail-count">{locale === "en-US" ? `${detailMatchedTransactions.length} matching results · showing ${detailTransactions.length}` : `${detailMatchedTransactions.length} 笔匹配流水 · 当前显示 ${detailTransactions.length} 笔`}</p>
         <label className="detail-search-wrap">
           <SearchIcon />
           <input value={detailQuery} onChange={(event) => setDetailQuery(event.target.value)} placeholder={locale === "en-US" ? "Search within filtered results" : "在当前筛选结果中搜索"} />
@@ -647,6 +654,17 @@ export default function ConsumptionPage() {
             );
           }) : <div className="consumption-empty-state">{locale === "en-US" ? "No transactions match the current filters" : "当前筛选下暂无流水"}</div>}
         </div>
+        {detailTransactions.length < detailMatchedTransactions.length ? (
+          <button
+            type="button"
+            className="bill-remark-load-more"
+            onClick={() => setDetailVisibleCount((count) => Math.min(count + DETAIL_LOAD_STEP, detailMatchedTransactions.length))}
+          >
+            {locale === "en-US"
+              ? `Load more (${detailMatchedTransactions.length - detailTransactions.length} remaining)`
+              : `加载更多（还有 ${detailMatchedTransactions.length - detailTransactions.length} 笔）`}
+          </button>
+        ) : null}
       </section>
 
       {editingTransaction ? <JournalPanel mode="sheet" variant="journal" transaction={editingTransaction} onClose={() => setEditingTransaction(null)} onSaved={() => { setEditingTransaction(null); }} /> : null}

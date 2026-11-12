@@ -25,8 +25,9 @@ const (
 )
 
 var (
-	receiptIdentifierPattern = regexp.MustCompile(`(?i)(订单号|订单编号|商户单号|交易号|流水号|支付凭证号|账单编号)\s*[:：#-]?\s*[a-z0-9_-]+`)
-	longNumberPattern        = regexp.MustCompile(`\b\d{10,}\b`)
+	receiptIdentifierPattern  = regexp.MustCompile(`(?i)(订单号|订单编号|商户单号|交易号|流水号|支付凭证号|账单编号)\s*[:：#-]?\s*[a-z0-9_-]+`)
+	longNumberPattern         = regexp.MustCompile(`\b\d{10,}\b`)
+	providerCredentialPattern = regexp.MustCompile(`(?i)(x-api-key|api[_-]?key|authorization)\s*[:=]\s*(?:bearer\s+)?[^\s,"]+`)
 )
 
 type screenshotRecognition struct {
@@ -66,7 +67,7 @@ func registerScreenshotRecognitionRoute(router chi.Router, authService *auth.Ser
 			}
 			result, err := requestScreenshotRecognition(request.Context(), provider, image, contentType, allowPrivateEndpoints)
 			if err != nil {
-				writeJSON(writer, http.StatusBadGateway, map[string]string{"error": "截图识别失败，请稍后重试"})
+				writeJSON(writer, http.StatusBadGateway, map[string]string{"error": publicScreenshotRecognitionError(err, provider.APIKey)})
 				return
 			}
 			writeJSON(writer, http.StatusOK, result)
@@ -186,11 +187,19 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		return screenshotRecognition{}, err
+		return screenshotRecognition{}, fmt.Errorf("vision service request failed: %w", err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return screenshotRecognition{}, fmt.Errorf("vision service returned %d", response.StatusCode)
+		providerErrorBody, readErr := io.ReadAll(io.LimitReader(response.Body, 8<<10))
+		if readErr != nil {
+			return screenshotRecognition{}, fmt.Errorf("vision service returned HTTP %d (could not read error response)", response.StatusCode)
+		}
+		detail := providerErrorDescription(providerErrorBody)
+		if detail == "" {
+			return screenshotRecognition{}, fmt.Errorf("vision service returned HTTP %d", response.StatusCode)
+		}
+		return screenshotRecognition{}, fmt.Errorf("vision service returned HTTP %d: %s", response.StatusCode, detail)
 	}
 	responseBody, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
 	if err != nil {
@@ -260,6 +269,88 @@ func requestScreenshotRecognition(parent context.Context, provider vision.Provid
 	}
 	result.Warnings = warnings
 	return result, nil
+}
+
+func providerErrorDescription(body []byte) string {
+	var envelope struct {
+		Error   json.RawMessage `json:"error"`
+		Message string          `json:"message"`
+	}
+	if json.Unmarshal(body, &envelope) != nil {
+		return ""
+	}
+	if len(envelope.Error) > 0 && string(envelope.Error) != "null" {
+		var detail struct {
+			Type    string          `json:"type"`
+			Code    json.RawMessage `json:"code"`
+			Message string          `json:"message"`
+		}
+		if json.Unmarshal(envelope.Error, &detail) == nil {
+			parts := make([]string, 0, 3)
+			if detail.Type != "" {
+				parts = append(parts, detail.Type)
+			}
+			if len(detail.Code) > 0 && string(detail.Code) != "null" {
+				var code string
+				if json.Unmarshal(detail.Code, &code) == nil {
+					parts = append(parts, code)
+				} else {
+					parts = append(parts, string(detail.Code))
+				}
+			}
+			if detail.Message != "" {
+				parts = append(parts, detail.Message)
+			}
+			return strings.Join(parts, ": ")
+		}
+		var message string
+		if json.Unmarshal(envelope.Error, &message) == nil {
+			return message
+		}
+	}
+	return envelope.Message
+}
+
+func publicScreenshotRecognitionError(err error, apiKey string) string {
+	if err == nil {
+		return "截图识别失败，请稍后重试"
+	}
+	message := safeScreenshotErrorText(err.Error(), apiKey)
+	switch {
+	case strings.HasPrefix(message, "vision service returned HTTP "):
+		return "模型服务返回错误：" + strings.TrimPrefix(message, "vision service returned ")
+	case strings.Contains(message, "context deadline exceeded") || strings.Contains(message, "Client.Timeout exceeded"):
+		return "模型服务请求超时，请检查模型服务状态后重试"
+	case strings.Contains(message, "vision service request failed:"):
+		return "连接模型服务失败：" + strings.TrimSpace(strings.TrimPrefix(message, "vision service request failed:"))
+	case message == "invalid vision response":
+		return "模型服务返回了无法解析的响应"
+	case message == "empty vision response":
+		return "模型服务没有返回识别内容"
+	case message == "invalid recognition payload":
+		return "模型返回的内容不是有效记账数据，请重试或调整识别模型"
+	default:
+		return "截图识别失败：" + message
+	}
+}
+
+func safeScreenshotErrorText(message, apiKey string) string {
+	if apiKey != "" {
+		message = strings.ReplaceAll(message, apiKey, "[已隐藏]")
+	}
+	message = providerCredentialPattern.ReplaceAllString(message, "$1: [已隐藏]")
+	message = strings.Map(func(char rune) rune {
+		if char < 0x20 || char == 0x7f {
+			return ' '
+		}
+		return char
+	}, message)
+	message = strings.Join(strings.Fields(message), " ")
+	runes := []rune(message)
+	if len(runes) > 240 {
+		message = string(runes[:240]) + "…"
+	}
+	return message
 }
 
 func validTransactionType(value *string) *string {

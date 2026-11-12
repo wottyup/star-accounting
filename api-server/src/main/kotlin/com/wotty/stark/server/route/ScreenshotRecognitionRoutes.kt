@@ -44,7 +44,7 @@ private val visionHttpClient: HttpClient = HttpClient.newBuilder()
     .build()
 
 @Serializable
-private data class ScreenshotRecognitionResponse(
+private data class ScreenshotRecognitionTransaction(
     val type: String? = null,
     val amount: Double? = null,
     val merchant: String? = null,
@@ -54,6 +54,21 @@ private data class ScreenshotRecognitionResponse(
     val description: String? = null,
     val confidence: String = "low",
     val warnings: List<String> = emptyList(),
+)
+
+@Serializable
+private data class ScreenshotRecognitionResponse(
+    val transactions: List<ScreenshotRecognitionTransaction>,
+    // Keep first-entry fields for older clients; current clients use transactions.
+    val type: String?,
+    val amount: Double?,
+    val merchant: String?,
+    val date: String?,
+    val platform: String?,
+    val category: String?,
+    val description: String?,
+    val confidence: String,
+    val warnings: List<String>,
 )
 
 private data class UploadedScreenshot(val bytes: ByteArray, val mimeType: String)
@@ -178,7 +193,9 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     val imageBase64 = Base64.getEncoder().encodeToString(image.bytes)
     val dataUrl = "data:${image.mimeType};base64,$imageBase64"
     val prompt = """识别这张支付或订单截图，提取可直接辅助记账的信息。严格遵守：
-- 金额优先取最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
+- 必须识别截图中的所有独立订单或交易；每笔分别输出，最多 20 笔。禁止只返回第一笔，也不要把多笔金额合并成总额。
+- 同一订单包含多个商品仍算一笔；订单列表中的合计、优惠汇总和重复展示的同一订单不要当成额外交易。
+- 金额优先取每笔订单最终实付金额；不确定、被遮挡或只出现商品原价时返回 null，不要猜。
 - 只有截图明确表示已支付或完成交易时才判断为 EXPENSE；明确收款/退款时可用 INCOME；转账用 TRANSFER。看不清交易状态时 type 为 null。
 - 商户尽量提取实际收款商户（如小象超市、拼多多）；支付宝或微信只是支付平台时，不要把它当商户。
 - 分类必须从这些值中选最贴合的一项：餐饮、外卖、买菜、闲食、水果、肉类、水产、糖果、甜品、下午茶、饮品、酒类、烟草、购物、服装、鞋类、美容、个人护理、理发、宠物、母婴、玩具、礼物、红包、交通、公交地铁、打车、出行、旅游、加油、充电、汽车保养、停车费、住房、房租、物业费、家具、家电、装修、水费、电费、燃气、网费、清洁、清洁优化、日常清洁、家政、维修、日用、生活用品、通讯、电子产品、影音、打印、医疗、药品、门诊、体育、户外、教育、图书、娱乐、会员订阅、工具、保险、税费手续费、花圃、其他。依据商品明细分类；只知道平台而不知道商品时用购物或其他。
@@ -186,7 +203,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
 - 日期只提取截图中清晰可见的交易时间，格式 YYYY-MM-DDTHH:mm；否则返回 null。
 - description 只可写简短商品/订单内容摘要；绝不包含订单号、商户单号、流水号、手机号、账号或支付凭证编号。
 - confidence 为 high、medium、low 之一；任何关键字段不确定时降低置信度，并在 warnings 用中文简短说明。
-只输出 JSON 对象，字段固定为 type、amount、merchant、date、platform、category、description、confidence、warnings。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。"""
+只输出 JSON 对象，格式为 {"transactions":[{...}]}。transactions 中每一笔都必须包含 type、amount、merchant、date、platform、category、description、confidence、warnings 字段；即使只有一笔也必须放在数组中。没有可识别交易时返回 {"transactions":[]}。平台只能是支付宝、微信、银行卡、现金、其他之一；未知值为 null。"""
     val anthropic = provider.apiFormat == "anthropic"
     val requestJson = if (anthropic) {
         buildJsonObject {
@@ -264,9 +281,30 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     }.getOrNull()?.trim()?.removePrefix("```json")?.removePrefix("```")?.trim()?.removeSuffix("```")?.trim()
         ?: return null
     val parsed = extractRecognitionJsonObject(content) ?: return null
+    val entries = (parsed["transactions"] as? JsonArray)
+        ?.mapNotNull { it as? JsonObject }
+        ?: listOf(parsed)
+    val transactions = entries.take(20).map(::parseScreenshotRecognitionTransaction)
+    val first = transactions.firstOrNull() ?: return null
+    return ScreenshotRecognitionResponse(
+        transactions = transactions,
+        type = first.type,
+        amount = first.amount,
+        merchant = first.merchant,
+        date = first.date,
+        platform = first.platform,
+        category = first.category,
+        description = first.description,
+        confidence = first.confidence,
+        warnings = first.warnings,
+    )
+}
+
+private fun parseScreenshotRecognitionTransaction(parsed: JsonObject): ScreenshotRecognitionTransaction {
     fun stringValue(field: String) = (parsed[field] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
     val type = stringValue("type")?.takeIf { it in setOf("EXPENSE", "INCOME", "TRANSFER") }
-    val amount = (parsed["amount"] as? kotlinx.serialization.json.JsonPrimitive)?.doubleOrNull?.takeIf { it > 0 && it <= 1_000_000_000 }
+    val amount = (parsed["amount"] as? kotlinx.serialization.json.JsonPrimitive)?.doubleOrNull
+        ?.takeIf { it > 0 && it <= 1_000_000_000 }
     val merchant = stringValue("merchant")?.safeRecognitionText(120)
     val rawDate = stringValue("date")
     val date = rawDate?.takeIf { runCatching { LocalDateTime.parse(it) }.isSuccess }
@@ -278,7 +316,7 @@ private suspend fun requestScreenshotRecognition(image: UploadedScreenshot, prov
     val warnings = (parsed["warnings"] as? JsonArray)?.mapNotNull {
         (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.safeRecognitionText(120)
     }?.take(4).orEmpty()
-    return ScreenshotRecognitionResponse(type, amount, merchant, date, platform, category, description, confidence, warnings)
+    return ScreenshotRecognitionTransaction(type, amount, merchant, date, platform, category, description, confidence, warnings)
 }
 
 private fun extractRecognitionJsonObject(raw: String): JsonObject? {

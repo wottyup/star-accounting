@@ -8,7 +8,7 @@ import io.ktor.server.auth.principal
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Routing
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -222,7 +222,7 @@ private suspend fun testAIVisionConnection(provider: AIVisionProviderConfig, all
     }
 }
 
-fun Routing.aiVisionSettingsRoutes() {
+fun Route.aiVisionSettingsRoutes() {
     route("/api/settings/ai-vision") {
         get {
             val userId = call.currentAIVisionUserId()

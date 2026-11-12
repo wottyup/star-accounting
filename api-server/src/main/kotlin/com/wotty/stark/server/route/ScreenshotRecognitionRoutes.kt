@@ -9,7 +9,7 @@ import io.ktor.server.auth.principal
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Routing
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.Dispatchers
@@ -57,7 +57,7 @@ private data class ScreenshotRecognitionResponse(
 
 private data class UploadedScreenshot(val bytes: ByteArray, val mimeType: String)
 
-fun Routing.screenshotRecognitionRoutes() {
+fun Route.screenshotRecognitionRoutes() {
     post("/api/transactions/recognize-screenshot") {
         val userId = call.principal<JWTPrincipal>()?.payload?.getClaim("userId")?.asString()
             ?.takeIf(String::isNotBlank)

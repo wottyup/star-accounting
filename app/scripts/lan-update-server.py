@@ -9,6 +9,23 @@ from pathlib import Path
 
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        if self.path.partition("?")[0] == "/version.json":
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        if self.path.partition("?")[0] != "/version.json":
+            self.send_error(405, "Method not allowed")
+            return
+
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def send_head(self):
         path = self.translate_path(self.path)
         if not os.path.isfile(path):

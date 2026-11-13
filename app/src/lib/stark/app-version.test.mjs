@@ -9,5 +9,5 @@ test("compares APK versions by version code instead of version name text", () =>
 });
 
 test("uses the exact StarAccounting update manifest URL", () => {
-  assert.equal(APP_UPDATE_URL, "https://s.wotty.app/version.json");
+  assert.equal(APP_UPDATE_URL, "http://10.126.126.3:18767/version.json");
 });

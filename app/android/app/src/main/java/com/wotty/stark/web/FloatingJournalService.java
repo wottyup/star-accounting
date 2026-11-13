@@ -313,7 +313,11 @@ public class FloatingJournalService extends Service {
 
     private void captureCurrentScreen() {
         if (mediaProjection == null || imageReader == null || captureHandler == null) {
-            publishAction("screen", "先在设置中允许屏幕共享；已打开手动记账，也可以上传支付截图。", null);
+            setServiceState(true, false);
+            android.widget.Toast.makeText(
+                    this,
+                    "请先到设置的“悬浮记账”中开启屏幕识别；也可以选择上传图片识别。",
+                    android.widget.Toast.LENGTH_LONG).show();
             return;
         }
         if (!captureInProgress.compareAndSet(false, true)) return;

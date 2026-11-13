@@ -64,7 +64,7 @@ export function FloatingJournalSettings() {
         ? translateText("屏幕识别已开启。系统会显示屏幕共享提示，点击悬浮按钮时才会截取当前画面。", locale)
         : result.enabled
           ? translateText("屏幕识别未能启动；你仍可以使用悬浮上传图片或手动记账。", locale)
-          : translateText("未授权屏幕共享；悬浮菜单仍可上传图片，识别屏幕时会打开手动记账。", locale));
+          : translateText("未授权屏幕共享；上传图片和手动记账仍可用，请先开启屏幕识别再识别当前屏幕。", locale));
     } catch (error) {
       setNotice(error instanceof Error ? error.message : translateText("开启屏幕识别失败，请重试。", locale));
     } finally {

@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -18,6 +19,7 @@ import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -212,6 +214,13 @@ public class FloatingJournalService extends Service {
         journalOverlayRoot.setBackgroundColor(Color.TRANSPARENT);
         journalOverlayRoot.setFocusableInTouchMode(true);
         journalOverlayRoot.setVisibility(View.INVISIBLE);
+        journalOverlayRoot.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(24));
+            }
+        });
+        journalOverlayRoot.setClipToOutline(true);
 
         journalWebView = new WebView(this);
         WebSettings settings = journalWebView.getSettings();

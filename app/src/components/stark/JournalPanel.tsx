@@ -1273,7 +1273,11 @@ export function JournalPanel({
                       disabled={screenshotRecognitionBusy}
                       onClick={() => screenshotRecognitionInputRef.current?.click()}
                     >
-                      {screenshotRecognitionBusy ? "正在识别…" : "📷 上传截图识别"}
+                      <svg className="journal-screenshot-recognition-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+                        <path d="M4.25 8.25h3.1l1.4-2h6.5l1.4 2h3.1a1.25 1.25 0 0 1 1.25 1.25v8.25A1.25 1.25 0 0 1 19.75 19h-15a1.25 1.25 0 0 1-1.25-1.25V9.5a1.25 1.25 0 0 1 1.25-1.25Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx="12.25" cy="13.25" r="3.1" stroke="currentColor" strokeWidth="1.8" />
+                      </svg>
+                      <span>{screenshotRecognitionBusy ? "正在识别…" : "上传截图识别"}</span>
                     </button>
                     <span>截图会发送到已配置的 AI 服务识别；不会保存原图或自动入账，请核对结果。</span>
                   </div>

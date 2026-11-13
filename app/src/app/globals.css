@@ -7200,6 +7200,10 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
 
 .journal-screenshot-recognition-button {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid #246fd0;
@@ -7211,6 +7215,12 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   white-space: nowrap;
   box-shadow: 0 4px 10px rgba(33, 108, 204, 0.22);
   cursor: pointer;
+}
+
+.journal-screenshot-recognition-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
 }
 
 .journal-screenshot-recognition-button:disabled {

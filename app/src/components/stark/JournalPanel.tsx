@@ -20,7 +20,6 @@ import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMar
 import { useSheetPresentation } from "@/components/stark/useSheetPresentation";
 import { JournalActionDock, JournalActionTargetContext } from "@/components/stark/JournalActionDock";
 import { translateText, useAppLocale } from "@/lib/stark/i18n";
-import { floatingJournal, isFloatingJournalAvailable, type FloatingJournalAction } from "@/lib/stark/floating-journal";
 
 const SavingsPlanner = dynamic(
   () => import("@/components/stark/SavingsPlanner").then((module) => module.SavingsPlanner),
@@ -90,7 +89,6 @@ export type JournalPanelProps = {
   savingsPlan?: SavingsPlan;
   savingsGoal?: SavingsGoal;
   transaction?: Transaction;
-  floatingAction?: FloatingJournalAction | null;
   floatingOverlay?: boolean;
   asset?: Asset;
   loan?: Loan;
@@ -107,7 +105,6 @@ export function JournalPanel({
   savingsPlan,
   savingsGoal,
   transaction,
-  floatingAction,
   floatingOverlay = false,
   asset,
   loan,
@@ -155,7 +152,6 @@ export function JournalPanel({
   const [screenshotRecognitionNotice, setScreenshotRecognitionNotice] = useState("");
   const [recognizedDrafts, setRecognizedDrafts] = useState<JournalDraft[]>([]);
   const [activeRecognizedDraftIndex, setActiveRecognizedDraftIndex] = useState(0);
-  const handledFloatingActionRef = useRef<string | null>(null);
   const [transactionSaving, setTransactionSaving] = useState(false);
   const [recordSaving, setRecordSaving] = useState(false);
   const [recordNotice, setRecordNotice] = useState("");
@@ -676,47 +672,6 @@ export function JournalPanel({
       if (screenshotRecognitionInputRef.current) screenshotRecognitionInputRef.current.value = "";
     }
   }
-
-  useEffect(() => {
-    if (!floatingAction || handledFloatingActionRef.current === floatingAction.actionId) return;
-    handledFloatingActionRef.current = floatingAction.actionId;
-
-    const recognizeDataUrl = async (dataUrl: string, fileName: string) => {
-      try {
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
-        const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-        await recognizeScreenshot(new File([blob], `${fileName}.${extension}`, { type: blob.type || "image/jpeg" }));
-      } catch {
-        setScreenshotRecognitionNotice(translateText("屏幕截图无法读取，已打开手动记账；也可以重新上传图片。", locale));
-      }
-    };
-
-    if (floatingAction.mode === "screen") {
-      if (floatingAction.imageData) {
-        void recognizeDataUrl(`data:image/jpeg;base64,${floatingAction.imageData}`, `floating-screen-${floatingAction.actionId}`);
-      } else {
-        setScreenshotRecognitionNotice(translateText(floatingAction.message || "没有读取到屏幕画面，已打开手动记账；也可以上传支付截图。", locale));
-      }
-      return;
-    }
-
-    if (!isFloatingJournalAvailable()) {
-      setScreenshotRecognitionNotice(translateText("表单已就绪，点击“截图识别”后选择支付图片；也可以直接手动记账。", locale));
-      return;
-    }
-    setScreenshotRecognitionNotice(translateText("请选择要识别的支付图片；也可以取消后手动记账。", locale));
-    void floatingJournal().selectImage().then((selection) => {
-      if (selection.canceled) {
-        setScreenshotRecognitionNotice(translateText("已取消选择图片，可继续手动记账。", locale));
-        return;
-      }
-      if (!selection.dataUrl) throw new Error("所选图片无法读取，请重新选择。");
-      return recognizeDataUrl(selection.dataUrl, selection.fileName || `floating-upload-${floatingAction.actionId}`);
-    }).catch((error) => {
-      setScreenshotRecognitionNotice(translateText(error instanceof Error ? error.message : "图片读取失败，可继续手动记账。", locale));
-    });
-  }, [floatingAction, locale]);
 
   async function saveRepayment() {
     if (!loan) return;

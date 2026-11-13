@@ -405,7 +405,7 @@ export default function AccountsPage() {
         <SettingsRow type="REMARK" title="账单归类" value="转账可归入支出分类" onClick={() => setActivePanel("REMARK")} />
         <SettingsRow type="SUBSCRIPTIONS" title="订阅/扣费管理" value="按月自动记账" onClick={() => setActivePanel("SUBSCRIPTIONS")} />
         <SettingsRow type="AI_VISION" title="AI 截图识别" value={cloudUser ? "配置截图识别模型" : "需云端账户"} onClick={() => setActivePanel("AI_VISION")} />
-        {isAndroidApp ? <SettingsRow type="FLOATING" title="悬浮记账" value="屏幕识别 / 上传图片" onClick={() => setActivePanel("FLOATING")} /> : null}
+        {isAndroidApp ? <SettingsRow type="FLOATING" title="悬浮记账" value="点击后直接记账" onClick={() => setActivePanel("FLOATING")} /> : null}
       </section>
 
       <section className="settings-center-group">

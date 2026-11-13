@@ -10659,8 +10659,7 @@ img[src$="/qita.webp"] {
 .floating-journal-settings .floating-journal-permission-status > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .floating-journal-settings .floating-journal-permission-status span { color: #6f7b8c; }
 .floating-journal-settings .floating-journal-permission-status strong { color: #27364d; font-weight: 650; }
-.floating-journal-settings .floating-journal-disable,
-.floating-journal-settings .floating-journal-stop-capture { width: 100%; margin-top: 10px; }
+.floating-journal-settings .floating-journal-disable { width: 100%; margin-top: 10px; }
 
 /* ── 账单归类（账户设置页） ── */
 .bill-remark-sheet {

@@ -271,9 +271,11 @@ public class FloatingJournalService extends Service {
                 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                 : WindowManager.LayoutParams.TYPE_PHONE;
         DisplayMetrics overlayMetrics = getResources().getDisplayMetrics();
+        int currentOverlayHeight = Math.max(dp(400), Math.min(dp(760), overlayMetrics.heightPixels - dp(80)));
+        int overlayHeight = Math.max(dp(320), Math.round(currentOverlayHeight * 0.8f));
         journalOverlayParams = new WindowManager.LayoutParams(
                 Math.max(dp(260), Math.min(dp(420), overlayMetrics.widthPixels - dp(72))),
-                Math.max(dp(400), Math.min(dp(760), overlayMetrics.heightPixels - dp(80))),
+                overlayHeight,
                 overlayType,
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE

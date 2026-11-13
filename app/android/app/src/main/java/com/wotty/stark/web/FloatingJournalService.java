@@ -28,6 +28,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -54,7 +55,7 @@ public class FloatingJournalService extends Service {
     private final Handler mainHandler = new Handler();
     private WindowManager windowManager;
     private LinearLayout overlayRoot;
-    private TextView bubble;
+    private ImageView bubble;
     private WindowManager.LayoutParams overlayParams;
     private FrameLayout journalOverlayRoot;
     private WebView journalWebView;
@@ -495,19 +496,15 @@ public class FloatingJournalService extends Service {
         overlayRoot = new LinearLayout(this);
         overlayRoot.setOrientation(LinearLayout.VERTICAL);
         overlayRoot.setGravity(Gravity.END);
-        int padding = dp(7);
-        overlayRoot.setPadding(padding, padding, padding, padding);
 
-        bubble = new TextView(this);
-        bubble.setText("记");
-        bubble.setTextColor(Color.WHITE);
-        bubble.setTextSize(18);
-        bubble.getPaint().setFakeBoldText(true);
-        bubble.setGravity(Gravity.CENTER);
-        bubble.setElevation(dp(9));
-        bubble.setBackground(background(0xFF3178DC, dp(28), 0x00000000));
-        LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(dp(54), dp(54));
-        bubbleParams.topMargin = dp(8);
+        bubble = new ImageView(this);
+        bubble.setImageResource(R.drawable.ic_launcher_vector);
+        bubble.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        bubble.setContentDescription("星会计记账");
+        bubble.setFocusable(true);
+        bubble.setClickable(true);
+        bubble.setOnClickListener(view -> openJournalOverlay());
+        LinearLayout.LayoutParams bubbleParams = new LinearLayout.LayoutParams(dp(48), dp(48));
         overlayRoot.addView(bubble, bubbleParams);
         bubble.setOnTouchListener(this::onBubbleTouch);
 
@@ -554,7 +551,7 @@ public class FloatingJournalService extends Service {
                 }
                 return true;
             case MotionEvent.ACTION_UP:
-                if (!dragged) openJournalOverlay();
+                if (!dragged) view.performClick();
                 return true;
             default:
                 return false;

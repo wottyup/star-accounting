@@ -103,6 +103,7 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div
+      className="tabs-layout-root"
       style={{
         minHeight: "100dvh",
         paddingTop: "env(safe-area-inset-top)",

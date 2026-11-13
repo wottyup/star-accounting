@@ -118,6 +118,14 @@ public class FloatingJournalService extends Service {
         return running;
     }
 
+    public static boolean closeVisibleJournalOverlayFromBack() {
+        FloatingJournalService service = currentService;
+        if (service == null || service.journalOverlayRoot == null || !service.journalOverlayAttached
+                || service.journalOverlayRoot.getVisibility() != View.VISIBLE) return false;
+        service.closeJournalOverlay();
+        return true;
+    }
+
     private void startForegroundSafely() {
         Notification notification = buildNotification();
         if (Build.VERSION.SDK_INT >= 34) {

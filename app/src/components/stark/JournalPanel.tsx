@@ -55,6 +55,8 @@ type JournalDraft = {
   date: string;
   confidence?: string;
   warnings?: string[];
+  recognizedDrafts?: JournalDraft[];
+  activeRecognizedDraftIndex?: number;
 };
 
 type AssetDraft = {
@@ -263,6 +265,16 @@ export function JournalPanel({
         setMerchant(draft.merchant);
         setDescription(draft.description);
         setDate(draft.date);
+        if (Array.isArray(draft.recognizedDrafts)) {
+          const recognizedDrafts = draft.recognizedDrafts.filter((item) => (
+            item && typeof item.amount === "string" && typeof item.merchant === "string" && typeof item.description === "string"
+          ));
+          setRecognizedDrafts(recognizedDrafts);
+          setActiveRecognizedDraftIndex(Math.min(
+            Math.max(0, draft.activeRecognizedDraftIndex ?? 0),
+            Math.max(0, recognizedDrafts.length - 1),
+          ));
+        }
       }
     }
     setDraftReady(true);
@@ -283,9 +295,36 @@ export function JournalPanel({
     } else if (draftKind === "loan") {
       saveNewEntryDraft(draftKind, { loanPlatform, loanMatchKeywords, loanTotalAmount, loanRemainingAmount, loanMonthlyPayment, loanPeriods, loanDueDay } satisfies LoanDraft);
     } else {
-      saveNewEntryDraft(draftKind, { type, amount, category, platform, shoppingPlatform, merchant, description, date } satisfies JournalDraft);
+      const activeDraft = recognizedDrafts[activeRecognizedDraftIndex] ?? {
+        type,
+        amount,
+        category,
+        platform,
+        shoppingPlatform,
+        merchant,
+        description,
+        date,
+      };
+      const currentRecognizedDraft: JournalDraft = recognizedDrafts.length > 1
+        ? { ...activeDraft, type, category, platform, shoppingPlatform, date }
+        : { ...activeDraft, type, amount, category, platform, shoppingPlatform, merchant, description, date };
+      const savedRecognizedDrafts = recognizedDrafts.length > 0
+        ? recognizedDrafts.map((draft, index) => index === activeRecognizedDraftIndex ? currentRecognizedDraft : draft)
+        : [];
+      saveNewEntryDraft(draftKind, {
+        type,
+        amount,
+        category,
+        platform,
+        shoppingPlatform,
+        merchant,
+        description,
+        date,
+        recognizedDrafts: savedRecognizedDrafts,
+        activeRecognizedDraftIndex,
+      } satisfies JournalDraft);
     }
-  }, [assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, shoppingPlatform, type]);
+  }, [activeRecognizedDraftIndex, assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, recognizedDrafts, shoppingPlatform, type]);
 
   useEffect(() => {
     if (sheetReady && !closingRef.current) setVisible(true);
@@ -363,26 +402,34 @@ export function JournalPanel({
       }
     : undefined;
 
-  const touchStart = useRef({ x: 0, y: 0, allowClose: false, outsidePanel: false, leftEdge: false });
+  const touchStart = useRef({ x: 0, y: 0, allowClose: false, outsidePanel: false, edge: "" as "left" | "right" | "" });
   const panelRef = useRef<HTMLDivElement | null>(null);
   function handleTouchStart(e: React.TouchEvent) {
     const touch = e.touches[0];
     const panel = panelRef.current;
     const insidePanel = Boolean(panel?.contains(e.target as Node));
-    const panelTop = panel?.getBoundingClientRect().top ?? 0;
-    // 只有在顶部 50px 标题拖拽区域才允许横滑返回，防止子模块左右滑动误触
+    const panelBounds = panel?.getBoundingClientRect();
+    const panelTop = panelBounds?.top ?? 0;
+    // 标题栏保留横滑返回；悬浮卡片只在左右边缘识别内滑，避免误关横向内容区。
     const inTopHeaderRegion = insidePanel && touch.clientY <= panelTop + 50;
+    const edgeSwipe = insidePanel && floatingOverlay && panelBounds
+      ? touch.clientX - panelBounds.left <= 24
+        ? "left"
+        : panelBounds.right - touch.clientX <= 24
+          ? "right"
+          : ""
+      : "";
     touchStart.current = {
       x: touch.clientX,
       y: touch.clientY,
-      allowClose: inTopHeaderRegion,
+      allowClose: inTopHeaderRegion || Boolean(edgeSwipe),
       outsidePanel: !insidePanel,
-      leftEdge: touch.clientX <= 20,
+      edge: edgeSwipe,
     };
   }
   function handleTouchMove(e: React.TouchEvent) {
     const start = touchStart.current;
-    if (!isPage || (!start.outsidePanel && !start.leftEdge)) return;
+    if (!isPage || (!start.outsidePanel && !start.edge)) return;
     const touch = e.touches[0];
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
@@ -396,7 +443,12 @@ export function JournalPanel({
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
     const isHorizontal = Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.25;
-    if (isHorizontal) handleClose();
+    const swipedInwardFromEdge = start.edge === "left"
+      ? dx > 60
+      : start.edge === "right"
+        ? dx < -60
+        : true;
+    if (isHorizontal && swipedInwardFromEdge) handleClose();
   }
 
   function currentJournalDraft(): JournalDraft {
@@ -1217,10 +1269,11 @@ export function JournalPanel({
                     <button
                       type="button"
                       className="journal-screenshot-recognition-button"
+                      aria-label="上传截图并识别账单"
                       disabled={screenshotRecognitionBusy}
                       onClick={() => screenshotRecognitionInputRef.current?.click()}
                     >
-                      {screenshotRecognitionBusy ? "正在识别…" : "✨ 截图识别"}
+                      {screenshotRecognitionBusy ? "正在识别…" : "📷 上传截图识别"}
                     </button>
                     <span>截图会发送到已配置的 AI 服务识别；不会保存原图或自动入账，请核对结果。</span>
                   </div>

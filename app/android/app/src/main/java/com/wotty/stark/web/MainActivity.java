@@ -16,6 +16,7 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onBackPressed() {
+        if (FloatingJournalService.closeVisibleJournalOverlayFromBack()) return;
         WebView webView = this.bridge != null ? this.bridge.getWebView() : null;
         if (webView == null) {
             super.onBackPressed();

@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewOutlineProvider;
@@ -210,7 +211,25 @@ public class FloatingJournalService extends Service {
     }
 
     private void createJournalOverlay() {
-        journalOverlayRoot = new FrameLayout(this);
+        journalOverlayRoot = new FrameLayout(this) {
+            @Override
+            public boolean dispatchKeyEvent(KeyEvent event) {
+                if (event.getKeyCode() != KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(event);
+
+                // This Service window receives Back independently of the main Activity.
+                // Handle it before the focused WebView can consume the key event.
+                KeyEvent.DispatcherState dispatcher = getKeyDispatcherState();
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (event.getRepeatCount() == 0 && dispatcher != null) {
+                        dispatcher.startTracking(event, this);
+                    }
+                } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                    if (dispatcher != null) dispatcher.handleUpEvent(event);
+                    if (event.isTracking() && !event.isCanceled()) closeJournalOverlay();
+                }
+                return true;
+            }
+        };
         journalOverlayRoot.setBackgroundColor(Color.TRANSPARENT);
         journalOverlayRoot.setFocusableInTouchMode(true);
         journalOverlayRoot.setVisibility(View.INVISIBLE);
@@ -343,6 +362,7 @@ public class FloatingJournalService extends Service {
             }
             if (overlayRoot != null) overlayRoot.setVisibility(View.GONE);
             journalOverlayRoot.setVisibility(View.VISIBLE);
+            journalWebView.requestFocus();
         } catch (RuntimeException error) {
             journalOverlayExpectedUrl = null;
             if (overlayRoot != null) overlayRoot.setVisibility(View.VISIBLE);
@@ -437,6 +457,7 @@ public class FloatingJournalService extends Service {
                 journalOverlayAttached = true;
             }
             journalOverlayRoot.setVisibility(View.VISIBLE);
+            journalWebView.requestFocus();
         } catch (RuntimeException ignored) { }
     }
 

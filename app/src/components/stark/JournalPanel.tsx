@@ -12,6 +12,7 @@ import { getCloudAuthToken } from "@/lib/stark/storage/cloud-auth";
 import { SHOWCASE_DEMO_MODE } from "@/lib/stark/runtime";
 import { recordSavingsPlanDeposit } from "@/lib/stark/savings/planner";
 import { buildSalaryBatchTransactions, SALARY_BATCH_MONTHS, salaryBatchMonthKeys, selectSalaryBatchMonths } from "@/lib/stark/journal/salary-batch";
+import { applyScreenshotRecognition, prepareJournalDrafts, type JournalDraft, type RecognitionOverrides } from "@/lib/stark/journal/recognition-drafts";
 import type { Asset, AssetType, Loan, SavingsGoal, SavingsPlan, Transaction, TransactionType } from "@/lib/stark/models";
 import { categoryIconSrcForCategory, expenseCategoryOptions } from "@/lib/stark/utils/category-icon";
 import { DateTimePicker } from "@/components/stark/DateTimePicker";
@@ -41,22 +42,6 @@ const assetTypeLabels: Record<AssetType, string> = {
   WECHAT: "微信",
   INVESTMENT: "投资",
   OTHER: "其他",
-};
-
-type JournalDraft = {
-  id?: string;
-  type: TransactionType;
-  amount: string;
-  category: string;
-  platform: string;
-  shoppingPlatform?: string;
-  merchant: string;
-  description: string;
-  date: string;
-  confidence?: string;
-  warnings?: string[];
-  recognizedDrafts?: JournalDraft[];
-  activeRecognizedDraftIndex?: number;
 };
 
 type AssetDraft = {
@@ -154,6 +139,8 @@ export function JournalPanel({
   const [screenshotRecognitionNotice, setScreenshotRecognitionNotice] = useState("");
   const [recognizedDrafts, setRecognizedDrafts] = useState<JournalDraft[]>([]);
   const [activeRecognizedDraftIndex, setActiveRecognizedDraftIndex] = useState(0);
+  const [recognitionOverrides, setRecognitionOverrides] = useState<RecognitionOverrides>({});
+  const recognitionOverridesRef = useRef<RecognitionOverrides>({});
   const [transactionSaving, setTransactionSaving] = useState(false);
   const [recordSaving, setRecordSaving] = useState(false);
   const [recordNotice, setRecordNotice] = useState("");
@@ -232,6 +219,8 @@ export function JournalPanel({
   useEffect(() => {
     setDraftReady(false);
     draftSubmittedRef.current = false;
+    recognitionOverridesRef.current = {};
+    setRecognitionOverrides({});
     if (isEditingEntity) {
       setDraftReady(true);
       return;
@@ -257,6 +246,9 @@ export function JournalPanel({
     } else if (draftKind === "journal" || draftKind === "salary") {
       const draft = readNewEntryDraft<JournalDraft>(draftKind);
       if (draft) {
+        const overrides = draft.recognitionOverrides ?? {};
+        recognitionOverridesRef.current = overrides;
+        setRecognitionOverrides(overrides);
         setType(draft.type);
         setAmount(draft.amount);
         setCategory(draft.category);
@@ -295,7 +287,7 @@ export function JournalPanel({
     } else if (draftKind === "loan") {
       saveNewEntryDraft(draftKind, { loanPlatform, loanMatchKeywords, loanTotalAmount, loanRemainingAmount, loanMonthlyPayment, loanPeriods, loanDueDay } satisfies LoanDraft);
     } else {
-      const activeDraft = recognizedDrafts[activeRecognizedDraftIndex] ?? {
+      const current: JournalDraft = {
         type,
         amount,
         category,
@@ -305,26 +297,17 @@ export function JournalPanel({
         description,
         date,
       };
-      const currentRecognizedDraft: JournalDraft = recognizedDrafts.length > 1
-        ? { ...activeDraft, type, category, platform, shoppingPlatform, date }
-        : { ...activeDraft, type, amount, category, platform, shoppingPlatform, merchant, description, date };
       const savedRecognizedDrafts = recognizedDrafts.length > 0
-        ? recognizedDrafts.map((draft, index) => index === activeRecognizedDraftIndex ? currentRecognizedDraft : draft)
+        ? prepareJournalDrafts(current, recognizedDrafts)
         : [];
       saveNewEntryDraft(draftKind, {
-        type,
-        amount,
-        category,
-        platform,
-        shoppingPlatform,
-        merchant,
-        description,
-        date,
+        ...current,
         recognizedDrafts: savedRecognizedDrafts,
         activeRecognizedDraftIndex,
+        recognitionOverrides,
       } satisfies JournalDraft);
     }
-  }, [activeRecognizedDraftIndex, assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, recognizedDrafts, shoppingPlatform, type]);
+  }, [activeRecognizedDraftIndex, assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, recognitionOverrides, recognizedDrafts, shoppingPlatform, type]);
 
   useEffect(() => {
     if (sheetReady && !closingRef.current) setVisible(true);
@@ -453,10 +436,16 @@ export function JournalPanel({
 
   function currentJournalDraft(): JournalDraft {
     const activeDraft = recognizedDrafts[activeRecognizedDraftIndex] ?? {};
-    if (recognizedDrafts.length > 1) {
-      return { ...activeDraft, type, category, platform, shoppingPlatform, date } as JournalDraft;
-    }
-    return { ...activeDraft, type, amount, category, platform, shoppingPlatform, merchant, description, date } as JournalDraft;
+    return { ...activeDraft, type, amount, category, platform, shoppingPlatform, merchant, description, date };
+  }
+
+  function updateRecognitionOverride(field: keyof RecognitionOverrides, value: string) {
+    const overrides = { ...recognitionOverridesRef.current, [field]: value };
+    recognitionOverridesRef.current = overrides;
+    setRecognitionOverrides(overrides);
+    if (field === "platform") setPlatform(value);
+    if (field === "date") setDate(value);
+    if (field === "shoppingPlatform") setShoppingPlatform(value);
   }
 
   function applyJournalDraft(draft: JournalDraft) {
@@ -472,7 +461,7 @@ export function JournalPanel({
 
   function selectRecognizedDraft(index: number) {
     if (index < 0 || index >= recognizedDrafts.length || index === activeRecognizedDraftIndex) return;
-    const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === activeRecognizedDraftIndex ? currentJournalDraft() : draft);
+    const drafts = prepareJournalDrafts(currentJournalDraft(), recognizedDrafts);
     setRecognizedDrafts(drafts);
     setActiveRecognizedDraftIndex(index);
     if (drafts.length <= 1) applyJournalDraft(drafts[index]);
@@ -493,19 +482,14 @@ export function JournalPanel({
   }
 
   function removeRecognizedDraft(index: number) {
-    const wasBatchMode = recognizedDrafts.length > 1;
-    const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === activeRecognizedDraftIndex ? currentJournalDraft() : draft);
+    const drafts = prepareJournalDrafts(currentJournalDraft(), recognizedDrafts);
     const remaining = drafts.filter((_, draftIndex) => draftIndex !== index);
     setRecognizedDrafts(remaining);
     if (remaining.length === 0) {
       setActiveRecognizedDraftIndex(0);
       setAmount("");
-      setCategory("餐饮");
-      setPlatform("其他");
-      setShoppingPlatform("");
       setMerchant("");
       setDescription("");
-      setDate(nowText().slice(0, 16));
       setScreenshotRecognitionNotice(translateText("已移除全部识别订单，可继续手动记账。", locale));
       return;
     }
@@ -516,18 +500,14 @@ export function JournalPanel({
         : activeRecognizedDraftIndex;
     setActiveRecognizedDraftIndex(nextIndex);
     if (remaining.length === 1) {
-      applyJournalDraft(wasBatchMode
-        ? { ...remaining[0], type, category, platform, shoppingPlatform, date }
-        : remaining[0]);
+      applyJournalDraft(remaining[0]);
     }
     setScreenshotRecognitionNotice(translateText("已移除这笔订单，剩余 {count} 笔。", locale).replace("{count}", String(remaining.length)));
   }
 
   async function saveTransaction() {
     if (transactionSaving) return;
-    const drafts = recognizedDrafts.length > 0
-      ? recognizedDrafts.map((draft, index) => index === activeRecognizedDraftIndex ? currentJournalDraft() : draft)
-      : [currentJournalDraft()];
+    const drafts = prepareJournalDrafts(currentJournalDraft(), recognizedDrafts);
     const invalidIndex = drafts.findIndex((draft) => !Number.isFinite(Number(draft.amount)) || Number(draft.amount) <= 0);
     if (invalidIndex >= 0) {
       setScreenshotRecognitionNotice(translateText("第 {number} 笔金额无效，请修改或移除。", locale).replace("{number}", String(invalidIndex + 1)));
@@ -539,21 +519,21 @@ export function JournalPanel({
     if (recognizedDrafts.length > 0) setRecognizedDrafts(drafts);
     try {
       const now = nowText();
-      const batchMode = recognizedDrafts.length > 1;
+      const accountId = getCurrentAccountId();
       for (const [index, draft] of drafts.entries()) {
         const existingTransaction = transaction && (recognizedDrafts.length === 0 || index === 0)
           ? transaction
           : null;
-        const entryDate = batchMode ? date : draft.date;
+        const entryDate = draft.date;
         await repo.saveTransaction({
           id: existingTransaction?.id ?? draft.id ?? createId("transaction"),
           userId: existingTransaction?.userId ?? "local-user",
-          accountId: existingTransaction?.accountId ?? getCurrentAccountId(),
+          accountId: existingTransaction?.accountId ?? accountId,
           amount: Number(draft.amount),
-          type: batchMode ? type : draft.type,
-          category: batchMode ? category : draft.category,
-          platform: batchMode ? platform : draft.platform,
-          shoppingPlatform: (batchMode ? type : draft.type) === "EXPENSE" ? shoppingPlatform.trim() || null : null,
+          type: draft.type,
+          category: draft.category,
+          platform: draft.platform,
+          shoppingPlatform: draft.type === "EXPENSE" ? draft.shoppingPlatform?.trim() || null : null,
           merchant: draft.merchant || null,
           date: entryDate.length === 16 ? `${entryDate}:00` : entryDate,
           description: draft.description || null,
@@ -570,6 +550,8 @@ export function JournalPanel({
       clearNewEntryDraft(draftKind);
       setRecognizedDrafts([]);
       setActiveRecognizedDraftIndex(0);
+      recognitionOverridesRef.current = {};
+      setRecognitionOverrides({});
       setAmount("");
       setShoppingPlatform("");
       setMerchant("");
@@ -653,7 +635,9 @@ export function JournalPanel({
       const items = Array.isArray(payload.transactions) && payload.transactions.length > 0
         ? payload.transactions
         : [payload];
-      const drafts = items.slice(0, 20).map((item, index): JournalDraft => {
+      const overrides = recognitionOverridesRef.current;
+      const selectedPlatform = overrides.platform ?? platform;
+      const recognized = items.slice(0, 20).map((item, index): JournalDraft => {
         const recognizedType = item.type === "INCOME" || item.type === "TRANSFER" || item.type === "EXPENSE"
           ? item.type
           : "EXPENSE";
@@ -676,9 +660,9 @@ export function JournalPanel({
         if (!recognizedPlatform) {
           warnings.push(translateText("第 {number} 笔未识别支付账户，已保留当前选择：{platform}，请核对。", locale)
             .replace("{number}", String(index + 1))
-            .replace("{platform}", translateText(platform, locale)));
+            .replace("{platform}", translateText(selectedPlatform, locale)));
         }
-        if (!dateValid) warnings.push(translateText("第 {number} 笔未识别交易时间，已填当前时间。", locale).replace("{number}", String(index + 1)));
+        if (!dateValid && !overrides.date) warnings.push(translateText("第 {number} 笔未识别交易时间，已填当前时间。", locale).replace("{number}", String(index + 1)));
         return {
           id: createId("screenshot-transaction"),
           type: recognizedType,
@@ -686,7 +670,7 @@ export function JournalPanel({
           category: hasCategory && item.confidence !== "low"
             ? item.category as string
             : recognizedType === "INCOME" ? "工资" : recognizedType === "TRANSFER" ? "转账" : "餐饮",
-          platform: recognizedPlatform ?? platform,
+          platform: recognizedPlatform ?? selectedPlatform,
           merchant: typeof item.merchant === "string" ? item.merchant.trim() : "",
           description: typeof item.description === "string" ? item.description.trim() : "",
           date: dateValid ? item.date!.slice(0, 16) : nowText().slice(0, 16),
@@ -694,6 +678,7 @@ export function JournalPanel({
           warnings,
         };
       });
+      const drafts = applyScreenshotRecognition(recognized, currentJournalDraft(), overrides);
       setRecognizedDrafts(drafts);
       setActiveRecognizedDraftIndex(0);
       if (drafts.length > 1) {
@@ -1316,7 +1301,7 @@ export function JournalPanel({
                       <button
                         key={item}
                         type="button"
-                        onClick={() => setPlatform(item)}
+                        onClick={() => updateRecognitionOverride("platform", item)}
                         className={`account-pill ${platform === item ? "active" : ""}`}
                       >
                         {item}
@@ -1335,7 +1320,7 @@ export function JournalPanel({
                       type="text"
                       className="meta-input"
                       value={shoppingPlatform}
-                      onChange={(event) => setShoppingPlatform(event.target.value)}
+                      onChange={(event) => updateRecognitionOverride("shoppingPlatform", event.target.value)}
                       placeholder={translateText("例如：淘宝、拼多多", locale)}
                       autoComplete="off"
                       maxLength={191}
@@ -1351,7 +1336,7 @@ export function JournalPanel({
                       mode="datetime"
                       className="meta-input"
                       value={date}
-                      onChange={setDate}
+                      onChange={(value) => updateRecognitionOverride("date", value)}
                       ariaLabel="选择账单日期和时间"
                     />
                     {!isBatchRecognition ? <>

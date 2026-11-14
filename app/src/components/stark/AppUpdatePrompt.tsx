@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { usePathname } from "next/navigation";
-import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
+import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, downloadAppUpdate, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
 import { setAppUpdateAvailable } from "@/lib/stark/app-update-status";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 
@@ -26,6 +26,7 @@ type NativeDownloadProgress = {
 };
 type NativeAppUpdate = {
   getInstalledVersion(): Promise<{ versionCode: number; versionName: string }>;
+  getLanUpdateManifest(options: { url: string }): Promise<AppVersionInfo>;
   downloadAndInstall(options: { url: string; versionCode: number }): Promise<{ installationStarted: boolean }>;
   openDownloadInBrowser(options: { url: string }): Promise<{ opened: boolean }>;
   addListener(eventName: "downloadProgress", listener: (progress: NativeDownloadProgress) => void): Promise<PluginListenerHandle>;
@@ -284,7 +285,7 @@ export function AppUpdatePrompt() {
           message: null,
         });
       });
-      const result = await nativeAppUpdate.downloadAndInstall({ url: info.apkUrl, versionCode: info.versionCode });
+      const result = await downloadAppUpdate(APP_UPDATE_URL, info, nativeAppUpdate);
       if (!result.installationStarted) throw new Error("无法打开系统安装界面，请稍后重试。");
       consumePromptHistory();
       manualPromptPathRef.current = null;

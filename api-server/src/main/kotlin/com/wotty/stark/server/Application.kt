@@ -66,6 +66,9 @@ fun Application.module() {
         exception<AccessDeniedException> { call, cause ->
             call.respond(HttpStatusCode.Forbidden, mapOf("error" to (cause.message ?: "无权访问该数据")))
         }
+        exception<IllegalArgumentException> { call, cause ->
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to (cause.message ?: "请核对输入内容")))
+        }
         exception<Throwable> { call, cause ->
             call.application.environment.log.error("Request failed: ${call.request.httpMethod.value} ${call.request.path()}", cause)
             call.respondText(

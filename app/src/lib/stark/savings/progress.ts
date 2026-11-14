@@ -1,6 +1,7 @@
 import type { SavingsGoal, SavingsPlan } from "../models/types";
-import { clampPercent } from "../utils/format";
-import { savingsPlanRecordedAmount } from "./planner";
+import { clampPercent } from "../utils/format.ts";
+import { savingsPlanRecordedAmount } from "./recorded-amount.ts";
+import { savingsFundOutstanding } from "./funds.ts";
 
 /** Use the same recorded savings and target amounts throughout the app. */
 export function summarizeSavingsProgress(goals: readonly SavingsGoal[], plans: readonly SavingsPlan[]) {
@@ -26,7 +27,7 @@ export function summarizeSavingsGoalProgress(goal: SavingsGoal, plans: readonly 
   const plannedTarget = goalPlans.reduce((sum, plan) => (
     sum + (Number.isFinite(plan.amount) ? Math.max(plan.amount, 0) : 0)
   ), 0);
-  const savedAmount = Math.max(goal.currentAmount, completedAmount);
+  const savedAmount = Math.max(0, Math.max(goal.currentAmount, completedAmount) - savingsFundOutstanding(goal));
   const target = goal.targetAmount > 0 ? goal.targetAmount : plannedTarget;
 
   return {

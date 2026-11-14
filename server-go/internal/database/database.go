@@ -65,6 +65,10 @@ func Open(settings config.DatabaseConfig) (*Store, error) {
 			return nil, fmt.Errorf("upgrade AI settings schema: %w", err)
 		}
 	}
+	if err := ensureColumn(context.Background(), db, "savingsgoal", schemaColumn{Name: "fundMovements", Definition: "MEDIUMTEXT NULL"}); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("upgrade savings funds schema: %w", err)
+	}
 	return &Store{db: db}, nil
 }
 

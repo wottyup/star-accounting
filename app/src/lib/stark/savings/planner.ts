@@ -1,4 +1,7 @@
 import type { SavingsGoal, SavingsGoalDepositType, SavingsPlan } from "../models/types";
+import { savingsPlanRecordedAmount } from "./recorded-amount.ts";
+import { retainedSavingsPlanAmount } from "./funds.ts";
+export { savingsPlanRecordedAmount } from "./recorded-amount.ts";
 
 export type SavingsFrequency = "MONTHLY" | "ALTERNATE";
 
@@ -435,7 +438,7 @@ export function summarizeSavingsPlanAllocation(
     const salary = positivePlanAmount(plan.salary);
     const balance = positivePlanAmount(parsedExpenses[PREVIOUS_BALANCE_COLUMN]);
     const deposit = positivePlanAmount(plan.amount);
-    const actualDeposit = savingsPlanRecordedAmount(plan);
+    const actualDeposit = retainedSavingsPlanAmount(plan, goals.find((goal) => goal.id === plan.goalId));
     const expenses: Record<string, number> = {};
 
     for (const [name, rawAmount] of Object.entries(parsedExpenses)) {
@@ -494,14 +497,6 @@ export function summarizeSavingsPlanAllocation(
     expenseItems: [...expenseItems.values()].sort((left, right) => right.amount - left.amount || left.name.localeCompare(right.name)),
     planSources: [...planSources.values()],
   };
-}
-
-export function savingsPlanRecordedAmount(plan: Pick<SavingsPlan, "amount" | "status" | "actualAmount">) {
-  if (plan.status !== "COMPLETED") return 0;
-  const actualAmount = Number(plan.actualAmount);
-  return plan.actualAmount !== null && plan.actualAmount !== undefined && Number.isFinite(actualAmount) && actualAmount >= 0
-    ? actualAmount
-    : plan.amount;
 }
 
 export function recordSavingsPlanDeposit(

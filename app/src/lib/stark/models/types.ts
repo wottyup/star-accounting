@@ -94,6 +94,8 @@ export interface SavingsGoal {
   status: SavingsGoalStatus;
   depositType: SavingsGoalDepositType;
   planConfig?: string | null;
+  /** Append-only withdrawals and replenishments; updated through the fund endpoint. */
+  fundMovements?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -114,6 +116,29 @@ export interface SavingsPlan {
   /** 实际存入日期；旧数据为空时由 updatedAt 兼容推断。 */
   actualDate?: string | null;
 }
+
+export type SavingsDepositInput = {
+  amountCents: number;
+  date: string;
+  proofImage: string | null;
+  expectedUpdatedAt: string;
+};
+
+export type SavingsFundInput = {
+  id: string;
+  kind: "WITHDRAWAL" | "REPLENISHMENT";
+  amountCents: number;
+  date: string;
+  note: string;
+  withdrawalId?: string | null;
+};
+
+export type SavingsFundAllocation = { planId: string | null; month: string | null; cents: number };
+
+export type SavingsFundEntry = SavingsFundInput & {
+  allocations: SavingsFundAllocation[];
+  createdAt: string;
+};
 
 export type AccountRole = "OWNER" | "ADMIN" | "MEMBER";
 

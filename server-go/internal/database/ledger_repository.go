@@ -130,7 +130,7 @@ var entitySpecs = map[ledger.EntityType]entitySpec{
 			{"id", "id", stringField}, {"userId", "userId", stringField}, {"accountId", "accountId", stringField},
 			{"name", "name", stringField}, {"targetAmount", "targetAmount", decimalField}, {"currentAmount", "currentAmount", decimalField},
 			{"deadline", "deadline", nullableDateTimeField}, {"type", "type", stringField}, {"status", "status", stringField},
-			{"depositType", "depositType", stringField}, {"planConfig", "planConfig", rawTextField},
+			{"depositType", "depositType", stringField}, {"planConfig", "planConfig", rawTextField}, {"fundMovements", "fundMovements", rawTextField},
 			{"createdAt", "createdAt", dateTimeField}, {"updatedAt", "updatedAt", dateTimeField},
 		},
 		UpdatedAtColumn: "updatedAt",
@@ -252,6 +252,9 @@ func (store *Store) UpsertEntity(context context.Context, entityType ledger.Enti
 	if err != nil {
 		return err
 	}
+	if entityType == ledger.SavingsGoals || entityType == ledger.SavingsPlans {
+		return store.saveSavingsEntity(context, database, entityType, payload)
+	}
 	return upsertEntity(context, database, entityType, payload)
 }
 
@@ -268,6 +271,9 @@ func upsertEntity(context context.Context, executor sqlExecutor, entityType ledg
 	arguments := make([]interface{}, 0, len(specification.Fields))
 	updates := make([]string, 0, len(specification.Fields)-1)
 	for index, field := range specification.Fields {
+		if entityType == ledger.SavingsGoals && field.Column == "fundMovements" {
+			continue
+		} // Only the locked append endpoint owns this field.
 		value, err := payloadValue(payload, field)
 		if err != nil {
 			// Ktor's JsonObject.getValue() exposes its missing-field message to
@@ -294,20 +300,8 @@ func (store *Store) DeleteEntity(context context.Context, entityType ledger.Enti
 	if err != nil {
 		return err
 	}
-	if entityType == ledger.SavingsGoals {
-		transaction, err := database.BeginTx(context, nil)
-		if err != nil {
-			return err
-		}
-		if _, err := transaction.ExecContext(context, "DELETE FROM savingsplan WHERE goalId = ?", id); err != nil {
-			_ = transaction.Rollback()
-			return err
-		}
-		if _, err := transaction.ExecContext(context, "DELETE FROM `"+specification.Table+"` WHERE id = ?", id); err != nil {
-			_ = transaction.Rollback()
-			return err
-		}
-		return transaction.Commit()
+	if entityType == ledger.SavingsGoals || entityType == ledger.SavingsPlans {
+		return store.deleteSavingsEntity(context, database, entityType, id)
 	}
 	_, err = database.ExecContext(context, "DELETE FROM `"+specification.Table+"` WHERE id = ?", id)
 	return err

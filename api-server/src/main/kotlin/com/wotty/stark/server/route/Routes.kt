@@ -7,6 +7,8 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.*
 import io.ktor.server.request.*
 import io.ktor.server.routing.*
+import com.wotty.stark.server.util.SavingsDepositInput
+import com.wotty.stark.server.util.SavingsFundInput
 import com.wotty.stark.server.util.DatabaseFactory
 import com.wotty.stark.server.util.SyncRecordRow
 import com.wotty.stark.server.util.reportingMonthRange
@@ -450,6 +452,14 @@ fun Route.loanRoutes() {
 }
 
 fun Route.savingsRoutes() {
+    post("/api/savings-plans/{id}/deposit") {
+        DatabaseFactory.recordSavingsDeposit(call.parameters["id"] ?: "", call.currentUserId(), call.receive<SavingsDepositInput>())
+        call.respond(HttpStatusCode.NoContent)
+    }
+    post("/api/savings-goals/{id}/fund-movements") {
+        val payload = call.receive<SavingsFundInput>()
+        call.respond(DatabaseFactory.recordSavingsFundMovement(call.parameters["id"] ?: "", call.currentUserId(), payload))
+    }
     get("/api/savings-goals") {
         val userId = call.currentUserId()
         val accountId = call.request.queryParameters["accountId"] ?: "default"

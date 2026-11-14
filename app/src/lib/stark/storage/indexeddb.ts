@@ -9,12 +9,16 @@ import type {
   Loan,
   LoanRepaymentClassificationResult,
   SavingsGoal,
+  SavingsDepositInput,
+  SavingsFundInput,
   SavingsPlan,
   Subscription,
   ThemeConfig,
   Transaction,
   User,
 } from "@/lib/stark/models/types";
+import { recordSavingsPlanDeposit } from "../savings/planner.ts";
+import { appendSavingsFundEntry, assertSavingsPlanFundChange, preserveSavingsFund, savingsFundOutstanding } from "../savings/funds.ts";
 const SHOWCASE_DEMO_MODE = process.env.NEXT_PUBLIC_SHOWCASE_DEMO === "1";
 
 export function showcaseDatabaseName(basePath: string) {
@@ -156,24 +160,66 @@ export async function deleteRecord(storeName: StoreName, id: string) {
   });
 }
 
+async function withSavingsState<T>(goalId: string, action: (goal: SavingsGoal | undefined, plans: SavingsPlan[], goals: IDBObjectStore, planStore: IDBObjectStore) => T) {
+  const db = await openDb();
+  return new Promise<T>((resolve, reject) => {
+    const tx = db.transaction(["savingsGoals", "savingsPlans"], "readwrite");
+    const goals = tx.objectStore("savingsGoals");
+    const plans = tx.objectStore("savingsPlans");
+    const goalRequest = goals.get(goalId);
+    const planRequest = plans.getAll();
+    let loaded = 0;
+    let result: T;
+    let failure: unknown;
+    const apply = () => {
+      if (++loaded !== 2) return;
+      try { result = action(goalRequest.result, planRequest.result as SavingsPlan[], goals, plans); }
+      catch (error) { failure = error; tx.abort(); }
+    };
+    goalRequest.onsuccess = apply;
+    planRequest.onsuccess = apply;
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = tx.onabort = () => reject(failure ?? tx.error ?? new Error("储蓄保存失败"));
+  });
+}
+
+export async function saveSavingsGoalRecord(goal: SavingsGoal) {
+  return withSavingsState(goal.id, (existing, plans, goals) => { goals.put(preserveSavingsFund(goal, existing, plans)); });
+}
+
+export async function saveSavingsPlanRecord(plan: SavingsPlan) {
+  return withSavingsState(plan.goalId, (goal, plans, _goals, store) => {
+    const old = plans.find((item) => item.id === plan.id);
+    if (old && old.goalId !== plan.goalId) throw new Error("不能移动已有储蓄计划，请在原目标中修改。");
+    if (!goal) throw new Error("储蓄目标不存在。");
+    assertSavingsPlanFundChange(goal, old, plan);
+    preserveSavingsFund(goal, goal, [...plans.filter((item) => item.id !== plan.id), plan]);
+    store.put(plan);
+  });
+}
+
+export async function deleteSavingsPlanRecord(plan: SavingsPlan) {
+  return withSavingsState(plan.goalId, (goal, plans, _goals, store) => {
+    assertSavingsPlanFundChange(goal, plans.find((item) => item.id === plan.id));
+    store.delete(plan.id);
+  });
+}
+
+export async function recordSavingsFundMovement(goalId: string, input: SavingsFundInput, accountId: string, now: string) {
+  return withSavingsState(goalId, (goal, plans, goals) => {
+    if (!goal || goal.accountId !== accountId) throw new Error("储蓄目标不存在或不属于当前账本。");
+    const next = appendSavingsFundEntry(goal, plans, input, now);
+    goals.put(next);
+    return next;
+  });
+}
+
 /** 在同一 IndexedDB 事务内删除储蓄目标及其全部月度计划。 */
 export async function deleteSavingsGoalAndPlans(goalId: string) {
-  const db = await openDb();
-  return new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(["savingsGoals", "savingsPlans"], "readwrite");
-    const goals = transaction.objectStore("savingsGoals");
-    const plans = transaction.objectStore("savingsPlans");
-    const request = plans.getAll();
-
-    request.onsuccess = () => {
-      const relatedPlans = (request.result as SavingsPlan[]).filter((plan) => plan.goalId === goalId);
-      relatedPlans.forEach((plan) => plans.delete(plan.id));
-      goals.delete(goalId);
-    };
-    request.onerror = () => transaction.abort();
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB 删除储蓄目标失败"));
-    transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB 删除储蓄目标已取消"));
+  return withSavingsState(goalId, (goal, plans, goals, store) => {
+    if (goal && savingsFundOutstanding(goal) > 0) throw new Error("该目标还有未补齐取用，请补齐后再删除。");
+    plans.filter((plan) => plan.goalId === goalId).forEach((plan) => store.delete(plan.id));
+    goals.delete(goalId);
   });
 }
 
@@ -337,5 +383,22 @@ export async function applyLoanRepaymentClassifications(transactions: Transactio
     transaction.oncomplete = () => resolve(result ?? { applied: 0, amount: 0, skipped: transactions.length });
     transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB 贷款还款归类失败"));
     transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB 贷款还款归类已取消"));
+  });
+}
+
+export async function recordSavingsDeposit(planId: string, input: SavingsDepositInput, accountId: string, now: string) {
+  const plan = await getRecord<SavingsPlan>("savingsPlans", planId);
+  if (!plan) throw new Error("储蓄计划不存在。");
+  return withSavingsState(plan.goalId, (goal, plans, goals, store) => {
+    const current = plans.find((item) => item.id === planId);
+    if (!goal || !current || goal.accountId !== accountId) throw new Error("储蓄计划不存在或不属于当前账本。");
+    if (current.status === "COMPLETED" && Math.round((current.actualAmount ?? current.amount) * 100) === input.amountCents && current.actualDate === input.date && (current.proofImage ?? null) === input.proofImage) return;
+    if (current.updatedAt !== input.expectedUpdatedAt) throw new Error("存入记录已变更，请刷新后再修改。");
+    if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0 || input.amountCents > 1e12 || Number.isNaN(new Date(input.date.replace(" ", "T")).getTime())) throw new Error("请核对金额和日期。");
+    const next = recordSavingsPlanDeposit(current, goal, input.amountCents / 100, input.proofImage, now, input.date);
+    assertSavingsPlanFundChange(goal, current, next.plan);
+    const nextPlans = [...plans.filter((item) => item.id !== planId), next.plan];
+    goals.put(preserveSavingsFund(next.goal, goal, nextPlans));
+    store.put(next.plan);
   });
 }

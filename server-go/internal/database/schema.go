@@ -344,6 +344,7 @@ var schemaTables = []schemaTable{
 			` + "`status`" + ` VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
 			` + "`depositType`" + ` VARCHAR(32) NOT NULL DEFAULT 'CASH',
 			` + "`planConfig`" + ` TEXT NULL,
+			` + "`fundMovements`" + ` MEDIUMTEXT NULL,
 			` + "`createdAt`" + ` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			` + "`updatedAt`" + ` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (` + "`id`" + `),
@@ -352,7 +353,7 @@ var schemaTables = []schemaTable{
 		Columns: []schemaColumn{
 			{"id", "VARCHAR(191) NOT NULL"}, {"userId", "VARCHAR(191) NOT NULL"}, {"accountId", "VARCHAR(191) NOT NULL"}, {"name", "VARCHAR(191) NOT NULL"},
 			{"targetAmount", "DECIMAL(65,30) NOT NULL DEFAULT 0"}, {"currentAmount", "DECIMAL(65,30) NOT NULL DEFAULT 0"}, {"deadline", "DATETIME(6) NULL"},
-			{"type", "VARCHAR(64) NOT NULL DEFAULT 'LONG_TERM'"}, {"status", "VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'"}, {"depositType", "VARCHAR(32) NOT NULL DEFAULT 'CASH'"}, {"planConfig", "TEXT NULL"},
+			{"type", "VARCHAR(64) NOT NULL DEFAULT 'LONG_TERM'"}, {"status", "VARCHAR(32) NOT NULL DEFAULT 'ACTIVE'"}, {"depositType", "VARCHAR(32) NOT NULL DEFAULT 'CASH'"}, {"planConfig", "TEXT NULL"}, {"fundMovements", "MEDIUMTEXT NULL"},
 			{"createdAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"}, {"updatedAt", "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)"},
 		},
 		Indexes: []schemaIndex{{Name: "SavingsGoal_accountId_idx", Columns: []string{"`accountId`"}}},

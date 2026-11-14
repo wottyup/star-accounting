@@ -8,7 +8,9 @@ import { calculateBudgetSpent } from "./budget-period";
 import { calculateBudgetAllocation, type BudgetAllocation } from "./budget-allocation";
 import { calculateBalanceFromBaseline, calculateCalendarPeriodCashflow, calculateCashflowSinceBalanceBaseline, calculateSalaryCycleCashflow, salaryCycleRange } from "./salary-cycle";
 import { summarizeSavingsPlanAllocation, type SavingsPlanAllocation } from "@/lib/stark/savings/planner";
-import { summarizeSavingsProgress } from "@/lib/stark/savings/progress";
+import { summarizeSavingsGoalProgress, summarizeSavingsProgress } from "@/lib/stark/savings/progress";
+
+import { savingsFundCashflowPlans, savingsFundOutstanding } from "@/lib/stark/savings/funds";
 
 export interface HomeTrend {
   labels: string[];
@@ -364,7 +366,7 @@ function buildBudgetAlerts(
     .slice(0, 3);
 }
 
-function buildTasks(loans: Loan[], savingsGoals: SavingsGoal[]): HomeTaskItem[] {
+function buildTasks(loans: Loan[], savingsGoals: SavingsGoal[], plans: SavingsPlan[]): HomeTaskItem[] {
   const loanTasks = loans
     .filter((loan) => loan.status !== "PAID_OFF" && loan.remainingAmount > 0)
     .map((loan) => {
@@ -381,15 +383,16 @@ function buildTasks(loans: Loan[], savingsGoals: SavingsGoal[]): HomeTaskItem[] 
     });
 
   const savingsTasks = savingsGoals
-    .filter((goal) => goal.status === "ACTIVE")
+    .filter((goal) => goal.status === "ACTIVE" || savingsFundOutstanding(goal) > 0)
     .map((goal) => {
+      const saved = summarizeSavingsGoalProgress(goal, plans).savedAmount;
       const due = goal.deadline ? parseDate(goal.deadline) : null;
       const inDays = due ? daysUntil(due) : 7;
       return {
         id: `saving-${goal.id}`,
         source: "saving",
         title: `${goal.name}储蓄`,
-        subtitle: due ? `${formatMonthDay(due)} 前补足 ¥ ${Math.max(goal.targetAmount - goal.currentAmount, 0)}` : `继续累计 ¥ ${Math.max(goal.targetAmount - goal.currentAmount, 0)}`,
+        subtitle: due ? `${formatMonthDay(due)} 前补足 ¥ ${Math.max(goal.targetAmount - saved, 0)}` : `继续累计 ¥ ${Math.max(goal.targetAmount - saved, 0)}`,
         badge: due ? (inDays <= 0 ? "已到期" : `${inDays}天后`) : "进行中",
         tone: due && inDays <= 1 ? "danger" : due && inDays <= 5 ? "warn" : "neutral",
       } satisfies HomeTaskItem;
@@ -566,6 +569,7 @@ export function buildHomeSummary(input: {
 }) {
   const currentMonth = input.reportingMonth ?? REPORTING_MONTH_KEY;
   const savingsPlans = input.savingsPlans ?? [];
+  const cashflowPlans = [...savingsPlans, ...savingsFundCashflowPlans(input.savingsGoals)];
   const salaryDay = Math.max(1, Math.min(28, Math.round(input.salaryDay ?? 15)));
   const referenceDate = input.referenceDate ?? new Date();
   const { current: currentMonthTransactions, previous: previousMonthTransactions } = splitReportingMonthTransactions(
@@ -578,15 +582,16 @@ export function buildHomeSummary(input: {
   const previousIncome = previousMonthTransactions.filter((item) => item.type === "INCOME").reduce((sum, item) => sum + item.amount, 0);
   const previousExpense = previousMonthTransactions.filter((item) => item.type === "EXPENSE").reduce((sum, item) => sum + item.amount, 0);
 
-  const totalSavings = input.savingsGoals.reduce((sum, item) => sum + item.currentAmount, 0);
+  const grossSavings = input.savingsGoals.reduce((sum, item) => sum + item.currentAmount, 0);
   const savingsProgress = summarizeSavingsProgress(input.savingsGoals, savingsPlans);
+  const totalSavings = savingsProgress.savedAmount;
   const loanTotal = input.loans.reduce((sum, item) => sum + item.remainingAmount, 0);
   const loanAll = input.loans.reduce((sum, item) => sum + item.totalAmount, 0);
   const loanRepaid = Math.max(loanAll - loanTotal, 0);
-  const assetTotal = input.assets.reduce((sum, item) => sum + item.balance, 0) + totalSavings;
+  const assetTotal = input.assets.reduce((sum, item) => sum + item.balance, 0) + grossSavings; // Savings transfers remain assets as available cash.
   const liabilityTotal = loanTotal;
   const budgetAlerts = buildBudgetAlerts(input.transactions, input.budgets, expense, currentMonth);
-  const forecast = buildForecast(input.transactions, savingsPlans, income, expense, salaryDay, currentMonth, referenceDate, input.account);
+  const forecast = buildForecast(input.transactions, cashflowPlans, income, expense, salaryDay, currentMonth, referenceDate, input.account);
   const annual = isReportingYearKey(currentMonth);
   const cycleStart = annual ? null : salaryCycleRange(currentMonth, salaryDay, referenceDate).start;
   const savingsPlanPeriod = cycleStart
@@ -604,7 +609,7 @@ export function buildHomeSummary(input: {
     salaryIncome: forecast.salaryIncome,
     salaryRecordedAt: forecast.salaryRecordedAt,
     salaryCarryover: forecast.salaryCarryover,
-  } : buildSalaryPlanSource(input.transactions, savingsPlans, salaryDay, savingsPlanPeriod, referenceDate, input.account);
+  } : buildSalaryPlanSource(input.transactions, cashflowPlans, salaryDay, savingsPlanPeriod, referenceDate, input.account);
   const salaryPlanAvailable = salaryPlanSource.salaryRecordedAt && savingsPlanAllocation.planCount > 0
     ? salaryPlanSource.salaryIncome + (salaryPlanSource.salaryCarryover ?? 0)
       - savingsPlanAllocation.fixedExpense - savingsPlanAllocation.temporaryExpense - savingsPlanAllocation.plannedDeposit
@@ -642,7 +647,7 @@ export function buildHomeSummary(input: {
     savingsPlanPeriod,
     salaryPlanSource,
     salaryPlanAvailable,
-    tasks: buildTasks(input.loans, input.savingsGoals),
+    tasks: buildTasks(input.loans, input.savingsGoals, savingsPlans),
     forecast,
     insights: buildInsights(currentMonthTransactions, previousMonthTransactions, expense, budgetAlerts),
     recent: buildRecent(currentMonthTransactions),

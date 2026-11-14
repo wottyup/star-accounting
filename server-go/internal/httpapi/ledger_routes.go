@@ -200,6 +200,23 @@ func registerLedgerRoutes(router chi.Router, authService *auth.Service, service 
 		registerAccountEntityRoutes(protected, service, "/api/budgets", ledger.Budgets)
 		registerAccountEntityRoutes(protected, service, "/api/loans", ledger.Loans)
 		registerAccountEntityRoutes(protected, service, "/api/savings-goals", ledger.SavingsGoals)
+		protected.Post("/api/savings-goals/{id}/fund-movements", func(writer http.ResponseWriter, request *http.Request) {
+			user, ok := ledgerUser(writer, request)
+			if !ok {
+				return
+			}
+			var input ledger.SavingsFundInput
+			if err := json.NewDecoder(http.MaxBytesReader(writer, request.Body, 8192)).Decode(&input); err != nil {
+				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "请核对金额、时间和备注。"})
+				return
+			}
+			result, errorValue := service.RecordSavingsFundMovement(request.Context(), user.ID, chi.URLParam(request, "id"), input)
+			if errorValue != nil {
+				respondLedgerError(writer, errorValue)
+				return
+			}
+			writeJSON(writer, http.StatusOK, result)
+		})
 		registerAccountEntityRoutes(protected, service, "/api/subscriptions", ledger.Subscriptions)
 
 		protected.Get("/api/savings-plans", func(writer http.ResponseWriter, request *http.Request) {
@@ -215,6 +232,22 @@ func registerLedgerRoutes(router chi.Router, authService *auth.Service, service 
 			writeJSON(writer, http.StatusOK, plans)
 		})
 		protected.Post("/api/savings-plans", upsertEntityHandler(service, ledger.SavingsPlans))
+		protected.Post("/api/savings-plans/{id}/deposit", func(writer http.ResponseWriter, request *http.Request) {
+			user, ok := ledgerUser(writer, request)
+			if !ok {
+				return
+			}
+			var input ledger.SavingsDepositInput
+			if err := json.NewDecoder(http.MaxBytesReader(writer, request.Body, 11_000_000)).Decode(&input); err != nil {
+				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "请核对金额和日期。"})
+				return
+			}
+			if errorValue := service.RecordSavingsDeposit(request.Context(), user.ID, chi.URLParam(request, "id"), input); errorValue != nil {
+				respondLedgerError(writer, errorValue)
+				return
+			}
+			writer.WriteHeader(http.StatusNoContent)
+		})
 		protected.Delete("/api/savings-plans/{id}", deleteEntityHandler(service, ledger.SavingsPlans))
 
 		registerAccountEntityReadWriteRoutes(protected, service, "/api/category-rules", ledger.CategoryRules)

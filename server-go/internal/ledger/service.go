@@ -510,8 +510,14 @@ func accountScoped(entityType EntityType) bool {
 	}
 }
 
-func forbidden(message string) *Error       { return &Error{Status: 403, Message: message} }
-func databaseError(errorValue error) *Error { return &Error{Status: 500, Message: errorValue.Error()} }
+func forbidden(message string) *Error { return &Error{Status: 403, Message: message} }
+func databaseError(errorValue error) *Error {
+	var validation *Error
+	if errors.As(errorValue, &validation) {
+		return validation
+	}
+	return &Error{Status: 500, Message: errorValue.Error()}
+}
 
 var ErrUnsupportedEntity = errors.New("unsupported entity type")
 

@@ -35,6 +35,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import kotlinx.datetime.Clock
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -237,6 +238,7 @@ object SavingsGoals : Table("savingsgoal") {
     val updatedAt = datetime("updatedAt")
     val depositType = varchar("depositType", 32)
     val planConfig = text("planConfig").nullable()
+    val fundMovements = mediumText("fundMovements").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -397,7 +399,7 @@ object DatabaseFactory {
         transaction {
             // The AI settings table is a small additive feature table. Create
             // it even when optional full-schema migration is disabled.
-            SchemaUtils.createMissingTablesAndColumns(UserAIVisionSettingsTable)
+            SchemaUtils.createMissingTablesAndColumns(UserAIVisionSettingsTable, SavingsGoals)
             if (shouldAutoMigrateSchema()) {
                 SchemaUtils.createMissingTablesAndColumns(
                     Users,
@@ -713,10 +715,19 @@ object DatabaseFactory {
             "budgets" -> Budgets.deleteWhere { Budgets.id eq id }
             "loans" -> Loans.deleteWhere { Loans.id eq id }
             "savingsGoals" -> {
+                val goal = lockSavingsGoal(id)
+                require(goal == null || savingsOutstandingCents(decodeSavingsFundEntries(goal[SavingsGoals.fundMovements])) == 0L) { "该目标还有未补齐取用，请补齐后再删除。" }
                 SavingsPlans.deleteWhere { SavingsPlans.goalId eq id }
                 SavingsGoals.deleteWhere { SavingsGoals.id eq id }
             }
-            "savingsPlans" -> SavingsPlans.deleteWhere { SavingsPlans.id eq id }
+            "savingsPlans" -> {
+                val old = SavingsPlans.selectAll().where { SavingsPlans.id eq id }.singleOrNull()
+                if (old != null) {
+                    val goal = lockSavingsGoal(old[SavingsPlans.goalId])
+                    require(goal == null || savingsSourceUsedCents(decodeSavingsFundEntries(goal[SavingsGoals.fundMovements]), id) == 0L) { "这项计划还有未补齐取用，请先补齐后再删除。" }
+                }
+                SavingsPlans.deleteWhere { SavingsPlans.id eq id }
+            }
             "categoryRules" -> TransactionCategoryRules.deleteWhere { TransactionCategoryRules.id eq id }
             "subscriptions" -> Subscriptions.deleteWhere { Subscriptions.id eq id }
             "importErrorLogs" -> ImportErrorLogs.deleteWhere { ImportErrorLogs.id eq id }
@@ -935,6 +946,50 @@ object DatabaseFactory {
         SavingsGoals.selectAll().where { SavingsGoals.accountId eq accountId }.map { it.toSavingsGoalRecord().toPayloadJson() }
     }
 
+    fun recordSavingsDeposit(planId: String, userId: String, input: SavingsDepositInput) = transaction {
+        require(input.amountCents in 1..1_000_000_000_000L && (input.proofImage?.length ?: 0) <= 10_000_000) { "请核对金额和图片。" }
+        val date = LocalDateTime.parse(input.date.replace(" ", "T"))
+        val before = SavingsPlans.selectAll().where { SavingsPlans.id eq planId }.singleOrNull() ?: throw AccessDeniedException()
+        val goal = lockSavingsGoal(before[SavingsPlans.goalId]) ?: throw AccessDeniedException()
+        if (!accountBelongsToUser(userId, goal[SavingsGoals.accountId])) throw AccessDeniedException()
+        val plan = SavingsPlans.selectAll().where { SavingsPlans.id eq planId }.forUpdate().single()
+        if (plan[SavingsPlans.status] == "COMPLETED" && savingsRecordedCents(plan) == input.amountCents && plan[SavingsPlans.actualDate] == date && plan[SavingsPlans.proofImage] == input.proofImage) return@transaction
+        require(formatDateTime(plan[SavingsPlans.updatedAt]) == input.expectedUpdatedAt) { "存入记录已变更，请刷新后再修改。" }
+        val entries = decodeSavingsFundEntries(goal[SavingsGoals.fundMovements])
+        require(savingsSourceUsedCents(entries, planId) <= input.amountCents) { "这项计划还有未补齐取用，请补齐后再减少存款。" }
+        val gross = (savingsMoneyCents(goal[SavingsGoals.currentAmount]) - savingsRecordedCents(plan) + input.amountCents).coerceAtLeast(0)
+        val total = SavingsPlans.selectAll().where { SavingsPlans.goalId eq goal[SavingsGoals.id] }.forUpdate().sumOf { if (it[SavingsPlans.id] == planId) input.amountCents else savingsRecordedCents(it) }
+        validateSavingsBasis(entries, gross, total)
+        val now = LocalDateTime.now()
+        SavingsGoals.update({ SavingsGoals.id eq goal[SavingsGoals.id] }) {
+            it[currentAmount] = java.math.BigDecimal.valueOf(gross, 2)
+            it[updatedAt] = now
+        }
+        SavingsPlans.update({ SavingsPlans.id eq planId }) {
+            it[status] = "COMPLETED"
+            it[actualAmount] = java.math.BigDecimal.valueOf(input.amountCents, 2)
+            it[actualDate] = date
+            it[proofImage] = input.proofImage
+            it[updatedAt] = now
+        }
+    }
+
+    fun recordSavingsFundMovement(goalId: String, userId: String, input: SavingsFundInput): JsonObject = transaction {
+        val goal = SavingsGoals.selectAll().where { SavingsGoals.id eq goalId }.forUpdate().singleOrNull() ?: throw AccessDeniedException()
+        if (!accountBelongsToUser(userId, goal[SavingsGoals.accountId])) throw AccessDeniedException()
+        val plans = SavingsPlans.selectAll().where { SavingsPlans.goalId eq goalId }.forUpdate().toList().map {
+            SavingsFundPlan(it[SavingsPlans.id], it[SavingsPlans.month], savingsRecordedCents(it))
+        }
+        val entries = decodeSavingsFundEntries(goal[SavingsGoals.fundMovements])
+        val now = LocalDateTime.now()
+        val next = appendSavingsFundEntry(entries, savingsMoneyCents(goal[SavingsGoals.currentAmount]), plans, input, formatDateTime(now))
+        if (next != entries) SavingsGoals.update({ SavingsGoals.id eq goalId }) { row ->
+            row[fundMovements] = encodeSavingsFundEntries(next)
+            row[updatedAt] = now
+        }
+        SavingsGoals.selectAll().where { SavingsGoals.id eq goalId }.single().toSavingsGoalRecord().toPayloadJson()
+    }
+
     fun listSavingsPlansRest(goalId: String, userId: String): List<JsonObject> = transaction {
         SavingsPlans.selectAll().where {
             (SavingsPlans.goalId eq goalId) and (SavingsPlans.goalId inSubQuery ownedGoalIds(userId))
@@ -1118,6 +1173,7 @@ private fun ResultRow.toSavingsGoalRecord() = SyncRecordRow(
         "status" to this[SavingsGoals.status],
         "depositType" to this[SavingsGoals.depositType],
         "planConfig" to this[SavingsGoals.planConfig],
+        "fundMovements" to this[SavingsGoals.fundMovements],
         "createdAt" to formatDateTime(this[SavingsGoals.createdAt]),
         "updatedAt" to formatDateTime(this[SavingsGoals.updatedAt]),
     ),
@@ -1363,7 +1419,16 @@ private fun upsertLoan(payload: JsonObject) = upsertById(Loans, Loans.id, payloa
         row[Loans.updatedAt] = payload.getDateTime("updatedAt")
     }
 
-private fun upsertSavingsGoal(payload: JsonObject) = upsertById(SavingsGoals, SavingsGoals.id, payload.getString("id")) { row ->
+private fun upsertSavingsGoal(payload: JsonObject) {
+    val goalId = payload.getString("id")
+    val existing = lockSavingsGoal(goalId)
+    if (existing != null) {
+        val entries = decodeSavingsFundEntries(existing[SavingsGoals.fundMovements])
+        require(entries.isEmpty() || payload.getString("accountId") == existing[SavingsGoals.accountId]) { "有资金流水的目标不能移动到账本。" }
+        val recorded = SavingsPlans.selectAll().where { SavingsPlans.goalId eq goalId }.forUpdate().sumOf { savingsRecordedCents(it) }
+        validateSavingsBasis(entries, savingsMoneyCents(payload.getDecimal("currentAmount")), recorded)
+    }
+    upsertById(SavingsGoals, SavingsGoals.id, goalId) { row ->
         row[SavingsGoals.userId] = payload.getString("userId")
         row[SavingsGoals.accountId] = payload.getString("accountId")
         row[SavingsGoals.name] = payload.getString("name")
@@ -1378,7 +1443,20 @@ private fun upsertSavingsGoal(payload: JsonObject) = upsertById(SavingsGoals, Sa
         row[SavingsGoals.updatedAt] = payload.getDateTime("updatedAt")
     }
 
-private fun upsertSavingsPlan(payload: JsonObject) = upsertById(SavingsPlans, SavingsPlans.id, payload.getString("id")) { row ->
+}
+
+private fun upsertSavingsPlan(payload: JsonObject) {
+    val goalId = payload.getString("goalId")
+    val goal = lockSavingsGoal(goalId) ?: throw IllegalArgumentException("储蓄目标不存在。")
+    val old = SavingsPlans.selectAll().where { SavingsPlans.id eq payload.getString("id") }.forUpdate().singleOrNull()
+    require(old == null || old[SavingsPlans.goalId] == goalId) { "不能移动已有储蓄计划，请在原目标中修改。" }
+    val entries = decodeSavingsFundEntries(goal[SavingsGoals.fundMovements])
+    val used = savingsSourceUsedCents(entries, payload.getString("id"))
+    val recorded = if (payload.getString("status") == "COMPLETED") savingsMoneyCents(payload.getNullableDecimal("actualAmount") ?: payload.getDecimal("amount")) else 0L
+    require(used <= recorded && (used == 0L || old?.get(SavingsPlans.month) == payload.getString("month"))) { "这项计划还有未补齐取用，请先补齐后再修改。" }
+    val total = SavingsPlans.selectAll().where { SavingsPlans.goalId eq goalId }.forUpdate().sumOf { if (it[SavingsPlans.id] == payload.getString("id")) 0L else savingsRecordedCents(it) } + recorded
+    validateSavingsBasis(entries, savingsMoneyCents(goal[SavingsGoals.currentAmount]), total)
+    upsertById(SavingsPlans, SavingsPlans.id, payload.getString("id")) { row ->
         row[SavingsPlans.goalId] = payload.getString("goalId")
         row[SavingsPlans.amount] = payload.getDecimal("amount")
         row[SavingsPlans.status] = payload.getString("status")
@@ -1392,6 +1470,8 @@ private fun upsertSavingsPlan(payload: JsonObject) = upsertById(SavingsPlans, Sa
         row[SavingsPlans.actualAmount] = payload.getNullableDecimal("actualAmount")
         row[SavingsPlans.actualDate] = payload.getNullableDateTime("actualDate")
     }
+
+}
 
 private fun upsertCategoryRule(payload: JsonObject) = upsertById(TransactionCategoryRules, TransactionCategoryRules.id, payload.getString("id")) { row ->
         row[TransactionCategoryRules.userId] = payload.getString("userId")
@@ -1508,3 +1588,12 @@ private fun parseDateTime(value: String): LocalDateTime {
 }
 
 private fun formatDateTime(value: LocalDateTime) = value.format(dateTimeFormatter)
+
+private fun savingsMoneyCents(amount: java.math.BigDecimal): Long = amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact()
+private fun savingsRecordedCents(row: ResultRow): Long = if (row[SavingsPlans.status] == "COMPLETED") savingsMoneyCents(row[SavingsPlans.actualAmount] ?: row[SavingsPlans.amount]).coerceAtLeast(0) else 0L
+private fun lockSavingsGoal(id: String): ResultRow? = SavingsGoals.selectAll().where { SavingsGoals.id eq id }.forUpdate().singleOrNull()
+private fun validateSavingsBasis(entries: List<SavingsFundEntry>, gross: Long, recorded: Long) {
+    require(maxOf(gross, recorded) >= savingsOutstandingCents(entries)) { "已存金额低于未补齐取用，请先补齐后再修改存款。" }
+    val legacyUsed = savingsSourceUsedCents(entries, null)
+    require(legacyUsed <= 0 || gross - recorded >= legacyUsed) { "期初储蓄还有未补齐取用，请先补齐后再减少存款。" }
+}

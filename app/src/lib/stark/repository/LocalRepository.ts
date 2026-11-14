@@ -9,14 +9,16 @@ import type {
   Loan,
   LoanRepaymentClassificationResult,
   SavingsGoal,
+  SavingsDepositInput,
   SavingsPlan,
+  SavingsFundInput,
   Subscription,
   ThemeConfig,
   Transaction,
   User,
 } from "@/lib/stark/models/types";
 import type { DataRepository } from "@/lib/stark/repository/DataRepository";
-import { applyLoanRepaymentClassifications, deleteRecord, deleteSavingsGoalAndPlans, getAllRecords, getRecord, importTransactionsAndApplyLoanRepayments, putRecord, type StoreName } from "@/lib/stark/storage/indexeddb";
+import { recordSavingsDeposit, recordSavingsFundMovement, saveSavingsGoalRecord, saveSavingsPlanRecord, deleteSavingsPlanRecord, applyLoanRepaymentClassifications, deleteRecord, deleteSavingsGoalAndPlans, getAllRecords, getRecord, importTransactionsAndApplyLoanRepayments, putRecord, type StoreName } from "@/lib/stark/storage/indexeddb";
 import { getCurrentAccountId } from "@/lib/stark/storage/local-config";
 import { nowText } from "@/lib/stark/utils/format";
 import { isLocalDemoSavingsGoal, LOCAL_DEMO_RECORD_IDS } from "@/lib/stark/repository/local-demo-data";
@@ -255,7 +257,7 @@ export class LocalRepository implements DataRepository {
 
   async saveSavingsGoal(goal: SavingsGoal) {
     await this.ensureSeeded();
-    await putRecord("savingsGoals", goal);
+    await saveSavingsGoalRecord(goal);
   }
 
   async deleteSavingsGoal(id: string) {
@@ -276,12 +278,23 @@ export class LocalRepository implements DataRepository {
 
   async saveSavingsPlan(plan: SavingsPlan) {
     await this.ensureSeeded();
-    await putRecord("savingsPlans", plan);
+    await saveSavingsPlanRecord(plan);
   }
 
   async deleteSavingsPlan(id: string) {
     await this.ensureSeeded();
-    await deleteRecord("savingsPlans", id);
+    const plan = await getRecord<SavingsPlan>("savingsPlans", id);
+    if (plan) await deleteSavingsPlanRecord(plan);
+  }
+
+  async recordSavingsDeposit(planId: string, input: SavingsDepositInput) {
+    await this.ensureSeeded();
+    await recordSavingsDeposit(planId, input, getCurrentAccountId(), nowText());
+  }
+
+  async recordSavingsFundMovement(goalId: string, input: SavingsFundInput) {
+    await this.ensureSeeded();
+    return recordSavingsFundMovement(goalId, input, getCurrentAccountId(), nowText());
   }
 
   async getCategoryRules(accountId: string) {

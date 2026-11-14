@@ -9,6 +9,8 @@ import type {
   Loan,
   LoanRepaymentClassificationResult,
   SavingsGoal,
+  SavingsDepositInput,
+  SavingsFundInput,
   SavingsPlan,
   Subscription,
   ThemeConfig,
@@ -609,6 +611,28 @@ export class RemoteRepository implements DataRepository {
     );
   }
   async saveSavingsGoal(goal: SavingsGoal) { await this.save("savingsGoals", goal); }
+  private async writeSavings<T>(path: string, input: unknown): Promise<T> {
+    try {
+      return await this.request<T>(path, { method: "POST", body: JSON.stringify(input) });
+    } catch (cause) {
+      const body = cause instanceof Error ? cause.message.match(/^Cloud API \d+: ([\s\S]*)$/)?.[1] : undefined;
+      if (body) {
+        let message: unknown;
+        try { message = (JSON.parse(body) as { error?: unknown }).error; } catch { /* Preserve the original network error. */ }
+        if (typeof message === "string" && message) throw new Error(message);
+      }
+      throw cause;
+    }
+  }
+  async recordSavingsDeposit(planId: string, input: SavingsDepositInput) {
+    await this.writeSavings<void>(`/api/savings-plans/${encodeURIComponent(planId)}/deposit`, input);
+    await this.clearEntityCaches("savingsGoals", getCurrentAccountId());
+  }
+  async recordSavingsFundMovement(goalId: string, input: SavingsFundInput) {
+    const goal = await this.writeSavings<SavingsGoal>(`/api/savings-goals/${encodeURIComponent(goalId)}/fund-movements`, input);
+    await this.clearEntityCaches("savingsGoals", goal.accountId);
+    return goal;
+  }
   async deleteSavingsGoal(id: string) {
     await this.request<void>(`/api/savings-goals/${encodeURIComponent(id)}`, { method: "DELETE" });
     this.invalidateCachedResource("savingsGoals");

@@ -10,7 +10,6 @@ import { clearNewEntryDraft, readNewEntryDraft, saveNewEntryDraft, type NewEntry
 import { getCloudApiUrl, getCurrentAccountId } from "@/lib/stark/storage/local-config";
 import { getCloudAuthToken } from "@/lib/stark/storage/cloud-auth";
 import { SHOWCASE_DEMO_MODE } from "@/lib/stark/runtime";
-import { recordSavingsPlanDeposit } from "@/lib/stark/savings/planner";
 import { buildSalaryBatchTransactions, SALARY_BATCH_MONTHS, salaryBatchMonthKeys, selectSalaryBatchMonths } from "@/lib/stark/journal/salary-batch";
 import { applyScreenshotRecognition, prepareJournalDrafts, type JournalDraft, type RecognitionOverrides } from "@/lib/stark/journal/recognition-drafts";
 import type { Asset, AssetType, Loan, SavingsGoal, SavingsPlan, Transaction, TransactionType } from "@/lib/stark/models";
@@ -898,10 +897,11 @@ export function JournalPanel({
     setRecordSaving(true);
     setRecordNotice("");
     try {
-      const now = nowText();
-      const result = recordSavingsPlanDeposit(savingsPlan, savingsGoal, value, proofImage, now, recordedDate.length === 16 ? `${recordedDate}:00` : recordedDate);
-      await repo.saveSavingsGoal(result.goal);
-      await repo.saveSavingsPlan(result.plan);
+      await repo.recordSavingsDeposit(savingsPlan.id, {
+        amountCents: Math.round(value * 100), proofImage,
+        date: recordedDate.length === 16 ? `${recordedDate}:00` : recordedDate,
+        expectedUpdatedAt: savingsPlan.updatedAt,
+      });
       window.dispatchEvent(new Event("stark:savings-saved"));
       onSaved?.();
       handleClose();

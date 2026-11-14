@@ -9,7 +9,9 @@ import type {
   Loan,
   LoanRepaymentClassificationResult,
   SavingsGoal,
+  SavingsDepositInput,
   SavingsPlan,
+  SavingsFundInput,
   Subscription,
   ThemeConfig,
   Transaction,
@@ -54,6 +56,8 @@ export interface DataRepository {
   getSavingsPlansByGoals(goalIds: string[]): Promise<SavingsPlan[]>;
   saveSavingsPlan(plan: SavingsPlan): Promise<void>;
   deleteSavingsPlan(id: string): Promise<void>;
+  recordSavingsDeposit(planId: string, input: SavingsDepositInput): Promise<void>;
+  recordSavingsFundMovement(goalId: string, input: SavingsFundInput): Promise<SavingsGoal>;
 
   getCategoryRules(accountId: string): Promise<CategoryRule[]>;
   saveCategoryRule(rule: CategoryRule): Promise<void>;

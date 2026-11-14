@@ -13,10 +13,12 @@ import { savingsDepositTypeLabel } from "@/lib/stark/savings/deposit-type";
 import { groupRecentSavingsPlans } from "@/lib/stark/savings/recent-plans";
 import { formatMoney } from "@/lib/stark/utils/format";
 import type { SavingsGoal, SavingsPlan } from "@/lib/stark/models";
-import { savingsPlanRecordedAmount } from "@/lib/stark/savings/planner";
 import { summarizeSavingsGoalProgress, summarizeSavingsProgress } from "@/lib/stark/savings/progress";
 import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 import { getCurrentAccountId } from "@/lib/stark/storage/local-config";
+import { SavingsFundPanel } from "@/components/stark/SavingsFundPanel";
+import { retainedSavingsPlanAmount, savingsFundOutstanding } from "@/lib/stark/savings/funds";
+import fundStyles from "@/components/stark/savings-funds.module.css";
 import styles from "./savings-record.module.css";
 
 const repo = new DataModeManager().getRepository();
@@ -28,7 +30,7 @@ function dayLabel(value: string, locale: "zh-CN" | "en-US") {
 
 function clampPercent(value: number) {
   if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, Math.round(value)));
+  return Math.max(0, Math.min(100, Math.round(value * 100) / 100));
 }
 
 function currentMonthKey() {
@@ -60,6 +62,14 @@ export default function SavingsPage() {
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [showAllPlans, setShowAllPlans] = useState(false);
+  const [tab, setTab] = useState<"savings" | "withdrawals">("savings");
+  useEffect(() => {
+    try { if (localStorage.getItem(`stark:savings-tab:${getCurrentAccountId()}`) === "withdrawals") setTab("withdrawals"); } catch { /* Storage is optional. */ }
+  }, []);
+  function changeTab(next: "savings" | "withdrawals") {
+    setTab(next);
+    try { localStorage.setItem(`stark:savings-tab:${getCurrentAccountId()}`, next); } catch { /* Keep selection in memory. */ }
+  }
 
   useEffect(() => {
     let active = true;
@@ -102,7 +112,7 @@ export default function SavingsPage() {
     const monthCompletedPlans = monthPlans.filter((plan) => plan.status === "COMPLETED");
     const monthPendingPlans = monthPlans.filter((plan) => plan.status === "PENDING");
     const monthSkippedPlans = monthPlans.filter((plan) => plan.status === "SKIPPED");
-    const monthRecorded = monthCompletedPlans.reduce((sum, plan) => sum + savingsPlanRecordedAmount(plan), 0);
+    const monthRecorded = monthCompletedPlans.reduce((sum, plan) => sum + retainedSavingsPlanAmount(plan, goals.find((goal) => goal.id === plan.goalId)), 0);
     const monthPendingAmount = monthPendingPlans.reduce((sum, plan) => sum + plan.amount, 0);
     const monthStatusParts = [
       monthCompletedPlans.length
@@ -132,19 +142,20 @@ export default function SavingsPage() {
     const progress = clampPercent(percent);
     const pendingAmount = Math.max(plannedTotal - savedAmount, 0);
     const remainingTarget = Math.max(target - savedAmount, 0);
-    const completionRate = plans.length ? clampPercent((completed / plans.length) * 100) : 0;
+    const completionRate = monthPlanned > 0 ? clampPercent((monthRecorded / monthPlanned) * 100) : 0;
     const activeCount = goals.filter((goal) => goal.status === "ACTIVE").length;
     return { activeCount, completed, completionRate, monthPlanned, monthStatus, pending, pendingAmount, plannedTotal, progress, remainingTarget, savedAmount, skipped, target };
   }, [currentMonth, goals, locale, plans]);
 
   const recentPlanGroups = useMemo(() => groupRecentSavingsPlans(plans, showAllPlans ? plans.length : 8), [plans, showAllPlans]);
   const visiblePlanCount = recentPlanGroups.reduce((sum, group) => sum + group.plans.length, 0);
-  const activeGoals = useMemo(() => goals.filter((goal) => goal.status === "ACTIVE"), [goals]);
+  const activeGoals = useMemo(() => goals.filter((goal) => goal.status === "ACTIVE" || savingsFundOutstanding(goal) > 0), [goals]);
   const goalCards = useMemo(() => (
     activeGoals.length ? activeGoals : goals
   ).slice(0, 4), [activeGoals, goals]);
   const recordingGoal = recordingPlan ? goals.find((goal) => goal.id === recordingPlan.goalId) ?? null : null;
   const heroProgress = `${summary.progress}%`;
+  const outstanding = goals.reduce((sum, goal) => sum + savingsFundOutstanding(goal), 0);
 
   if (loading) return <PageSkeleton title="储蓄" cards={3} />;
   if (loadError) return <PageDataError title="储蓄" onRetry={() => setLoadVersion((version) => version + 1)} />;
@@ -153,6 +164,17 @@ export default function SavingsPage() {
     <div className="page-stack savings-dashboard-page">
       <PageTopBar title="储蓄" />
 
+      <div className={fundStyles.tabs} role="tablist" aria-label={locale === "en-US" ? "Savings views" : "储蓄分页"} onKeyDown={(event) => {
+        if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+          event.preventDefault();
+          const next = event.key === "Home" ? "savings" : event.key === "End" ? "withdrawals" : tab === "savings" ? "withdrawals" : "savings";
+          changeTab(next); document.getElementById(`savings-tab-${next}`)?.focus();
+        }
+      }}>
+        <button type="button" id="savings-tab-savings" role="tab" aria-selected={tab === "savings"} aria-controls="savings-panel-savings" tabIndex={tab === "savings" ? 0 : -1} onClick={() => changeTab("savings")}>{locale === "en-US" ? "Savings" : "储蓄"}</button>
+        <button type="button" id="savings-tab-withdrawals" role="tab" aria-selected={tab === "withdrawals"} aria-controls="savings-panel-withdrawals" tabIndex={tab === "withdrawals" ? 0 : -1} onClick={() => changeTab("withdrawals")}>{locale === "en-US" ? "Withdrawals" : "取用"}</button>
+      </div>
+
       <FinancialPlanningNotice />
 
       <section className="home-card savings-vault-hero">
@@ -160,6 +182,7 @@ export default function SavingsPage() {
           <span className="savings-eyebrow">{translateValue("储蓄总览", locale)}</span>
           <strong>¥ {formatMoney(summary.savedAmount)}</strong>
           <p>{goals.length ? `${goals.length} ${locale === "en-US" ? "savings goals" : "个储蓄目标"}` : translateValue("还没有储蓄目标", locale)}</p>
+          {outstanding > 0 ? <p>{locale === "en-US" ? "To replenish" : "待补齐"} ¥ {formatMoney(outstanding)}</p> : null}
           <div className="savings-hero-track" aria-label={`总进度 ${summary.progress}%`}>
             <i style={{ width: heroProgress }} />
           </div>
@@ -174,6 +197,8 @@ export default function SavingsPage() {
         </div>
       </section>
 
+      <div id="savings-panel-savings" role="tabpanel" aria-labelledby="savings-tab-savings" hidden={tab !== "savings"}>
+      <div className="page-stack">
       <section className="savings-metric-grid" aria-label={locale === "en-US" ? "Key savings metrics" : "储蓄关键指标"}>
         <div className="savings-metric-card primary">
           <span>{translateValue("本月计划", locale)}</span>
@@ -186,11 +211,9 @@ export default function SavingsPage() {
           <small>{translateValue("离总目标还需补齐", locale)}</small>
         </div>
         <div className="savings-metric-card done">
-          <span>{translateValue("完成率", locale)}</span>
+          <span>{locale === "en-US" ? "Monthly savings rate" : "月度储蓄达成率"}</span>
           <strong>{summary.completionRate}%</strong>
-          <small>{locale === "en-US"
-            ? `${summary.completed} completed · ${summary.pending} pending${summary.skipped ? ` · ${summary.skipped} skipped` : ""}`
-            : `${summary.completed} 已完成 · ${summary.pending} 待存入${summary.skipped ? ` · ${summary.skipped} 已跳过` : ""}`}</small>
+          <small>{locale === "en-US" ? "This month’s retained savings / planned amount" : "本月实际留存金额 / 本月计划金额"}</small>
         </div>
       </section>
 
@@ -252,7 +275,7 @@ export default function SavingsPage() {
                   const goal = goals.find((item) => item.id === plan.goalId);
                   const recorded = plan.status === "COMPLETED";
                   const amount = recorded && plan.actualAmount !== null && plan.actualAmount !== undefined ? plan.actualAmount : plan.amount;
-                  const recordedAmount = savingsPlanRecordedAmount(plan);
+                  const recordedAmount = retainedSavingsPlanAmount(plan, goal);
                   const progress = plan.amount > 0 ? clampPercent((recordedAmount / plan.amount) * 100) : 0;
                   return (
                     <div key={plan.id} className={`savings-recent-row ${plan.status.toLowerCase()}`}>
@@ -286,7 +309,7 @@ export default function SavingsPage() {
                           <div className={styles.progressTrack} aria-label={`${goal?.name || "储蓄计划"} 完成 ${progress}%`}>
                             <i style={{ width: `${progress}%` }} />
                           </div>
-                          <small>已存 ¥ {formatMoney(recordedAmount)} / 计划 ¥ {formatMoney(plan.amount)}</small>
+                          <small>{locale === "en-US" ? "Retained" : "当前留存"} ¥ {formatMoney(recordedAmount)} / {locale === "en-US" ? "Planned" : "计划"} ¥ {formatMoney(plan.amount)}</small>
                         </div>
                       </div>
                     </div>
@@ -311,6 +334,12 @@ export default function SavingsPage() {
           </button>
         ) : null}
       </section>
+
+      </div>
+      </div>
+      <div id="savings-panel-withdrawals" role="tabpanel" aria-labelledby="savings-tab-withdrawals" hidden={tab !== "withdrawals"}>
+        <SavingsFundPanel goals={goals} plans={plans} repo={repo} onSaved={(goal) => setGoals((current) => current.map((item) => item.id === goal.id ? goal : item))} />
+      </div>
 
       {recordingPlan && recordingGoal ? (
         <JournalPanel

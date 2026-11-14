@@ -377,7 +377,7 @@ function StarkCrystalHero({
             {savingsWithdrawal > 0 ? (
               <span className="stark-cycle-metric">
                 <span>{locale === "en-US" ? "Savings withdrawn" : "储蓄取用"}</span>
-                <span className="stark-cycle-metric-value">−¥{formatMoney(savingsWithdrawal)}</span>
+                <span className="stark-cycle-metric-value">¥{formatMoney(savingsWithdrawal)}</span>
               </span>
             ) : null}
             {balanceMode === "salary" && summary.forecast.hasBalanceBaseline ? (

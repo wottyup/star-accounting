@@ -10,7 +10,7 @@ import { calculateBalanceFromBaseline, calculateCalendarPeriodCashflow, calculat
 import { summarizeSavingsPlanAllocation, type SavingsPlanAllocation } from "@/lib/stark/savings/planner";
 import { summarizeSavingsGoalProgress, summarizeSavingsProgress } from "@/lib/stark/savings/progress";
 
-import { savingsFundCashflowPlans, savingsFundOutstanding } from "@/lib/stark/savings/funds";
+import { savingsFundCashflowPlans, savingsFundOutstanding, savingsFundPeriodWithdrawals } from "@/lib/stark/savings/funds";
 
 export interface HomeTrend {
   labels: string[];
@@ -92,6 +92,8 @@ export interface HomeForecast {
   cycleTransactionCount: number;
   monthSavings: number;
   monthRepayment: number;
+  monthSavingsWithdrawal: number;
+  cycleSavingsWithdrawal: number;
 }
 
 export type HomeBudgetAllocation = BudgetAllocation;
@@ -441,6 +443,7 @@ function buildSalaryPlanSource(
 function buildForecast(
   transactions: Transaction[],
   savingsPlans: SavingsPlan[],
+  savingsGoals: readonly SavingsGoal[],
   income: number,
   expense: number,
   salaryDay: number,
@@ -470,6 +473,7 @@ function buildForecast(
     ? calculateBalanceFromBaseline(baselineAmount, cashflowSinceBaseline)
     : null;
   return {
+    ...savingsFundPeriodWithdrawals(savingsGoals, reportingMonth, salaryDay, referenceDate),
     projectedIncome: income,
     projectedExpense: expense,
     projectedBalance: monthBalance,
@@ -591,7 +595,7 @@ export function buildHomeSummary(input: {
   const assetTotal = input.assets.reduce((sum, item) => sum + item.balance, 0) + grossSavings; // Savings transfers remain assets as available cash.
   const liabilityTotal = loanTotal;
   const budgetAlerts = buildBudgetAlerts(input.transactions, input.budgets, expense, currentMonth);
-  const forecast = buildForecast(input.transactions, cashflowPlans, income, expense, salaryDay, currentMonth, referenceDate, input.account);
+  const forecast = buildForecast(input.transactions, cashflowPlans, input.savingsGoals, income, expense, salaryDay, currentMonth, referenceDate, input.account);
   const annual = isReportingYearKey(currentMonth);
   const cycleStart = annual ? null : salaryCycleRange(currentMonth, salaryDay, referenceDate).start;
   const savingsPlanPeriod = cycleStart

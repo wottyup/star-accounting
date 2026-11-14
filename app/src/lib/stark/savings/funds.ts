@@ -1,4 +1,5 @@
 import type { SavingsFundAllocation, SavingsFundEntry, SavingsFundInput, SavingsGoal, SavingsPlan } from "../models/types";
+import { calculateCalendarPeriodCashflow, calculateSalaryCycleCashflow } from "../dashboard/salary-cycle.ts";
 import { savingsPlanRecordedAmount } from "./recorded-amount.ts";
 
 export function moneyCents(amount: number) {
@@ -118,4 +119,13 @@ export function assertSavingsPlanFundChange(goal: SavingsGoal | undefined, oldPl
   if (used > 0 && (!nextPlan || nextPlan.goalId !== oldPlan.goalId || nextPlan.month !== oldPlan.month || moneyCents(savingsPlanRecordedAmount(nextPlan)) < used)) {
     throw new Error("这项计划还有未补齐取用，请补齐后再删除或减少存款。");
   }
+}
+
+/** Gross transfers out of savings, independent of deposits and later repayments. */
+export function savingsFundPeriodWithdrawals(goals: readonly SavingsGoal[], reportingPeriod: string, salaryDay: number, referenceDate: Date) {
+  const withdrawals = savingsFundCashflowPlans(goals).filter((plan) => Number(plan.actualAmount) < 0);
+  return {
+    monthSavingsWithdrawal: -calculateCalendarPeriodCashflow([], withdrawals, reportingPeriod).savings || 0,
+    cycleSavingsWithdrawal: -calculateSalaryCycleCashflow([], withdrawals, reportingPeriod, salaryDay, referenceDate).savings || 0,
+  };
 }

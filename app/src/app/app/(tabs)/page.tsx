@@ -263,6 +263,8 @@ function StarkCrystalHero({
         : (isReportingYearKey(reportingMonth) ? "全年收入" : "本月收入");
 
   const isNegative = activeMetric === "balance" && displayAmount < 0;
+  const savingsWithdrawal = balanceMode === "salary" ? summary.forecast.cycleSavingsWithdrawal : summary.forecast.monthSavingsWithdrawal;
+  const savingsDeposit = (balanceMode === "salary" ? summary.forecast.cycleSavings : summary.forecast.monthSavings) + savingsWithdrawal;
 
   return (
     <div className="stark-hero-island">
@@ -366,12 +368,18 @@ function StarkCrystalHero({
             </span>
             <span className="stark-cycle-metric">
               <span>{translateValue("储蓄", locale)}</span>
-              <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleSavings : summary.forecast.monthSavings)}</span>
+              <span className="stark-cycle-metric-value">¥{formatMoney(savingsDeposit)}</span>
             </span>
             <span className="stark-cycle-metric">
               <span>{translateValue("还款", locale)}</span>
               <span className="stark-cycle-metric-value">¥{formatMoney(balanceMode === "salary" ? summary.forecast.cycleRepayment : summary.forecast.monthRepayment)}</span>
             </span>
+            {savingsWithdrawal > 0 ? (
+              <span className="stark-cycle-metric">
+                <span>{locale === "en-US" ? "Savings withdrawn" : "储蓄取用"}</span>
+                <span className="stark-cycle-metric-value">+¥{formatMoney(savingsWithdrawal)}</span>
+              </span>
+            ) : null}
             {balanceMode === "salary" && summary.forecast.hasBalanceBaseline ? (
               <span className="stark-cycle-metric stark-cycle-net-change">
                 <span>{translateValue("本期净变动", locale)}</span>

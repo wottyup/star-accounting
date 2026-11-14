@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appendSavingsFundEntry, savingsFundEntries, savingsFundOutstanding, retainedSavingsPlanAmount, preserveSavingsFund, assertSavingsPlanFundChange, savingsFundCashflowPlans } from "./funds.ts";
+import { appendSavingsFundEntry, savingsFundEntries, savingsFundOutstanding, retainedSavingsPlanAmount, preserveSavingsFund, assertSavingsPlanFundChange, savingsFundCashflowPlans, savingsFundPeriodWithdrawals } from "./funds.ts";
 import { summarizeSavingsGoalProgress } from "./progress.ts";
 import { calculateCalendarPeriodCashflow } from "../dashboard/salary-cycle.ts";
 const now = "2026-11-14 12:00:00";
@@ -71,4 +71,22 @@ test("cent allocations stay exact and money transfers affect cashflow without a 
  assert.equal(cashflow.income,0);
  assert.equal(cashflow.expense,0);
  assert.ok(Math.abs(cashflow.savings+0.22)<1e-9);
+});
+
+test("home withdrawal breakdown follows month, year and payday without netting replenishments",()=>{
+ let g=append(goal,{...input("oct",20000),date:"2026-10-31T12:00"});
+ g=append(g,{...input("before-payday",30000),date:"2026-11-10T12:00"});
+ g=append(g,{...input("after-payday",40000),date:"2026-11-20T12:00"});
+ g=append(g,{...input("return",20000,"oct"),date:"2026-11-21T12:00"});
+ const november=savingsFundPeriodWithdrawals([g],"2026-11",15,new Date(2026,10,25));
+ assert.equal(november.monthSavingsWithdrawal,700);
+ assert.equal(november.cycleSavingsWithdrawal,400);
+ assert.equal(savingsFundPeriodWithdrawals([g],"2026-11",15,new Date(2026,10,14)).cycleSavingsWithdrawal,500);
+ assert.equal(savingsFundPeriodWithdrawals([g],"2026",15,new Date(2026,10,25)).monthSavingsWithdrawal,900);
+ assert.deepEqual(savingsFundPeriodWithdrawals([g],"2026-12",15,new Date(2026,11,25)),{monthSavingsWithdrawal:0,cycleSavingsWithdrawal:0});
+ assert.deepEqual(savingsFundPeriodWithdrawals([goal],"2026-11",15,new Date(2026,10,25)),{monthSavingsWithdrawal:0,cycleSavingsWithdrawal:0});
+ // Deposits + top-up minus withdrawals explain the same net savings used by balance.
+ const cashflow=calculateCalendarPeriodCashflow([],savingsFundCashflowPlans([g]),"2026-11");
+ assert.equal(cashflow.savings+november.monthSavingsWithdrawal,200);
+ assert.equal(cashflow.balance,500);
 });

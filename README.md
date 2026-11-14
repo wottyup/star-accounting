@@ -139,6 +139,8 @@ Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访�
 
 新 APK 会按版本和时间戳另存到 `releases/`，保留旧包。各版 Android `versionCode` 随新安装包单独递增。
 
+KT 混合版的两条打包命令会在构建成功后自动同步本机更新源：读取 APK 实际版本，将安装包放入 `releases/lan-update-test/`，再更新该目录的 `version.json`。检测地址沿用 [app-version.ts](app/src/lib/stark/app-version.ts) 中配置的本机地址，手机不用修改链接。运行中的本机更新服务会立即提供新包；清单保留备份，历史 APK 不覆盖。手机按 `versionCode` 比较版本，同版本重打包不会重复提示更新。CI 构建或使用官网 HTTPS 更新地址时跳过此步骤，公开发版流程不受影响。
+
 ## 数据与凭据
 
 - 卸载 Android 应用或清除应用数据可能删除该版本的本地账本；请自行备份重要数据。

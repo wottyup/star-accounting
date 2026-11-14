@@ -183,7 +183,7 @@ export default function SavingsPage() {
           <strong>¥ {formatMoney(summary.savedAmount)}</strong>
           <p>{goals.length ? `${goals.length} ${locale === "en-US" ? "savings goals" : "个储蓄目标"}` : translateValue("还没有储蓄目标", locale)}</p>
           {outstanding > 0 ? <p>{locale === "en-US" ? "To replenish" : "待补齐"} ¥ {formatMoney(outstanding)}</p> : null}
-          <div className="savings-hero-track" aria-label={`总进度 ${summary.progress}%`}>
+          <div className="savings-hero-track" aria-label={locale === "en-US" ? `Overall progress ${summary.progress}%` : `总进度 ${summary.progress}%`}>
             <i style={{ width: heroProgress }} />
           </div>
           <div className="savings-hero-meta">

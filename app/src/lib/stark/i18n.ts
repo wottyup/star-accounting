@@ -4,6 +4,23 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "规划提醒": "Planning reminder",
+  "本项目只用于规划，不能实际存入资金，请合理规划资金存放。": "This app is for planning only and does not hold real funds. Choose where to keep your money carefully.",
+  "请输入限额内的有效金额，最多保留两位小数。": "Enter an amount within the available limit, with up to two decimal places.",
+  "请选择日期和时间。": "Choose a date and time.",
+  "保存失败，请检查连接后重试。": "Unable to save. Check your balance and connection, then retry. Repeating the same request will not save it twice.",
+  "取用金额不能超过当前储蓄余额。": "The withdrawal amount cannot exceed your available savings.",
+  "补齐金额不能超过这笔取用的待补齐金额。": "The replenishment amount cannot exceed the remaining amount for this withdrawal.",
+  "找不到对应的取用记录，请刷新后重试。": "The withdrawal record could not be found. Refresh and try again.",
+  "这笔操作已保存，请刷新核对记录。": "This operation has already been saved. Refresh to check the record.",
+  "可用金额不足，请刷新后核对。": "Insufficient available funds. Refresh to check your balance.",
+  "请核对金额、时间和备注。": "Check the amount, date, time, and note.",
+  "请填写有效日期和时间。": "Enter a valid date and time.",
+  "储蓄资金记录无效，请刷新后重试。": "The savings fund records are invalid. Refresh and try again.",
+  "储蓄目标不存在或不属于当前账本。": "The savings goal does not exist or belongs to another account.",
+  "取用记录不能关联另一笔取用。": "A withdrawal cannot be linked to another withdrawal.",
+  "无权访问该储蓄目标。": "You do not have access to this savings goal.",
+  "当前服务暂不支持储蓄取用，请更新服务端。": "This server does not support savings withdrawals yet. Update the server to continue.",
   "悬浮记账": "Floating journal", "悬浮按钮": "Floating button", "点击后直接记账": "Tap to open journal", "已开启": "On", "未开启": "Off", "开启悬浮按钮": "Enable floating button", "重新开启悬浮按钮": "Re-enable floating button", "关闭悬浮记账": "Turn off floating journal", "处理中…": "Working…", "无法读取悬浮记账状态，请重新打开此页面。": "Could not read floating journal status. Reopen this page.", "开启悬浮按钮失败，请重试。": "Could not enable the floating button. Try again.", "关闭悬浮记账失败，请重试。": "Could not turn off floating journal. Try again.", "点击悬浮按钮会直接打开记账表单。需要识别支付截图时，在表单里点“截图识别”并选择图片。": "Tap the floating button to open the journal form. To recognize a payment screenshot, tap “Screenshot recognition” in the form and choose an image.", "悬浮按钮已开启，点击后会直接打开记账页面。": "The floating button is on. Tap it to open the journal form.", "尚未获得悬浮窗权限，请在系统设置中允许星会计显示在其他应用上层。": "Overlay permission was not granted. Allow Stark Accounting to display over other apps in system settings.",
   "批量录入 {count} 笔": "Bulk entry: {count} transactions",
   "每笔填写金额、备注和详细明细；上方的记账类型、分类、支付账户、购物平台和时间将应用到全部订单。": "Enter an amount, note, and details for each transaction. The type, category, payment account, shopping platform, and date selected above apply to all orders.",

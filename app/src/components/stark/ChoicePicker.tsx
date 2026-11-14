@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 import { BottomSheet } from "@/components/stark/BottomSheet";
 
 export type ChoicePickerOption = {
@@ -38,6 +39,8 @@ export function ChoicePicker({
   className?: string;
   variant?: "default" | "year" | "month";
 }) {
+  const locale = useAppLocale();
+  const placeholderLabel = translateValue(placeholder, locale);
   const [open, setOpen] = useState(false);
   const [closeRequest, setCloseRequest] = useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -62,19 +65,19 @@ export function ChoicePicker({
         ref={triggerRef}
         type="button"
         className={`stark-choice-picker-trigger ${className}`.trim()}
-        aria-label={ariaLabel}
+        aria-label={translateValue(ariaLabel, locale)}
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={isDisabled}
         onClick={() => setOpen(true)}
       >
-        <span>{selectedOption?.label ?? placeholder}</span>
+        <span>{selectedOption?.label ?? placeholderLabel}</span>
         <i>{chevronIcon()}</i>
       </button>
 
       {open ? (
         <BottomSheet
-          title={title}
+          title={translateValue(title, locale)}
           onClose={closePicker}
           closeRequest={closeRequest}
           className={`choice-picker-sheet choice-picker-sheet-${variant}`}
@@ -82,10 +85,10 @@ export function ChoicePicker({
           bodyClassName="choice-picker-sheet-body"
         >
           <p className="choice-picker-current" aria-live="polite">
-            <span>当前选择</span>
-            <strong>{selectedOption?.label ?? placeholder}</strong>
+            <span>{translateValue("当前选择", locale)}</span>
+            <strong>{selectedOption?.label ?? placeholderLabel}</strong>
           </p>
-          <div className={`choice-picker-options choice-picker-options-${variant}`} role="listbox" aria-label={title}>
+          <div className={`choice-picker-options choice-picker-options-${variant}`} role="listbox" aria-label={translateValue(title, locale)}>
             {options.map((option) => {
               const selected = option.value === value;
               return (

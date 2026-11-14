@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, type PropsWithChildren } from "react";
+import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 import { createPortal } from "react-dom";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { useSheetPresentation } from "@/components/stark/useSheetPresentation";
@@ -18,6 +19,8 @@ type BottomSheetProps = PropsWithChildren<{
 }>;
 
 export function BottomSheet({ children, title, onClose, historyMode = "marker", closeRequest, className = "", overlayClassName = "", bodyClassName = "" }: BottomSheetProps) {
+  const locale = useAppLocale();
+  const displayTitle = translateValue(title, locale);
   const titleId = useId();
   const [mounted, setMounted] = useState(false);
   const layerReady = useSheetPresentation(mounted);
@@ -135,8 +138,8 @@ export function BottomSheet({ children, title, onClose, historyMode = "marker", 
         <div className="bottom-sheet-handle" aria-hidden="true" />
         <header className="bottom-sheet-header">
           <span aria-hidden="true" />
-          <strong id={titleId}>{title}</strong>
-          <button type="button" aria-label={`关闭${title}`} onClick={requestClose}>×</button>
+          <strong id={titleId}>{displayTitle}</strong>
+          <button type="button" aria-label={locale === "en-US" ? `Close ${displayTitle}` : `关闭${displayTitle}`} onClick={requestClose}>×</button>
         </header>
         <div className={`bottom-sheet-body ${bodyClassName}`.trim()}>{children}</div>
       </section>

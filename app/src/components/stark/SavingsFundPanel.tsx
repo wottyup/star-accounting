@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BottomSheet } from "./BottomSheet";
 import { ChoicePicker } from "./ChoicePicker";
 import { DateTimePicker } from "./DateTimePicker";
-import { useAppLocale } from "@/lib/stark/i18n";
+import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 import type { SavingsFundEntry, SavingsFundInput, SavingsGoal, SavingsPlan } from "@/lib/stark/models";
 import type { DataRepository } from "@/lib/stark/repository/DataRepository";
 import { moneyCents, outstandingAllocations, savingsFundEntries, savingsFundOutstanding } from "@/lib/stark/savings/funds";
@@ -30,7 +30,7 @@ export function SavingsFundPanel({ goals, plans, repo, onSaved }: {
   const locale = useAppLocale();
   const en = locale === "en-US";
   const [operation, setOperation] = useState<{ goalId: string; withdrawal?: SavingsFundEntry } | null>(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ amount: number; replenishing: boolean } | null>(null);
   const records = goals.flatMap((goal) => {
     const entries = savingsFundEntries(goal);
     return entries.filter((entry) => entry.kind === "WITHDRAWAL").map((entry) => ({ goal, entry, entries, outstanding: remaining(entry, entries) }));
@@ -40,10 +40,10 @@ export function SavingsFundPanel({ goals, plans, repo, onSaved }: {
   return <div className={styles.panel}>
     <section className={`home-card ${styles.overview}`}>
       <div><span>{en ? "To replenish" : "待补齐金额"}</span><strong>¥ {formatMoney(outstanding)}</strong><small>{en ? "Replenish in full or in parts" : "支持分次补齐，补回原储蓄计划"}</small></div>
-      <button type="button" className={`action-main-btn ${styles.primary}`} disabled={!hasAvailable} onClick={() => { setMessage(""); setOperation({ goalId: goals.find((goal) => summarizeSavingsGoalProgress(goal, plans).savedAmount > 0)?.id ?? "" }); }}>{en ? "Withdraw" : "取用储蓄"}</button>
+      <button type="button" className={`action-main-btn ${styles.primary}`} disabled={!hasAvailable} onClick={() => { setMessage(null); setOperation({ goalId: goals.find((goal) => summarizeSavingsGoalProgress(goal, plans).savedAmount > 0)?.id ?? "" }); }}>{en ? "Withdraw" : "取用储蓄"}</button>
     </section>
     <p className={styles.hint}>{en ? "Withdrawals move savings to your available balance. Record any spending separately." : "取用会减少储蓄余额，释放到可支配结余；实际消费请另行记账。"}</p>
-    {message ? <p className={styles.success} role="status">{message}</p> : null}
+    {message ? <p className={styles.success} role="status">{en ? message.replenishing ? "Replenished" : "Withdrawn" : message.replenishing ? "已补齐" : "已取用"} ¥ {formatMoney(message.amount)}</p> : null}
     <section className={`home-card ${styles.history}`}>
       <div className="section-head"><h2>{en ? "Withdrawal history" : "取用记录"}</h2><span>{en ? `${records.length} withdrawals` : `${records.length} 笔`}</span></div>
       {records.length ? records.map(({ goal, entry, entries, outstanding: amount }) => {
@@ -52,12 +52,12 @@ export function SavingsFundPanel({ goals, plans, repo, onSaved }: {
           <div className={styles.recordHead}><strong>{goal.name}</strong><strong>−¥ {formatMoney(entry.amountCents / 100)}</strong></div>
           <time>{entry.date.replace("T", " ")}</time>
           {entry.note ? <p className={styles.note}>{entry.note}</p> : null}
-          <div className={styles.status}><span>{amount > 0 ? `${en ? "To replenish" : "待补齐"} ¥ ${formatMoney(amount)}` : en ? "Fully replenished" : "已补齐"}</span>{amount > 0 ? <button type="button" className={`action-sub-btn ${styles.secondary}`} onClick={() => { setMessage(""); setOperation({ goalId: goal.id, withdrawal: entry }); }}>{en ? "Replenish" : "补齐"}</button> : null}</div>
+          <div className={styles.status}><span>{amount > 0 ? `${en ? "To replenish" : "待补齐"} ¥ ${formatMoney(amount)}` : en ? "Fully replenished" : "已补齐"}</span>{amount > 0 ? <button type="button" className={`action-sub-btn ${styles.secondary}`} onClick={() => { setMessage(null); setOperation({ goalId: goal.id, withdrawal: entry }); }}>{en ? "Replenish" : "补齐"}</button> : null}</div>
           {replenishments.length ? <details className={styles.details}><summary>{en ? `Replenished ¥${formatMoney(entry.amountCents / 100 - amount)} · ${replenishments.length} records` : `已补回 ¥ ${formatMoney(entry.amountCents / 100 - amount)} · ${replenishments.length} 笔记录`}</summary>{replenishments.map((item) => <div key={item.id} className={styles.replenishment}><div><time>{item.date.replace("T", " ")}</time>{item.note ? <p className={styles.note}>{item.note}</p> : null}</div><span>+¥ {formatMoney(item.amountCents / 100)}</span></div>)}</details> : null}
         </article>;
       }) : <div className="loan-empty">{en ? "No withdrawals yet. Saved money can be withdrawn here when needed." : "还没有取用记录，需要时可在这里取用已存入的资金。"}</div>}
     </section>
-    {operation ? <FundForm key={`${operation.goalId}:${operation.withdrawal?.id ?? "new"}`} {...operation} goals={goals} plans={plans} repo={repo} onClose={() => setOperation(null)} onSaved={(goal, amount, replenishing) => { onSaved(goal); setMessage(`${en ? replenishing ? "Replenished" : "Withdrawn" : replenishing ? "已补齐" : "已取用"} ¥ ${formatMoney(amount)}`); }} /> : null}
+    {operation ? <FundForm key={`${operation.goalId}:${operation.withdrawal?.id ?? "new"}`} {...operation} goals={goals} plans={plans} repo={repo} onClose={() => setOperation(null)} onSaved={(goal, amount, replenishing) => { onSaved(goal); setMessage({ amount, replenishing }); }} /> : null}
   </div>;
 }
 
@@ -65,7 +65,8 @@ function FundForm({ goals, plans, goalId, withdrawal, repo, onClose, onSaved }: 
   goals: SavingsGoal[]; plans: SavingsPlan[]; goalId: string; withdrawal?: SavingsFundEntry; repo: DataRepository;
   onClose: () => void; onSaved: (goal: SavingsGoal, amount: number, replenishing: boolean) => void;
 }) {
-  const en = useAppLocale() === "en-US";
+  const locale = useAppLocale();
+  const en = locale === "en-US";
   const replenishing = Boolean(withdrawal);
   const draftKey = `stark:savings-fund-draft:${getCurrentAccountId()}:${withdrawal?.id ?? "withdrawal"}`;
   const [draft, setDraft] = useState<Draft>(() => {
@@ -87,9 +88,9 @@ function FundForm({ goals, plans, goalId, withdrawal, repo, onClose, onSaved }: 
     if (savingRef.current) return;
     const amount = Number(draft.amount);
     if (!goal || !/^\d+(\.\d{1,2})?$/.test(draft.amount) || !Number.isFinite(amount) || amount <= 0 || moneyCents(amount) > moneyCents(limit)) {
-      setError(en ? "Enter an amount within the available limit, with up to two decimal places." : "请输入限额内的有效金额，最多保留两位小数。"); return;
+      setError("请输入限额内的有效金额，最多保留两位小数。"); return;
     }
-    if (!draft.date) { setError(en ? "Choose a date and time." : "请选择日期和时间。"); return; }
+    if (!draft.date) { setError("请选择日期和时间。"); return; }
     const input: SavingsFundInput = { id: draft.id, kind: replenishing ? "REPLENISHMENT" : "WITHDRAWAL", amountCents: moneyCents(amount), date: draft.date, note: draft.note.trim(), withdrawalId: withdrawal?.id ?? null };
     savingRef.current = true; setSaving(true); setError("");
     try {
@@ -100,9 +101,11 @@ function FundForm({ goals, plans, goalId, withdrawal, repo, onClose, onSaved }: 
       setCloseRequest((value) => value + 1);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
-      setError(en ? "Unable to save. Check your balance and connection, then retry. Repeating the same request will not save it twice." : message || "保存失败，请检查连接后重试。");
+      setError(!message || /Failed to fetch|NetworkError|Load failed/i.test(message) ? "保存失败，请检查连接后重试。" : message);
     } finally { savingRef.current = false; setSaving(false); }
   }
+  const translatedError = translateValue(error, locale);
+  const errorMessage = en && /[\u3400-\u9fff]/.test(translatedError) ? translateValue("保存失败，请检查连接后重试。", locale) : translatedError;
   const title = en ? replenishing ? "Replenish savings" : "Withdraw savings" : replenishing ? "补齐储蓄" : "取用储蓄";
   return <BottomSheet title={title} onClose={onClose} closeRequest={closeRequest} className={styles.sheet} bodyClassName={styles.sheetBody}>
     <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void save(); }}>
@@ -112,7 +115,7 @@ function FundForm({ goals, plans, goalId, withdrawal, repo, onClose, onSaved }: 
         <div className="settings-url-field"><span>{en ? "Date and time" : "日期和时间"}</span><DateTimePicker value={draft.date} mode="datetime" ariaLabel={en ? "Date and time" : "日期和时间"} disabled={saving} onChange={(value) => update({ date: value })} /></div>
         <label className="settings-url-field"><span>{en ? "Note (optional)" : replenishing ? "补齐备注（可选）" : "取用用途（可选）"}</span><textarea rows={3} maxLength={500} value={draft.note} disabled={saving} onChange={(event) => update({ note: event.target.value })} placeholder={en ? "What is this for?" : "记一下这笔资金的用途"} /></label>
         <p className={styles.hint}>{en ? "Closing this form keeps your draft. Your balance changes only after saving." : "关闭页面会保留草稿，确认保存后才会变更余额。"}</p>
-        {error ? <p className={styles.error} role="alert">{error}</p> : null}
+        {error ? <p className={styles.error} role="alert">{errorMessage}</p> : null}
       </div>
       <footer className={styles.footer}><button type="submit" className="action-main-btn" disabled={saving || limit <= 0}>{saving ? en ? "Saving…" : "保存中…" : en ? replenishing ? "Confirm replenishment" : "Confirm withdrawal" : replenishing ? "确认补齐" : "确认取用"}</button></footer>
     </form>

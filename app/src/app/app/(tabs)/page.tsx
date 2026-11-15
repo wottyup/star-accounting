@@ -342,11 +342,9 @@ function StarkCrystalHero({
         </div>
         {activeMetric === "balance" ? (
           <div className="stark-cycle-breakdown" aria-label={translateValue("发薪周期资金明细", locale)}>
-            {balanceMode === "salary" ? (
+            {balanceMode === "salary" && !summary.forecast.hasBalanceBaseline ? (
               <span className="stark-cycle-carryover">
-                {summary.forecast.hasBalanceBaseline
-                  ? <>{translateValue("余额基准", locale)} ¥{formatMoney(summary.forecast.balanceBaselineAmount ?? 0)} · {summary.forecast.balanceBaselineDate?.slice(0, 10)}</>
-                  : translateValue("未设置余额基准", locale)}
+                {translateValue("未设置余额基准", locale)}
               </span>
             ) : null}
             {!isReportingYearKey(reportingMonth) ? (

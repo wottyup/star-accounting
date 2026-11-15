@@ -6,8 +6,9 @@ import { Capacitor } from "@capacitor/core";
 import packageInfo from "../../../../../package.json";
 import { PageTopBar } from "@/components/stark/PageTopBar";
 import { SettingsPictogram, type SettingPictogramType } from "@/components/stark/SettingsPictogram";
-import type { DataMode, ImportErrorLog, ImportFailedRow, Transaction } from "@/lib/stark/models";
+import type { Account, DataMode, ImportErrorLog, ImportFailedRow, Transaction } from "@/lib/stark/models";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
+import { REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/repository/RemoteRepository";
 import { getCloudApiUrl, getCurrentAccountId, getCurrentDataMode } from "@/lib/stark/storage/local-config";
 import { cloudLogout, cloudRegistrationStatus, cloudResetPassword, cloudSetRegistrationEnabled } from "@/lib/stark/repository/cloud-auth";
 import { getCloudAuthUser } from "@/lib/stark/storage/cloud-auth";
@@ -23,6 +24,7 @@ import { BillRemarkSheet } from "@/components/stark/BillRemarkSheet";
 import { SubscriptionManagementSheet } from "@/components/stark/SubscriptionManagementSheet";
 import { AIVisionSettingsSheet } from "@/components/stark/AIVisionSettingsSheet";
 import { FloatingJournalSettings } from "@/components/stark/FloatingJournalSettings";
+import { AccountReconciliationSheet } from "@/components/stark/AccountReconciliationSheet";
 import { BottomSheet } from "@/components/stark/BottomSheet";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { applyUiSettings, defaultUiSettings, readUiSettings, saveUiSettings, type FontChoice, type LanguageChoice, type UiSettings } from "@/lib/stark/storage/ui-settings";
@@ -79,6 +81,8 @@ export default function AccountsPage() {
   const [isAndroidApp, setIsAndroidApp] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [mode, setMode] = useState<DataMode>("CLOUD");
+  const [ledgerAccount, setLedgerAccount] = useState<Account | null>(null);
+  const [ledgerAccountStatus, setLedgerAccountStatus] = useState<"loading" | "ready" | "error">("loading");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -120,6 +124,37 @@ export default function AccountsPage() {
     void manager.getRepository().getImportErrorLogs(getCurrentAccountId()).then(setImportErrors).catch(() => setImportErrors([]));
     if (savedMode === "CLOUD" && getCloudAuthUser()) void loadRegistrationStatus();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadLedgerAccount = () => {
+      setLedgerAccountStatus("loading");
+      void manager.getRepository().getAccount(getCurrentAccountId())
+        .then((account) => {
+          if (!active) return;
+          setLedgerAccount(account);
+          setLedgerAccountStatus("ready");
+        })
+        .catch(() => {
+          if (!active) return;
+          setLedgerAccount(null);
+          setLedgerAccountStatus("error");
+        });
+    };
+    const handleRemoteCacheUpdate = (event: Event) => {
+      if ((event as CustomEvent<RemoteCacheUpdate>).detail?.resource === "accounts") loadLedgerAccount();
+    };
+    loadLedgerAccount();
+    window.addEventListener("stark:account-saved", loadLedgerAccount);
+    window.addEventListener("stark:data-mode-changed", loadLedgerAccount);
+    window.addEventListener(REMOTE_CACHE_UPDATED_EVENT, handleRemoteCacheUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener("stark:account-saved", loadLedgerAccount);
+      window.removeEventListener("stark:data-mode-changed", loadLedgerAccount);
+      window.removeEventListener(REMOTE_CACHE_UPDATED_EVENT, handleRemoteCacheUpdate);
+    };
+  }, [mode]);
 
   useEffect(() => {
     setUpdateAvailable(getAppUpdateAvailable());
@@ -404,6 +439,18 @@ export default function AccountsPage() {
       <section className="settings-center-group">
         <SettingsRow type="REMARK" title="账单归类" value="转账可归入支出分类" onClick={() => setActivePanel("REMARK")} />
         <SettingsRow type="SUBSCRIPTIONS" title="订阅/扣费管理" value="按月自动记账" onClick={() => setActivePanel("SUBSCRIPTIONS")} />
+        <SettingsRow
+          type="BALANCE"
+          title="余额基准"
+          value={ledgerAccountStatus === "loading"
+            ? "读取中"
+            : ledgerAccountStatus === "error"
+              ? "读取失败"
+              : ledgerAccount?.openingBalanceDate && ledgerAccount.openingBalance != null
+                ? `已设置 · ${ledgerAccount.openingBalanceDate.slice(0, 10)} · ¥${Number(ledgerAccount.openingBalance).toFixed(2)}`
+                : "未设置"}
+          onClick={() => setActivePanel("BALANCE")}
+        />
         <SettingsRow type="AI_VISION" title="AI 截图识别" value={cloudUser ? "配置截图识别模型" : "需云端账户"} onClick={() => setActivePanel("AI_VISION")} />
         {isAndroidApp ? <SettingsRow type="FLOATING" title="悬浮记账" value="点击后直接记账" onClick={() => setActivePanel("FLOATING")} /> : null}
       </section>
@@ -442,7 +489,7 @@ export default function AccountsPage() {
 
       {activePanel ? (
         <BottomSheet
-          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "AI_VISION" ? "AI 截图识别" : activePanel === "FLOATING" ? "悬浮记账" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
+          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "BALANCE" ? "余额基准" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "AI_VISION" ? "AI 截图识别" : activePanel === "FLOATING" ? "悬浮记账" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
           className="settings-sheet"
           overlayClassName="settings-sheet-overlay"
           onClose={() => setActivePanel(null)}
@@ -490,6 +537,8 @@ export default function AccountsPage() {
             {activePanel === "REMARK" ? <div className="settings-sheet-body remark-sheet-body">
               <BillRemarkSheet />
             </div> : null}
+
+            {activePanel === "BALANCE" ? <AccountReconciliationSheet /> : null}
 
             {activePanel === "SUBSCRIPTIONS" ? <SubscriptionManagementSheet /> : null}
 

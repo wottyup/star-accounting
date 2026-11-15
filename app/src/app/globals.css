@@ -5194,6 +5194,17 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   overflow-wrap: anywhere;
 }
 
+.stark-balance-baseline-link {
+  width: fit-content;
+  text-decoration: none;
+}
+
+.stark-balance-baseline-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 .stark-cycle-metric {
   display: flex;
   align-items: baseline;

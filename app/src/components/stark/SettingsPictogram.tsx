@@ -5,6 +5,7 @@ export type SettingPictogramType =
   | "IMPORT"
   | "EXPORT"
   | "REMARK"
+  | "BALANCE"
   | "SUBSCRIPTIONS"
   | "AI_VISION"
   | "FLOATING"
@@ -43,6 +44,11 @@ const artwork: Record<SettingPictogramType, ReactNode> = {
     <path d="M12 9h8M12 13h6M12 17h5" stroke="#C2D4DF" strokeWidth="2" strokeLinecap="round" />
     <path d="M18 19.5 24.5 13l5.3 5.3-6.5 6.5-5.6.3Z" fill="#F07E45" />
     <circle cx="25.3" cy="17.5" r="1.1" fill="#FFFFFF" />
+  </>,
+  BALANCE: <>
+    <rect x="3" y="4" width="26" height="24" rx="7" fill="#E4F4EC" />
+    <path d="M16 8v16M8 12h16M10 12l-4 7h8l-4-7Zm12 0-4 7h8l-4-7ZM11 24h10" fill="none" stroke="#299B73" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="16" cy="8" r="2" fill="#F2BD5E" />
   </>,
   SUBSCRIPTIONS: <>
     <rect x="3" y="6" width="26" height="23" rx="5" fill="#7666D6" />

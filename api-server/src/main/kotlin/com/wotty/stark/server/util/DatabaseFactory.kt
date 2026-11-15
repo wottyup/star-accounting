@@ -739,6 +739,41 @@ object DatabaseFactory {
     // —— REST 接口辅助：写/删走通用记录，读复用 toXRecord 序列化 ——
     private fun SyncRecordRow.toPayloadJson(): JsonObject = json.parseToJsonElement(payload).jsonObject
 
+    fun importLedgerWorkbook(userId: String, input: LedgerWorkbookRequest): LedgerWorkbookResult {
+        val (accountId, rows) = prepareLedgerWorkbook(userId, input)
+        return transaction {
+            Users.selectAll().where { Users.id eq userId }.forUpdate().single()
+            if (Accounts.selectAll().where { (Accounts.id eq accountId) and (Accounts.ownerId eq userId) }.count() > 0) {
+                return@transaction LedgerWorkbookResult(accountId = accountId, reused = true)
+            }
+            var count = 0
+            workbookEntities.forEach { entity -> rows.getValue(entity).forEachIndexed { index, source ->
+                val payload = if (entity == "themeConfigs") {
+                    val existing = ThemeConfigs.selectAll().where { ThemeConfigs.userId eq userId }.singleOrNull()
+                    if (existing == null) source else JsonObject(source + ("id" to JsonPrimitive(existing[ThemeConfigs.id])))
+                } else source
+                try {
+                    // Reference rates get fresh IDs; ordinary REST writes to global rates stay forbidden.
+                    if (entity == "exchangeRates") upsertExchangeRate(payload)
+                    else upsertEntityPayload(entity, payload, userId)
+                }
+                catch (cause: Exception) { throw IllegalArgumentException("$entity 第 ${index + 2} 行无效，未写入数据：${cause.message}", cause) }
+                count += 1
+            } }
+            // Ordinary savings writes intentionally ignore the append-only fund field.
+            // Restore it only after every plan exists, inside this same transaction.
+            rows.getValue("savingsGoals").forEach { goal ->
+                val id = goal.getString("id")
+                val entries = decodeSavingsFundEntries(goal.getNullableString("fundMovements"))
+                val plans = SavingsPlans.selectAll().where { SavingsPlans.goalId eq id }.toList()
+                validateSavingsBasis(entries, savingsMoneyCents(goal.getDecimal("currentAmount")), plans.sumOf { savingsRecordedCents(it) })
+                plans.forEach { plan -> require(savingsSourceUsedCents(entries, plan[SavingsPlans.id]) <= savingsRecordedCents(plan)) { "储蓄取用超过对应计划的存入金额" } }
+                SavingsGoals.update({ SavingsGoals.id eq id }) { it[fundMovements] = encodeSavingsFundEntries(entries) }
+            }
+            LedgerWorkbookResult(accountId, count)
+        }
+    }
+
     fun upsertEntityPayload(entityType: String, payload: JsonObject, currentUserId: String? = null) {
         val normalizedPayload = if (currentUserId == null) payload else normalizePayloadForUser(entityType, payload, currentUserId)
         val updatedAt = payload.getNullableString("updatedAt")
@@ -1582,6 +1617,7 @@ private fun parseDateTime(value: String): LocalDateTime {
     val normalized = value.trim().removeSuffix("Z").replace("T", " ")
     return when (normalized.length) {
         10 -> LocalDate.parse(normalized).atStartOfDay()
+        16 -> LocalDateTime.parse(normalized + ":00", dateTimeFormatter)
         in 19..Int.MAX_VALUE -> LocalDateTime.parse(normalized.substring(0, 19), dateTimeFormatter)
         else -> error("Unsupported datetime format: $value")
     }

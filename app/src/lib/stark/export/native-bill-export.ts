@@ -12,12 +12,12 @@ const CHUNK_BYTES = 24 * 1024;
 
 /** Keep each WebView-to-Android message small, even for large account archives. */
 export async function saveExportFileOnAndroid(
-  content: string,
+  content: string | Uint8Array,
   fileName: string,
   mimeType: string,
   onProgress?: (percent: number) => void,
 ) {
-  const bytes = new TextEncoder().encode(content);
+  const bytes = typeof content === "string" ? new TextEncoder().encode(content) : content;
   const { id } = await nativeDataExport.begin({ fileName, totalBytes: bytes.length, mimeType });
   let lastPercent = 0;
   try {

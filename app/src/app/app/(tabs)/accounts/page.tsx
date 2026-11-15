@@ -8,14 +8,14 @@ import { PageTopBar } from "@/components/stark/PageTopBar";
 import { SettingsPictogram, type SettingPictogramType } from "@/components/stark/SettingsPictogram";
 import type { Account, DataMode, ImportErrorLog, ImportFailedRow, Transaction } from "@/lib/stark/models";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
-import { REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/repository/RemoteRepository";
-import { getCloudApiUrl, getCurrentAccountId, getCurrentDataMode } from "@/lib/stark/storage/local-config";
+import { RemoteRepository, REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/repository/RemoteRepository";
+import { getCloudApiUrl, getCurrentAccountId, getCurrentDataMode, setCurrentAccountId } from "@/lib/stark/storage/local-config";
 import { cloudLogout, cloudRegistrationStatus, cloudResetPassword, cloudSetRegistrationEnabled } from "@/lib/stark/repository/cloud-auth";
 import { getCloudAuthUser } from "@/lib/stark/storage/cloud-auth";
 import { nowText } from "@/lib/stark/utils/format";
 import { createId } from "@/lib/stark/utils/id";
 import { applyCategoryRules } from "@/lib/stark/dashboard/remark";
-import { serializeAccountArchiveToJson } from "@/lib/stark/export/account-archive";
+import { WORKBOOK_MIME, WORKBOOK_TABLES, type LedgerWorkbook } from "@/lib/stark/export/ledger-workbook-format";
 import { saveExportFileOnAndroid } from "@/lib/stark/export/native-bill-export";
 import { buildImportErrorLogs, selectFailedImportTransactions } from "@/lib/stark/import/import-errors";
 import { matchImportedLoanRepayments } from "@/lib/stark/import/loan-repayment";
@@ -26,6 +26,7 @@ import { AIVisionSettingsSheet } from "@/components/stark/AIVisionSettingsSheet"
 import { FloatingJournalSettings } from "@/components/stark/FloatingJournalSettings";
 import { AccountReconciliationSheet } from "@/components/stark/AccountReconciliationSheet";
 import { BottomSheet } from "@/components/stark/BottomSheet";
+import { ChoicePicker } from "@/components/stark/ChoicePicker";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { applyUiSettings, defaultUiSettings, readUiSettings, saveUiSettings, type FontChoice, type LanguageChoice, type UiSettings } from "@/lib/stark/storage/ui-settings";
 import { getAppUpdateAvailable, subscribeAppUpdateAvailable } from "@/lib/stark/app-update-status";
@@ -82,6 +83,7 @@ export default function AccountsPage() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [mode, setMode] = useState<DataMode>("CLOUD");
   const [ledgerAccount, setLedgerAccount] = useState<Account | null>(null);
+  const [ledgerAccounts, setLedgerAccounts] = useState<Account[]>([]);
   const [ledgerAccountStatus, setLedgerAccountStatus] = useState<"loading" | "ready" | "error">("loading");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -104,8 +106,10 @@ export default function AccountsPage() {
   const [readingBill, setReadingBill] = useState(false);
   const [pendingBillImport, setPendingBillImport] = useState<PendingBillImport | null>(null);
   const [importErrors, setImportErrors] = useState<ImportErrorLog[]>([]);
+  const [pendingWorkbook, setPendingWorkbook] = useState<LedgerWorkbook | null>(null);
+  const [importedWorkbookAccount, setImportedWorkbookAccount] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [exportMessage, setExportMessage] = useState("将导出当前账本的完整业务数据为 JSON 文件");
+  const [exportMessage, setExportMessage] = useState("将导出一个 Excel 工作簿，每类数据一个工作表");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dismissLogoutConfirm = useCallback(() => setLogoutConfirmOpen(false), []);
   const consumeLogoutHistory = useLayeredHistoryMarker(logoutConfirmOpen, "starkLogoutConfirm", dismissLogoutConfirm);
@@ -129,10 +133,11 @@ export default function AccountsPage() {
     let active = true;
     const loadLedgerAccount = () => {
       setLedgerAccountStatus("loading");
-      void manager.getRepository().getAccount(getCurrentAccountId())
-        .then((account) => {
+      void manager.getRepository().getAccounts()
+        .then((accounts) => {
           if (!active) return;
-          setLedgerAccount(account);
+          setLedgerAccounts(accounts);
+          setLedgerAccount(accounts.find((account) => account.id === getCurrentAccountId()) ?? null);
           setLedgerAccountStatus("ready");
         })
         .catch(() => {
@@ -225,8 +230,10 @@ export default function AccountsPage() {
   function selectImportPlatform(platform: BillImportSource) {
     setImportPlatform(platform);
     setPendingBillImport(null);
+    setPendingWorkbook(null);
+    setImportedWorkbookAccount(null);
     setImportInterrupted(false);
-    setImportMessage(platform === "本应用导出" ? "请选择本应用导出的 CSV 账单" : `请选择${platform}官方导出的 CSV / Excel 账单`);
+    setImportMessage(platform === "本应用导出" ? "请选择本应用导出的 Excel 工作簿或 CSV 账单" : `请选择${platform}官方导出的 CSV / Excel 账单`);
   }
 
   async function submitPasswordReset() {
@@ -280,12 +287,26 @@ export default function AccountsPage() {
     router.replace("/");
   }
 
+  function openLedger(accountId: string) {
+    setCurrentAccountId(accountId);
+    window.location.assign(withAppBasePath("/app/"));
+  }
+
   async function prepareBillImport(file: File) {
     setReadingBill(true);
     setPendingBillImport(null);
+    setPendingWorkbook(null);
+    setImportedWorkbookAccount(null);
     setImportInterrupted(false);
     setImportMessage("正在读取账单...");
     try {
+      if (importPlatform === "本应用导出" && /\.xlsx$/i.test(file.name)) {
+        const { readLedgerWorkbook } = await import("@/lib/stark/export/ledger-workbook");
+        const workbook = await readLedgerWorkbook(file);
+        setPendingWorkbook(workbook);
+        setImportMessage("工作簿已读取。确认后将创建一个账本副本，原账本会保留。");
+        return;
+      }
       const { parseBillFile } = await import("@/lib/stark/import/bill-csv");
       const rows = await parseBillFile(file, importPlatform);
       if (!rows.length) {
@@ -305,8 +326,8 @@ export default function AccountsPage() {
       }));
       setPendingBillImport({ fileName: file.name, platform: importPlatform, transactions });
       setImportMessage(`已识别 ${file.name}：${importPlatform}账单，共 ${transactions.length} 笔。确认后才会导入。`);
-    } catch {
-      setImportMessage("读取账单失败，请确认文件未损坏且为 CSV / XLS / XLSX 格式。");
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : "读取账单失败，请确认文件未损坏且为 CSV / XLS / XLSX 格式。");
     } finally {
       setReadingBill(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -373,12 +394,26 @@ export default function AccountsPage() {
     }
   }
 
+  async function confirmWorkbookImport() {
+    if (!pendingWorkbook || importing) return;
+    setImporting(true);
+    setImportMessage("正在校验并导入各工作表，请稍候...");
+    try {
+      const result = await manager.getRepository().importLedgerWorkbook(pendingWorkbook);
+      setImportedWorkbookAccount(result.accountId);
+      setPendingWorkbook(null);
+      setImportMessage(result.reused ? "这个工作簿已导入，已找到对应账本副本。" : `已导入 ${result.imported} 条记录，点击下方按钮打开导入的账本。`);
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : "工作簿导入失败，未写入数据");
+    } finally { setImporting(false); }
+  }
+
   async function exportLedgerData() {
     if (exporting) return;
     setExporting(true);
     setExportMessage("正在整理当前账本数据...");
     try {
-      const repository = manager.getRepository();
+      const repository = getCurrentDataMode() === "CLOUD" ? new RemoteRepository(getCloudApiUrl(), true) : manager.getRepository();
       const accountId = getCurrentAccountId();
       const pageSize = 500;
       const transactions: Transaction[] = [];
@@ -407,7 +442,8 @@ export default function AccountsPage() {
         repository.getSavingsPlansByGoals(savingsGoals.map((goal) => goal.id)),
         repository.getThemeConfig(cloudUser?.id ?? account.ownerId),
       ]);
-      const exported = serializeAccountArchiveToJson(account, {
+      const { createLedgerWorkbook } = await import("@/lib/stark/export/ledger-workbook");
+      const exported = createLedgerWorkbook(account, {
         transactions,
         assets,
         budgets,
@@ -422,14 +458,14 @@ export default function AccountsPage() {
       });
       const now = new Date();
       const pad = (value: number) => String(value).padStart(2, "0");
-      const fileName = `star-accounting-ledger-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+      const fileName = `star-accounting-ledger-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.xlsx`;
       if (Capacitor.isNativePlatform()) {
         setExportMessage("正在保存账本数据到系统文件...");
-        const result = await saveExportFileOnAndroid(exported.content, fileName, "application/json", (percent) => setExportMessage(`正在保存账本数据... ${percent}%`));
+        const result = await saveExportFileOnAndroid(exported.bytes, fileName, WORKBOOK_MIME, (percent) => setExportMessage(`正在保存账本数据... ${percent}%`));
         setExportMessage(`已导出当前账本全部业务数据，共 ${exported.totalRecordCount} 条记录，保存位置：${result.location}`);
         return;
       }
-      const blob = new Blob([exported.content], { type: "application/json;charset=utf-8" });
+      const blob = new Blob([exported.bytes.buffer as ArrayBuffer], { type: WORKBOOK_MIME });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -457,9 +493,13 @@ export default function AccountsPage() {
     <div className="page-stack settings-center-page">
       <PageTopBar title="设置" />
 
+      {ledgerAccounts.length > 1 ? <section className="settings-center-group"><div className="settings-sheet-body">
+        <label className="settings-url-field"><span>当前账本</span><ChoicePicker value={ledgerAccount?.id ?? getCurrentAccountId()} options={ledgerAccounts.map((account) => ({ value: account.id, label: account.name }))} onChange={openLedger} ariaLabel="切换账本" title="切换账本" /></label>
+      </div></section> : null}
+
       <section className="settings-center-group">
         <SettingsRow type="IMPORT" title="导入账单" value="微信 / 支付宝" onClick={() => setActivePanel("IMPORT")} />
-        <SettingsRow type="EXPORT" title="导出账本数据" value="JSON 文件" onClick={() => { setExportMessage("将导出当前账本的完整业务数据为 JSON 文件"); setActivePanel("EXPORT"); }} />
+        <SettingsRow type="EXPORT" title="导出账本数据" value="Excel 工作簿" onClick={() => { setExportMessage("将导出一个 Excel 工作簿，每类数据一个工作表"); setActivePanel("EXPORT"); }} />
       </section>
 
       <section className="settings-center-group">
@@ -543,21 +583,28 @@ export default function AccountsPage() {
               <div className="bill-platform-picker">
                 <button type="button" className={importPlatform === "微信" ? "active wechat" : "wechat"} onClick={() => selectImportPlatform("微信")}><span><img src={withAppBasePath("/category-icons/weixin.webp")} alt="" /></span><div><strong>微信账单</strong><small>微信支付 CSV / Excel 格式</small></div></button>
                 <button type="button" className={importPlatform === "支付宝" ? "active alipay" : "alipay"} onClick={() => selectImportPlatform("支付宝")}><span><img src={withAppBasePath("/category-icons/zhifubao.webp")} alt="" /></span><div><strong>支付宝账单</strong><small>支付宝交易记录 CSV / Excel</small></div></button>
-                <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><div><strong>本应用导出账单</strong><small>本应用导出的 CSV 流水</small></div></button>
+                <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><div><strong>本应用导出账单</strong><small>完整 Excel 工作簿 / CSV 流水</small></div></button>
               </div>
               <div className={`bill-import-message ${importMessage.startsWith("已导入") ? "success" : ""}`}>{importMessage}</div>
-              <input ref={fileInputRef} type="file" hidden accept={importPlatform === "本应用导出" ? ".csv,text/csv" : ".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={(event) => { const file = event.target.files?.[0]; if (file) void prepareBillImport(file); }} />
-              <button type="button" className="settings-sheet-primary" disabled={readingBill || importing} onClick={() => fileInputRef.current?.click()}>{readingBill ? "正在读取..." : pendingBillImport ? "重新选择账单文件" : "选择账单文件"}</button>
+              <input ref={fileInputRef} type="file" hidden accept={importPlatform === "本应用导出" ? ".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" : ".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={(event) => { const file = event.target.files?.[0]; if (file) void prepareBillImport(file); }} />
+              <button type="button" className="settings-sheet-primary" disabled={readingBill || importing} onClick={() => fileInputRef.current?.click()}>{readingBill ? "正在读取..." : pendingBillImport || pendingWorkbook ? "重新选择账单文件" : "选择账单文件"}</button>
+              {pendingWorkbook ? <div className="import-error-list">
+                <strong>各工作表记录数量</strong>
+                {Object.entries(WORKBOOK_TABLES).map(([key, name]) => <div key={key}><span>{name}</span><small>{pendingWorkbook.sheets[key as keyof typeof WORKBOOK_TABLES].length}</small></div>)}
+                <p>导入将创建账本副本；贷款余额直接恢复，储蓄和还款关联一并保留。主题配置会恢复到当前用户。</p>
+                <button type="button" className="settings-confirm-button" disabled={importing} onClick={() => void confirmWorkbookImport()}>{importing ? "导入中..." : "确认导入完整工作簿"}</button>
+              </div> : null}
+              {importedWorkbookAccount ? <button type="button" className="settings-confirm-button" onClick={() => openLedger(importedWorkbookAccount)}>打开导入的账本</button> : null}
               {pendingBillImport ? <button type="button" className="settings-confirm-button bill-import-confirm" disabled={importing} onClick={() => void confirmBillImport()}>{importing ? "导入中..." : importInterrupted ? `继续导入 ${pendingBillImport.transactions.length} 笔` : `确认导入 ${pendingBillImport.transactions.length} 笔`}</button> : null}
-              <p className="settings-sheet-tip">支持微信、支付宝官方导出的 CSV / XLS / XLSX 文件，以及本应用导出的 CSV 流水。导入本应用 CSV 时只读取收入、支出、转账和还款记录；储蓄操作行不会被当作账单导入。</p>
+              <p className="settings-sheet-tip">微信和支付宝文件导入为账单；本应用 Excel 工作簿按工作表恢复完整账本数据；旧 CSV 仍导入为账单流水。</p>
               {importErrors.length ? <div className="import-error-list"><strong>最近导入问题</strong>{importErrors.slice(0, 5).map((item) => <div key={item.id}><span>{item.fileName}{item.lineNumber > 0 ? ` · 第 ${item.lineNumber} 行` : ""}</span><small>{item.resolved ? "已解决" : item.errorMessage}</small></div>)}</div> : null}
             </div> : null}
 
             {activePanel === "EXPORT" ? <div className="settings-sheet-body">
-              <p className="settings-sheet-note">导出当前账本完整业务数据为 JSON，包括全部账单流水、资产余额、预算、贷款、储蓄目标和计划、周期扣费、账单归类规则、导入问题记录及余额基准；汇率参考、主题配置、储蓄凭证和资金池明细也会保留。不会导出其他账本、登录密码、认证令牌或 API 密钥。此文件用于数据归档；上方的账单导入功能目前仍读取 CSV 流水。</p>
+              <p className="settings-sheet-note">导出当前账本完整数据到一个 Excel 工作簿，账单、资产、预算、贷款、储蓄目标和计划、周期扣费等各占一个工作表。余额基准、归类规则、储蓄凭证和资金池明细也会保留。在“导入账单”中选择“本应用导出账单”，即可按工作表恢复到一个新的账本副本。</p>
               <div className="bill-import-message">{exportMessage}</div>
               <button type="button" className="settings-sheet-primary" disabled={exporting} onClick={() => void exportLedgerData()}>{exporting ? "正在导出..." : "导出完整账本数据"}</button>
-              <p className="settings-sheet-tip">文件采用 UTF-8 JSON 格式，包含导出时间、账本信息、各类数据和记录数量。Android 单文件上限为 100MB，超限会报错，不会静默导出部分数据。</p>
+              <p className="settings-sheet-tip">请保留全部工作表及字段名称；图片凭证等长内容分段存放于“长文本”表。单个工作簿上限 100MB。</p>
             </div> : null}
 
             {activePanel === "REMARK" ? <div className="settings-sheet-body remark-sheet-body">
@@ -574,7 +621,7 @@ export default function AccountsPage() {
 
             {activePanel === "LANGUAGE" ? <div className="settings-option-list">{(["SYSTEM", "ZH_CN", "EN_US"] as LanguageChoice[]).map((item) => <button type="button" key={item} className={uiSettings.language === item ? "active" : ""} onClick={() => updateUiSetting("language", item)}><span><strong>{languageLabels[item]}</strong><small>{item === "SYSTEM" ? "使用设备的语言偏好" : item === "ZH_CN" ? "固定使用简体中文" : "固定使用英文"}</small></span><em>{uiSettings.language === item ? "✓" : ""}</em></button>)}</div> : null}
             {activePanel === "FONT" ? <div className="settings-font-options">{(["SMALL", "STANDARD", "LARGE"] as FontChoice[]).map((item) => <button type="button" key={item} className={uiSettings.font === item ? "active" : ""} onClick={() => updateUiSetting("font", item)}><span style={{ fontSize: item === "SMALL" ? 13 : item === "LARGE" ? 19 : 16 }}>Aa</span><strong>{fontLabels[item]}</strong></button>)}</div> : null}
-            {activePanel === "HELP" ? <div className="settings-sheet-body help-sheet-body"><div><strong>数据没有加载出来怎么办？</strong><p>请返回根登录入口确认云端服务与数据库状态，再重新登录。</p></div><div><strong>账单导入支持什么格式？</strong><p>支持微信和支付宝官方导出的 CSV、XLS、XLSX 文件，也支持本应用导出的 CSV 账单。</p></div><div><strong>Web 端和 App 有何不同？</strong><p>目前暂时只开发安卓客户端，Web 端适用于 PC、iOS、鸿蒙等设备。</p></div><a href="https://github.com/wottyup/star-accounting/issues" target="_blank" rel="noreferrer">国际站点端反馈 <ChevronIcon /></a><a href="https://sevencn.com/software/staraccounting" target="_blank" rel="noreferrer">国内站点端反馈 <ChevronIcon /></a></div> : null}
+            {activePanel === "HELP" ? <div className="settings-sheet-body help-sheet-body"><div><strong>数据没有加载出来怎么办？</strong><p>请返回根登录入口确认云端服务与数据库状态，再重新登录。</p></div><div><strong>账单导入支持什么格式？</strong><p>支持微信和支付宝官方导出的 CSV、XLS、XLSX 文件，也支持本应用导出的 Excel 完整工作簿和旧 CSV 账单。</p></div><div><strong>Web 端和 App 有何不同？</strong><p>目前暂时只开发安卓客户端，Web 端适用于 PC、iOS、鸿蒙等设备。</p></div><a href="https://github.com/wottyup/star-accounting/issues" target="_blank" rel="noreferrer">国际站点端反馈 <ChevronIcon /></a><a href="https://sevencn.com/software/staraccounting" target="_blank" rel="noreferrer">国内站点端反馈 <ChevronIcon /></a></div> : null}
             {activePanel === "ABOUT" ? <div className="settings-about">
               <span><img src={withAppBasePath("/icon.svg")} alt="" /></span>
               <strong>星会计</strong>

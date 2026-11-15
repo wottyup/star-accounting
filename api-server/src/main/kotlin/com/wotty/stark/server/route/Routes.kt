@@ -116,6 +116,11 @@ fun Route.userRoutes() {
 }
 
 fun Route.accountRoutes() {
+    post("/api/ledger-workbook/import") {
+        val request = call.receive<com.wotty.stark.server.util.LedgerWorkbookRequest>()
+        call.respond(DatabaseFactory.importLedgerWorkbook(call.currentUserId(), request))
+    }
+
     val userId = { call: ApplicationCall -> call.currentUserId() }
     // GET /api/accounts - 账本列表
     get("/api/accounts") {

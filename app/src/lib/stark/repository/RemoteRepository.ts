@@ -1,3 +1,4 @@
+import type { LedgerWorkbook, WorkbookImportResult } from "@/lib/stark/export/ledger-workbook";
 import type {
   Account,
   Asset,
@@ -81,7 +82,7 @@ export class RemoteRepository implements DataRepository {
   private schemaCheckAt = 0;
   private schemaCheckRequest: Promise<void> | null = null;
 
-  constructor(baseUrl = getCloudApiUrl()) {
+  constructor(baseUrl = getCloudApiUrl(), private readonly freshReads = false) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
@@ -265,6 +266,7 @@ export class RemoteRepository implements DataRepository {
   }
 
   private async readCachedResource<T>(resource: CachedResource, key: string, load: () => Promise<T>, accountId?: string): Promise<T> {
+    if (this.freshReads) return load();
     this.ensureCacheScope();
     await this.ensureRemoteSchemaVersion();
     const cached = this.resourceCache(resource).get(key) as TimedValue<T> | undefined;
@@ -402,6 +404,25 @@ export class RemoteRepository implements DataRepository {
   private delete(entityType: EntityType, id: string, accountId?: string) {
     const targetAccountId = accountId ?? getCurrentAccountId();
     return this.save(entityType, { id, accountId: targetAccountId, __deleted: true, updatedAt: new Date().toISOString() });
+  }
+
+  async importLedgerWorkbook(input: LedgerWorkbook) {
+    try {
+      const result = await this.request<WorkbookImportResult>("/api/ledger-workbook/import", { method: "POST", body: JSON.stringify(input) }, 120_000);
+      this.clearCache();
+      await Promise.all([this.deletePersisted("accounts"), this.deletePersisted("themeConfigs"), this.deletePersisted("exchangeRates")]);
+      return result;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (/Cloud API (404|405|501):/.test(message)) throw new Error("当前服务尚不支持工作簿导入，请更新服务端");
+      const body = message.match(/^Cloud API \d+: ([\s\S]*)$/)?.[1];
+      if (body) {
+        let detail: unknown;
+        try { detail = (JSON.parse(body) as { error?: unknown }).error; } catch { /* Keep the original response. */ }
+        if (typeof detail === "string") throw new Error(detail);
+      }
+      throw cause;
+    }
   }
 
   async getCurrentUser() {

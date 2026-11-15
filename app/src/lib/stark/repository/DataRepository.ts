@@ -1,3 +1,4 @@
+import type { LedgerWorkbook, WorkbookImportResult } from "@/lib/stark/export/ledger-workbook";
 import type {
   Account,
   Asset,
@@ -19,6 +20,7 @@ import type {
 } from "@/lib/stark/models/types";
 
 export interface DataRepository {
+  importLedgerWorkbook(input: LedgerWorkbook): Promise<WorkbookImportResult>;
   getCurrentUser(): Promise<User | null>;
   saveUser(user: User): Promise<void>;
 

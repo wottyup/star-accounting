@@ -4,6 +4,41 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "当前账本": "Current ledger",
+  "切换账本": "Switch ledger",
+  "请选择本应用导出的 Excel 工作簿或 CSV 账单": "Choose an app-exported Excel workbook or CSV bills",
+  "Excel 工作簿": "Excel workbook",
+  "将导出一个 Excel 工作簿，每类数据一个工作表": "Export one Excel workbook with a worksheet for each data type",
+  "完整 Excel 工作簿 / CSV 流水": "Full Excel workbook / CSV transactions",
+  "各工作表记录数量": "Records in each worksheet",
+  "工作簿已读取。确认后将创建一个账本副本，原账本会保留。": "Workbook loaded. Confirm to create a ledger copy; your original ledger will be kept.",
+  "正在校验并导入各工作表，请稍候...": "Validating and importing worksheets. Please wait…",
+  "这个工作簿已导入，已找到对应账本副本。": "This workbook has already been imported. Its ledger copy is available.",
+  "工作簿导入失败，未写入数据": "Workbook import failed. No data was written.",
+  "导入将创建账本副本；贷款余额直接恢复，储蓄和还款关联一并保留。主题配置会恢复到当前用户。": "Import creates a ledger copy, restores loan balances, and preserves savings and repayment links. The theme will be restored for your current user.",
+  "确认导入完整工作簿": "Confirm full workbook import",
+  "打开导入的账本": "Open imported ledger",
+  "微信和支付宝文件导入为账单；本应用 Excel 工作簿按工作表恢复完整账本数据；旧 CSV 仍导入为账单流水。": "WeChat and Alipay files import transactions. This app’s Excel workbooks restore full ledger data by worksheet; legacy CSV files still import transactions.",
+  "导出当前账本完整数据到一个 Excel 工作簿，账单、资产、预算、贷款、储蓄目标和计划、周期扣费等各占一个工作表。余额基准、归类规则、储蓄凭证和资金池明细也会保留。在“导入账单”中选择“本应用导出账单”，即可按工作表恢复到一个新的账本副本。": "Export the current ledger to one Excel workbook with separate worksheets for transactions, assets, budgets, loans, savings, recurring charges, and more. Opening balances, rules, proof images, and savings fund records are preserved. Under “Import bills”, select “App-exported bills” to restore a new ledger copy.",
+  "请保留全部工作表及字段名称；图片凭证等长内容分段存放于“长文本”表。单个工作簿上限 100MB。": "Keep all worksheet and field names intact. Long content such as proof images is split into the “长文本” worksheet. Maximum workbook size: 100 MB.",
+  "支持微信和支付宝官方导出的 CSV、XLS、XLSX 文件，也支持本应用导出的 Excel 完整工作簿和旧 CSV 账单。": "Supports official WeChat and Alipay CSV, XLS, and XLSX exports, plus this app’s full Excel workbooks and legacy CSV bills.",
+  "账本信息": "Ledger information",
+  "账单": "Transactions",
+  "周期扣费": "Recurring charges",
+  "归类规则": "Classification rules",
+  "导入问题": "Import issues",
+  "汇率": "Exchange rates",
+  "主题配置": "Theme settings",
+  "请选择不超过 100MB 的本应用 Excel 工作簿": "Choose an app-exported Excel workbook up to 100 MB",
+  "工作表缺失或包含未知工作表，请选择完整导出的账本工作簿": "Worksheets are missing or unknown. Choose a complete exported ledger workbook.",
+  "账本工作簿格式或版本不受支持": "Unsupported ledger workbook format or version",
+  "长文本工作表包含无效引用或分段": "The long-text worksheet contains invalid references or chunks",
+  "长文本分段缺失，无法完整导入": "Long-text chunks are missing. A complete import is not possible.",
+  "长文本分段缺失或重复，无法完整导入": "Long-text chunks are missing or duplicated. A complete import is not possible.",
+  "长文本长度与记录不一致，无法完整导入": "Long-text length does not match the record. A complete import is not possible.",
+  "当前服务尚不支持工作簿导入，请更新服务端": "This server does not support workbook import yet. Update the server to continue.",
+  "文件超过单次导出上限 100MB": "The file exceeds the 100 MB export limit",
+  "工作簿展开后的数据超过 100MB 导入上限": "Expanded workbook data exceeds the 100 MB import limit",
   "规划提醒": "Planning reminder",
   "本项目只用于规划，不能实际存入资金，请合理规划资金存放。": "This app is for planning only and does not hold real funds. Choose where to keep your money carefully.",
   "请输入限额内的有效金额，最多保留两位小数。": "Enter an amount within the available limit, with up to two decimal places.",
@@ -119,6 +154,9 @@ function preserveWhitespace(source: string, translated: string) {
 
 function translateDynamic(source: string) {
   let value = source;
+  value = value.replace(/^已导入 (\d+) 条记录，点击下方按钮打开导入的账本。$/, "Imported $1 records. Use the button below to open the ledger.");
+  value = value.replace(/^(.+)记录数量与导出说明不一致$/, (_m, name) => `${knownValues.get(name) ?? name}: record count does not match the export manifest`);
+  value = value.replace(/^(.+)中记录 ID 缺失或重复$/, (_m, name) => `${knownValues.get(name) ?? name}: missing or duplicate record IDs`);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   value = value.replace(/^(\d{4})年全年$/, "$1 full year");
   value = value.replace(/^(\d{4})年月份$/, "$1 months");

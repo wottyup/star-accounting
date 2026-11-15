@@ -1,0 +1,189 @@
+{
+  "format": "star-accounting-workbook",
+  "schemaVersion": 1,
+  "importId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sheets": {
+    "accounts": [
+      {
+        "id": "source-account",
+        "ownerId": "source-user",
+        "name": "测试账本",
+        "openingBalance": 250.35,
+        "openingBalanceDate": "2026-11-01",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00"
+      }
+    ],
+    "transactions": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "subscription-sub-1-2026-11",
+        "amount": 20.5,
+        "type": "EXPENSE",
+        "category": "购物",
+        "platform": "支付宝",
+        "date": "2026-11-15 12:00:00",
+        "loanId": null,
+        "orderId": "subscription:sub-1:2026-11"
+      },
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "repayment-1",
+        "amount": 100,
+        "type": "REPAYMENT",
+        "category": "还款",
+        "platform": "银行卡",
+        "date": "2026-11-15 12:00:00",
+        "loanId": "loan-1"
+      }
+    ],
+    "assets": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "asset-1",
+        "name": "银行卡",
+        "type": "BANK_CARD",
+        "balance": 1000.25,
+        "currency": "CNY"
+      }
+    ],
+    "budgets": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "budget-1",
+        "amount": 2000,
+        "category": "全部",
+        "period": "MONTHLY",
+        "alertPercent": 80,
+        "scopeType": "GLOBAL"
+      }
+    ],
+    "loans": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "loan-1",
+        "platform": "信用卡",
+        "totalAmount": 1000,
+        "remainingAmount": 900,
+        "periods": 10,
+        "paidPeriods": 1,
+        "monthlyPayment": 100,
+        "dueDate": 15,
+        "status": "ACTIVE"
+      }
+    ],
+    "savingsGoals": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "goal-1",
+        "name": "备用金",
+        "targetAmount": 10000,
+        "currentAmount": 1000,
+        "type": "LONG_TERM",
+        "status": "ACTIVE",
+        "depositType": "CASH",
+        "planConfig": "{}",
+        "fundMovements": "[{\"id\": \"withdrawal-1\", \"kind\": \"WITHDRAWAL\", \"amountCents\": 20000, \"date\": \"2026-11-15T12:00:00\", \"note\": \"临时取用\", \"allocations\": [{\"planId\": \"plan-1\", \"month\": \"2026-11\", \"cents\": 20000}], \"createdAt\": \"2026-11-15 12:00:00\"}, {\"id\": \"return-1\", \"kind\": \"REPLENISHMENT\", \"amountCents\": 5000, \"date\": \"2026-11-15T12:00:00\", \"note\": \"部分补齐\", \"withdrawalId\": \"withdrawal-1\", \"allocations\": [{\"planId\": \"plan-1\", \"month\": \"2026-11\", \"cents\": 5000}], \"createdAt\": \"2026-11-15 12:00:00\"}]"
+      }
+    ],
+    "savingsPlans": [
+      {
+        "id": "plan-1",
+        "goalId": "goal-1",
+        "amount": 1000,
+        "actualAmount": 1000,
+        "status": "COMPLETED",
+        "month": "2026-11",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "actualDate": "2026-11-15 12:00:00",
+        "expenses": "{}",
+        "salary": 6000,
+        "proofImage": "data:image/png;base64,abc",
+        "remark": "十一月"
+      }
+    ],
+    "subscriptions": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "sub-1",
+        "name": "会员",
+        "amount": 20.5,
+        "billingDay": 15,
+        "category": "购物",
+        "platform": "支付宝",
+        "startDate": "2026-11-01",
+        "isActive": true
+      }
+    ],
+    "categoryRules": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "rule-1",
+        "name": "房租",
+        "merchant": "房东",
+        "merchantKey": "房东",
+        "category": "居家",
+        "isActive": true
+      }
+    ],
+    "importErrorLogs": [
+      {
+        "id": "error-1",
+        "userId": "source-user",
+        "accountId": "source-account",
+        "fileName": "test.csv",
+        "lineNumber": 2,
+        "rawData": "示例",
+        "errorMessage": "字段缺失",
+        "errorType": "FORMAT",
+        "resolved": false,
+        "createdAt": "2026-11-15 12:00:00"
+      }
+    ],
+    "exchangeRates": [
+      {
+        "id": "rate-1",
+        "from": "USD",
+        "to": "CNY",
+        "rate": 7.1,
+        "updatedAt": "2026-11-15 12:00:00"
+      }
+    ],
+    "themeConfigs": [
+      {
+        "userId": "source-user",
+        "accountId": "source-account",
+        "createdAt": "2026-11-15 12:00:00",
+        "updatedAt": "2026-11-15 12:00:00",
+        "id": "theme-1",
+        "themeId": "blue",
+        "isDarkMode": false
+      }
+    ]
+  }
+}

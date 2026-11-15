@@ -402,3 +402,34 @@ export async function recordSavingsDeposit(planId: string, input: SavingsDeposit
     store.put(next.plan);
   });
 }
+
+/** Restore into a new account in one IndexedDB transaction. */
+export async function importLocalLedgerWorkbook(input: import("../export/ledger-workbook").LedgerWorkbook) {
+  const { prepareLocalWorkbook } = await import("../import/ledger-workbook");
+  const { accountId, sheets } = prepareLocalWorkbook("local-user", input);
+  const db = await openDb();
+  return new Promise<import("../export/ledger-workbook").WorkbookImportResult>((resolve, reject) => {
+    const tables = Object.keys(sheets) as StoreName[];
+    const transaction = db.transaction(tables, "readwrite");
+    let imported = 0;
+    let reused = false;
+    const existing = transaction.objectStore("accounts").get(accountId);
+    existing.onsuccess = () => {
+      if (existing.result) { reused = true; return; }
+      const themes = transaction.objectStore("themeConfigs").getAll();
+      themes.onsuccess = () => {
+        try {
+          const currentTheme = (themes.result as ThemeConfig[]).find((row) => row.userId === "local-user");
+          for (const table of tables) for (const row of sheets[table as keyof typeof sheets]) {
+            if (table === "themeConfigs" && currentTheme) {
+              transaction.objectStore(table).put({ ...row, id: currentTheme.id });
+            } else transaction.objectStore(table).add(row);
+            imported += 1;
+          }
+        } catch { transaction.abort(); }
+      };
+    };
+    transaction.oncomplete = () => resolve({ accountId, imported, reused });
+    transaction.onerror = transaction.onabort = () => reject(transaction.error ?? new Error("工作簿导入失败，未写入数据"));
+  });
+}

@@ -41,7 +41,7 @@ async function request<T>(baseUrl: string, path: string, init?: RequestInit): Pr
  * 可访问的账本列表校正本地账本 ID，避免 App 继续读取旧的 default 账本。
  */
 async function syncCurrentAccountId(baseUrl: string, preferredAccountId?: string | null, userId?: string) {
-  const key = `${baseUrl.replace(/\/$/, "")}:${userId ?? ""}:${preferredAccountId ?? ""}`;
+  const key = `${baseUrl.replace(/\/$/, "")}:${userId ?? ""}:${preferredAccountId ?? ""}:${getCurrentAccountId()}`;
   if (accountSyncCompleted.has(key)) return;
   const existing = accountSyncRequests.get(key);
   if (existing) return existing;
@@ -55,8 +55,8 @@ async function syncCurrentAccountId(baseUrl: string, preferredAccountId?: string
         return;
       }
       const currentAccountId = getCurrentAccountId();
-      const selected = accounts.find((account) => account.id === preferredAccountId)
-        ?? accounts.find((account) => account.id === currentAccountId)
+      const selected = accounts.find((account) => account.id === currentAccountId)
+        ?? accounts.find((account) => account.id === preferredAccountId)
         ?? accounts[0];
       if (selected) setCurrentAccountId(selected.id);
       completed = true;
@@ -103,7 +103,6 @@ export async function cloudMe(baseUrl: string) {
     const user = await request<CloudAuthUser>(baseUrl, "/api/auth/me");
     const token = getCloudAuthToken();
     if (token) setCloudAuth(token, user, isCloudAuthRemembered());
-    if (user.defaultAccountId) setCurrentAccountId(user.defaultAccountId);
     await syncCurrentAccountId(baseUrl, user.defaultAccountId, user.id);
     return user;
   } catch (error) {

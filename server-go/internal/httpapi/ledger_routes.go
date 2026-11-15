@@ -43,6 +43,23 @@ func registerLedgerRoutes(router chi.Router, authService *auth.Service, service 
 			writeJSON(writer, http.StatusOK, payload)
 		})
 		protected.Post("/api/user", upsertEntityHandler(service, ledger.Users))
+		protected.Post("/api/ledger-workbook/import", func(writer http.ResponseWriter, request *http.Request) {
+			user, ok := ledgerUser(writer, request)
+			if !ok {
+				return
+			}
+			var input ledger.WorkbookRequest
+			if err := json.NewDecoder(http.MaxBytesReader(writer, request.Body, 100<<20)).Decode(&input); err != nil {
+				writeJSON(writer, http.StatusBadRequest, map[string]string{"error": "工作簿数据无效或超过 100MB"})
+				return
+			}
+			result, errorValue := service.ImportWorkbook(request.Context(), user.ID, input)
+			if errorValue != nil {
+				respondLedgerError(writer, errorValue)
+				return
+			}
+			writeJSON(writer, http.StatusOK, result)
+		})
 
 		protected.Get("/api/accounts", func(writer http.ResponseWriter, request *http.Request) {
 			user, ok := ledgerUser(writer, request)

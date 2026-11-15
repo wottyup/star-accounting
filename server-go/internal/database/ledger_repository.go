@@ -901,6 +901,9 @@ func parseDateTime(value string) (time.Time, error) {
 	normalized := strings.TrimSpace(value)
 	normalized = strings.TrimSuffix(normalized, "Z")
 	normalized = strings.ReplaceAll(normalized, "T", " ")
+	if len(normalized) == len("2006-01-02 15:04") {
+		normalized += ":00"
+	}
 	if len(normalized) == len("2006-01-02") {
 		return time.ParseInLocation("2006-01-02", normalized, time.UTC)
 	}

@@ -44,11 +44,14 @@ public class BillExportPlugin extends Plugin {
     public void begin(PluginCall call) {
         String name = call.getString("fileName");
         String mimeType = call.getString("mimeType");
+        if (mimeType == null) mimeType = "text/csv";
+        final String fileMimeType = mimeType;
         // JSON byte counts within the 100 MiB limit are Integers, not Longs.
         Integer size = call.getInt("totalBytes");
         boolean csvFile = name != null && name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.csv") && "text/csv".equals(mimeType);
         boolean jsonFile = name != null && name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.json") && "application/json".equals(mimeType);
-        if (!csvFile && !jsonFile) {
+        boolean xlsxFile = name != null && name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.xlsx") && "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".equals(mimeType);
+        if (!csvFile && !jsonFile && !xlsxFile) {
             call.reject("导出文件名或文件大小无效。");
             return;
         }
@@ -71,7 +74,7 @@ public class BillExportPlugin extends Plugin {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Intent picker = new Intent(Intent.ACTION_CREATE_DOCUMENT);
             picker.addCategory(Intent.CATEGORY_OPENABLE);
-            picker.setType(mimeType);
+            picker.setType(fileMimeType);
             picker.putExtra(Intent.EXTRA_TITLE, name);
             try {
                 startActivityForResult(call, picker, "onDocumentCreated");
@@ -87,7 +90,7 @@ public class BillExportPlugin extends Plugin {
             try {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-                values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
+                values.put(MediaStore.MediaColumns.MIME_TYPE, fileMimeType);
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOAD_FOLDER);
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
                 ContentResolver resolver = getContext().getContentResolver();

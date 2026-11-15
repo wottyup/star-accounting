@@ -1,3 +1,4 @@
+import type { LedgerWorkbook } from "@/lib/stark/export/ledger-workbook";
 import type {
   Account,
   Asset,
@@ -101,6 +102,12 @@ export class LocalRepository implements DataRepository {
       .map((plan) => deleteRecord("savingsPlans", plan.id));
 
     await Promise.all([...fixedDemoDeletes, ...relatedDemoPlanDeletes]);
+  }
+
+  async importLedgerWorkbook(input: LedgerWorkbook) {
+    await this.ensureSeeded();
+    const { importLocalLedgerWorkbook } = await import("@/lib/stark/storage/indexeddb");
+    return importLocalLedgerWorkbook(input);
   }
 
   async getCurrentUser() {

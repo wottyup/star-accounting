@@ -2,15 +2,15 @@ import type { Account, Asset, Budget, Loan, SavingsGoal, SavingsPlan, Transactio
 import {
   buildReportingMonthTrendRanges,
   splitReportingMonthTransactions,
-} from "@/lib/stark/dashboard/reporting-month";
-import { REPORTING_MONTH_KEY, clampPercent, isReportingYearKey, reportingPeriodDate } from "@/lib/stark/utils/format";
-import { calculateBudgetSpent } from "./budget-period";
-import { calculateBudgetAllocation, type BudgetAllocation } from "./budget-allocation";
-import { calculateBalanceFromBaseline, calculateCalendarPeriodCashflow, calculateCashflowSinceBalanceBaseline, calculateSalaryCycleCashflow, salaryCycleRange } from "./salary-cycle";
-import { summarizeSavingsPlanAllocation, type SavingsPlanAllocation } from "@/lib/stark/savings/planner";
-import { summarizeSavingsGoalProgress, summarizeSavingsProgress } from "@/lib/stark/savings/progress";
+} from "./reporting-month.ts";
+import { REPORTING_MONTH_KEY, clampPercent, isReportingYearKey, reportingPeriodDate } from "../utils/format.ts";
+import { calculateBudgetSpent } from "./budget-period.ts";
+import { calculateBudgetAllocation, type BudgetAllocation } from "./budget-allocation.ts";
+import { calculateBalanceFromBaseline, calculateCalendarPeriodCashflow, calculateCashflowSinceBalanceBaseline, calculateSalaryCycleCashflow, salaryCycleRange } from "./salary-cycle.ts";
+import { summarizeSavingsPlanAllocation, type SavingsPlanAllocation } from "../savings/planner.ts";
+import { summarizeSavingsGoalProgress, summarizeSavingsProgress } from "../savings/progress.ts";
 
-import { savingsFundCashflowPlans, savingsFundOutstanding, savingsFundPeriodWithdrawals } from "@/lib/stark/savings/funds";
+import { savingsFundCashflowPlans, savingsFundOutstanding, savingsFundPeriodWithdrawals } from "../savings/funds.ts";
 
 export interface HomeTrend {
   labels: string[];
@@ -118,6 +118,8 @@ export interface HomeSummary {
   assetTotal: number;
   liabilityTotal: number;
   totalSavings: number;
+  /** All withdrawals still to replenish, independent of the selected reporting period. */
+  savingsOutstanding: number;
   savingsDelta: number;
   loanTotal: number;
   loanDelta: number;
@@ -586,13 +588,13 @@ export function buildHomeSummary(input: {
   const previousIncome = previousMonthTransactions.filter((item) => item.type === "INCOME").reduce((sum, item) => sum + item.amount, 0);
   const previousExpense = previousMonthTransactions.filter((item) => item.type === "EXPENSE").reduce((sum, item) => sum + item.amount, 0);
 
-  const grossSavings = input.savingsGoals.reduce((sum, item) => sum + item.currentAmount, 0);
   const savingsProgress = summarizeSavingsProgress(input.savingsGoals, savingsPlans);
   const totalSavings = savingsProgress.savedAmount;
+  const savingsOutstanding = input.savingsGoals.reduce((sum, goal) => sum + savingsFundOutstanding(goal), 0);
   const loanTotal = input.loans.reduce((sum, item) => sum + item.remainingAmount, 0);
   const loanAll = input.loans.reduce((sum, item) => sum + item.totalAmount, 0);
   const loanRepaid = Math.max(loanAll - loanTotal, 0);
-  const assetTotal = input.assets.reduce((sum, item) => sum + item.balance, 0) + grossSavings; // Savings transfers remain assets as available cash.
+  const assetTotal = input.assets.reduce((sum, item) => sum + item.balance, 0) + totalSavings;
   const liabilityTotal = loanTotal;
   const budgetAlerts = buildBudgetAlerts(input.transactions, input.budgets, expense, currentMonth);
   const forecast = buildForecast(input.transactions, cashflowPlans, input.savingsGoals, income, expense, salaryDay, currentMonth, referenceDate, input.account);
@@ -642,6 +644,7 @@ export function buildHomeSummary(input: {
     assetTotal,
     liabilityTotal,
     totalSavings,
+    savingsOutstanding,
     savingsDelta: income - expense,
     loanTotal,
     loanDelta: input.loans.reduce((sum, item) => sum + item.monthlyPayment, 0),

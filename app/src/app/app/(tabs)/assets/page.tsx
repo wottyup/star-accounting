@@ -12,7 +12,8 @@ import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
 import { REMOTE_CACHE_UPDATED_EVENT, type RemoteCacheUpdate } from "@/lib/stark/repository/RemoteRepository";
 import { clampPercent, formatMoney } from "@/lib/stark/utils/format";
 import { getCurrentAccountId } from "@/lib/stark/storage/local-config";
-import type { Asset, AssetType, Loan, SavingsGoal } from "@/lib/stark/models";
+import type { Asset, AssetType, Loan, SavingsGoal, SavingsPlan } from "@/lib/stark/models";
+import { summarizeSavingsProgress } from "@/lib/stark/savings/progress";
 import type { EChartsCoreOption } from "echarts/core";
 import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 
@@ -26,6 +27,15 @@ const typeMeta: Record<AssetType, { label: string; short: string; color: string 
   INVESTMENT: { label: "投资", short: "投", color: "#e27662" },
   OTHER: { label: "其他", short: "其", color: "#8996aa" },
 };
+
+async function loadAssetSnapshot() {
+  const accountId = getCurrentAccountId();
+  const [assets, savings, loans] = await Promise.all([
+    repo.getAssets(accountId), repo.getSavingsGoals(accountId), repo.getLoans(accountId),
+  ]);
+  const plans = await repo.getSavingsPlansByGoals(savings.map((goal) => goal.id));
+  return { assets, savings, plans, loans };
+}
 
 function buildAssetDonutOption(groups: Array<{ label: string; amount: number; color: string }>, locale: "zh-CN" | "en-US"): EChartsCoreOption {
   const data = groups.map((g) => ({
@@ -62,17 +72,18 @@ export default function AssetsPage() {
   const locale = useAppLocale();
   const [list, setList] = useState<Asset[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [savingsPlans, setSavingsPlans] = useState<SavingsPlan[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const reload = useCallback(() => {
-    const accountId = getCurrentAccountId();
-    void Promise.all([repo.getAssets(accountId), repo.getSavingsGoals(accountId), repo.getLoans(accountId)])
-      .then(([assets, savings, loanList]) => {
+    void loadAssetSnapshot()
+      .then(({ assets, savings, plans, loans: loanList }) => {
         setList(assets);
         setSavingsGoals(savings);
+        setSavingsPlans(plans);
         setLoans(loanList);
         setLoadError(false);
       })
@@ -90,12 +101,12 @@ export default function AssetsPage() {
     let active = true;
     setLoading(true);
     setLoadError(false);
-    const accountId = getCurrentAccountId();
-    void Promise.all([repo.getAssets(accountId), repo.getSavingsGoals(accountId), repo.getLoans(accountId)])
-      .then(([assets, savings, loanList]) => {
+    void loadAssetSnapshot()
+      .then(({ assets, savings, plans, loans: loanList }) => {
         if (!active) return;
         setList(assets);
         setSavingsGoals(savings);
+        setSavingsPlans(plans);
         setLoans(loanList);
       })
       .catch(() => {
@@ -110,13 +121,17 @@ export default function AssetsPage() {
   useEffect(() => {
     const handleAssetSaved = () => reload();
     window.addEventListener("stark:asset-saved", handleAssetSaved);
-    return () => window.removeEventListener("stark:asset-saved", handleAssetSaved);
+    window.addEventListener("stark:savings-saved", handleAssetSaved);
+    return () => {
+      window.removeEventListener("stark:asset-saved", handleAssetSaved);
+      window.removeEventListener("stark:savings-saved", handleAssetSaved);
+    };
   }, [reload]);
 
   useEffect(() => {
     const handleCacheUpdate = (event: Event) => {
       const update = (event as CustomEvent<RemoteCacheUpdate>).detail;
-      if (!update || !["assets", "loans", "savingsGoals"].includes(update.resource)) return;
+      if (!update || !["assets", "loans", "savingsGoals", "savingsPlans"].includes(update.resource)) return;
       if (update.accountId && update.accountId !== getCurrentAccountId()) return;
       reload();
     };
@@ -127,7 +142,7 @@ export default function AssetsPage() {
   const summary = useMemo(() => {
     const positive = list.filter((item) => item.balance >= 0);
     const negative = list.filter((item) => item.balance < 0);
-    const savingsTotal = savingsGoals.reduce((sum, item) => sum + item.currentAmount, 0);
+    const savingsTotal = summarizeSavingsProgress(savingsGoals, savingsPlans).savedAmount;
     const loanTotal = loans.filter((item) => item.status !== "PAID_OFF").reduce((sum, item) => sum + item.remainingAmount, 0);
     const accountAssets = positive.reduce((sum, item) => sum + item.balance, 0);
     const accountLiabilities = negative.reduce((sum, item) => sum + Math.abs(item.balance), 0);
@@ -164,7 +179,7 @@ export default function AssetsPage() {
       concentration,
       groups: groups.filter((item) => item.amount > 0),
     };
-  }, [list, savingsGoals, loans]);
+  }, [list, savingsGoals, savingsPlans, loans]);
 
   const assetDonutOption = useMemo(() => buildAssetDonutOption(summary.groups, locale), [locale, summary.groups]);
 

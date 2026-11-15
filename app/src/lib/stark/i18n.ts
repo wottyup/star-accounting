@@ -4,6 +4,8 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "储蓄取用": "Savings withdrawn",
+  "待补齐取用": "To replenish",
   "当前账本": "Current ledger",
   "切换账本": "Switch ledger",
   "请选择本应用导出的 Excel 工作簿或 CSV 账单": "Choose an app-exported Excel workbook or CSV bills",

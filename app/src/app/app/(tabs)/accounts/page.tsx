@@ -15,7 +15,7 @@ import { getCloudAuthUser } from "@/lib/stark/storage/cloud-auth";
 import { nowText } from "@/lib/stark/utils/format";
 import { createId } from "@/lib/stark/utils/id";
 import { applyCategoryRules } from "@/lib/stark/dashboard/remark";
-import { serializeTransactionsToCsv } from "@/lib/stark/export/transaction-csv";
+import { serializeAccountRecordsToCsv } from "@/lib/stark/export/transaction-csv";
 import { saveBillCsvOnAndroid } from "@/lib/stark/export/native-bill-export";
 import { buildImportErrorLogs, selectFailedImportTransactions } from "@/lib/stark/import/import-errors";
 import { matchImportedLoanRepayments } from "@/lib/stark/import/loan-repayment";
@@ -376,7 +376,7 @@ export default function AccountsPage() {
   async function exportBills() {
     if (exporting) return;
     setExporting(true);
-    setExportMessage("正在整理当前账本的账单...");
+    setExportMessage("正在整理当前账本的已发生记录...");
     try {
       const repository = manager.getRepository();
       const accountId = getCurrentAccountId();
@@ -393,14 +393,18 @@ export default function AccountsPage() {
         }
       }
       if (!complete) throw new Error("账单数量超出单次导出上限，请联系开发者");
-      const csv = `\uFEFF${serializeTransactionsToCsv(transactions)}`;
+      setExportMessage("正在读取储蓄记录...");
+      const savingsGoals = await repository.getSavingsGoals(accountId);
+      const savingsPlans = await repository.getSavingsPlansByGoals(savingsGoals.map((goal) => goal.id));
+      const exported = serializeAccountRecordsToCsv(transactions, savingsGoals, savingsPlans);
+      const csv = `\uFEFF${exported.csv}`;
       const now = new Date();
       const pad = (value: number) => String(value).padStart(2, "0");
       const fileName = `star-accounting-bills-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
       if (Capacitor.isNativePlatform()) {
         setExportMessage("正在保存账单到系统文件...");
         const result = await saveBillCsvOnAndroid(csv, fileName, (percent) => setExportMessage(`正在保存账单... ${percent}%`));
-        setExportMessage(`已导出 ${transactions.length} 笔账单，保存位置：${result.location}`);
+        setExportMessage(`已导出 ${exported.recordCount} 条记录（账单 ${transactions.length} 笔，储蓄 ${exported.savingsRecordCount} 笔），保存位置：${result.location}`);
         return;
       }
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -412,7 +416,7 @@ export default function AccountsPage() {
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setExportMessage(`已生成 ${transactions.length} 笔账单，请在浏览器下载记录中查看 ${fileName}`);
+      setExportMessage(`已生成 ${exported.recordCount} 条记录（账单 ${transactions.length} 笔，储蓄 ${exported.savingsRecordCount} 笔），请在浏览器下载记录中查看 ${fileName}`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "";
       if (detail === "已取消保存") {
@@ -517,18 +521,18 @@ export default function AccountsPage() {
               <div className="bill-platform-picker">
                 <button type="button" className={importPlatform === "微信" ? "active wechat" : "wechat"} onClick={() => selectImportPlatform("微信")}><span><img src={withAppBasePath("/category-icons/weixin.webp")} alt="" /></span><div><strong>微信账单</strong><small>微信支付 CSV / Excel 格式</small></div></button>
                 <button type="button" className={importPlatform === "支付宝" ? "active alipay" : "alipay"} onClick={() => selectImportPlatform("支付宝")}><span><img src={withAppBasePath("/category-icons/zhifubao.webp")} alt="" /></span><div><strong>支付宝账单</strong><small>支付宝交易记录 CSV / Excel</small></div></button>
-                <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><div><strong>本应用导出账单</strong><small>导出的 CSV 备份文件</small></div></button>
+                <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><div><strong>本应用导出账单</strong><small>本应用导出的 CSV 流水</small></div></button>
               </div>
               <div className={`bill-import-message ${importMessage.startsWith("已导入") ? "success" : ""}`}>{importMessage}</div>
               <input ref={fileInputRef} type="file" hidden accept={importPlatform === "本应用导出" ? ".csv,text/csv" : ".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"} onChange={(event) => { const file = event.target.files?.[0]; if (file) void prepareBillImport(file); }} />
               <button type="button" className="settings-sheet-primary" disabled={readingBill || importing} onClick={() => fileInputRef.current?.click()}>{readingBill ? "正在读取..." : pendingBillImport ? "重新选择账单文件" : "选择账单文件"}</button>
               {pendingBillImport ? <button type="button" className="settings-confirm-button bill-import-confirm" disabled={importing} onClick={() => void confirmBillImport()}>{importing ? "导入中..." : importInterrupted ? `继续导入 ${pendingBillImport.transactions.length} 笔` : `确认导入 ${pendingBillImport.transactions.length} 笔`}</button> : null}
-              <p className="settings-sheet-tip">支持微信、支付宝官方导出的 CSV / XLS / XLSX 文件，以及本应用导出的 CSV 备份；请选择对应来源，确认导入前不会写入数据。</p>
+              <p className="settings-sheet-tip">支持微信、支付宝官方导出的 CSV / XLS / XLSX 文件，以及本应用导出的 CSV 流水。导入本应用 CSV 时只读取收入、支出、转账和还款记录；储蓄操作行不会被当作账单导入。</p>
               {importErrors.length ? <div className="import-error-list"><strong>最近导入问题</strong>{importErrors.slice(0, 5).map((item) => <div key={item.id}><span>{item.fileName}{item.lineNumber > 0 ? ` · 第 ${item.lineNumber} 行` : ""}</span><small>{item.resolved ? "已解决" : item.errorMessage}</small></div>)}</div> : null}
             </div> : null}
 
             {activePanel === "EXPORT" ? <div className="settings-sheet-body">
-              <p className="settings-sheet-note">导出当前账本的全部流水，不会修改本地或云端数据。CSV 文件包含日期、类型、分类、备注归类、商户、支付账户、购物平台、金额、支付方式、状态和订单号等字段。</p>
+              <p className="settings-sheet-note">导出当前账本全部已发生的流水：收入、支出、转账、还款，以及储蓄存入、取用和补齐。未执行的储蓄计划不导出。CSV 会保留日期、类型、金额、商户、支付账户、储蓄目标、关联取用和资金分配明细等信息。导入本应用 CSV 时只识别四类账单流水，不会把储蓄操作误记成消费。</p>
               <div className="bill-import-message">{exportMessage}</div>
               <button type="button" className="settings-sheet-primary" disabled={exporting} onClick={() => void exportBills()}>{exporting ? "正在导出..." : "导出全部账单"}</button>
               <p className="settings-sheet-tip">文件使用 UTF-8 编码并兼容 Excel / WPS；导出范围仅限当前账本。</p>

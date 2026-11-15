@@ -5,14 +5,28 @@ import type { Account, Transaction } from "@/lib/stark/models";
 import { calculateLedgerCashflow } from "@/lib/stark/ledger/balance";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
 import { getCurrentAccountId } from "@/lib/stark/storage/local-config";
+import { getCloudAuthUser } from "@/lib/stark/storage/cloud-auth";
 import { nowText } from "@/lib/stark/utils/format";
 import { DateTimePicker } from "@/components/stark/DateTimePicker";
 
-const repository = new DataModeManager().getRepository();
+const manager = new DataModeManager();
+const repository = manager.getRepository();
 
 function todayDate() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function createMissingCurrentAccount(): Account | null {
+  const id = getCurrentAccountId();
+  const now = nowText();
+  if (manager.getMode() === "LOCAL") {
+    return { id, name: "默认账本", ownerId: "local-user", createdAt: now, updatedAt: now };
+  }
+
+  const user = getCloudAuthUser();
+  if (!user?.id || !user.defaultAccountId || user.defaultAccountId !== id || id === "default") return null;
+  return { id, name: "默认账本", ownerId: user.id, createdAt: now, updatedAt: now };
 }
 
 async function loadAllTransactions(accountId: string) {
@@ -74,13 +88,16 @@ export function AccountReconciliationSheet() {
   const bookBalance = storedOpeningBalance + cashflow.net;
   const projectedBalance = hasActual ? actual + cashflow.net : bookBalance;
   const inferredOpeningBalance = actual;
+  const canCreateAccount = !account && createMissingCurrentAccount() !== null;
 
   async function saveOpeningBalance() {
-    if (!hasActual || !openingDate || saving || !account) return;
+    if (!hasActual || !openingDate || saving) return;
+    const accountToSave = account ?? createMissingCurrentAccount();
+    if (!accountToSave) return;
     setSaving(true);
     setMessage("正在保存余额基准...");
     const updatedAccount: Account = {
-      ...account,
+      ...accountToSave,
       openingBalance: inferredOpeningBalance,
       openingBalanceDate: `${openingDate}T00:00:00`,
       updatedAt: nowText(),
@@ -101,6 +118,9 @@ export function AccountReconciliationSheet() {
   return (
     <div className="account-reconciliation-sheet">
       <p className="settings-sheet-note">若历史账单不完整，可在一个你确认无误的时点保存实际余额。它是余额基准，不会新增或伪造收入、支出流水；首页只从该时点之后的真实流水继续累计。</p>
+      {!loading && !loadError && !account ? (
+        <p className="settings-sheet-note">当前账本记录不存在。{canCreateAccount ? "保存时会按当前登录账户重建账本记录；已清空的历史流水不会恢复。" : "请先恢复当前账本记录后再设置余额基准。"}</p>
+      ) : null}
 
       <section className="reconciliation-section">
         <div className="reconciliation-section-heading">
@@ -134,7 +154,7 @@ export function AccountReconciliationSheet() {
       </section>
 
       {message ? <div className={`reconciliation-message${message.startsWith("已保存") ? " success" : ""}`}>{message}</div> : null}
-      <button type="button" className="settings-sheet-primary reconciliation-submit" disabled={!hasActual || !openingDate || saving || loading || loadError || !account} onClick={() => void saveOpeningBalance()}>
+      <button type="button" className="settings-sheet-primary reconciliation-submit" disabled={!hasActual || !openingDate || saving || loading || loadError || (!account && !canCreateAccount)} onClick={() => void saveOpeningBalance()}>
         {saving ? "保存中..." : hasActual ? "保存余额基准" : "输入实际余额后保存"}
       </button>
       <p className="settings-sheet-tip">保存不会生成“余额校正”收入或支出流水。以后新增工资、消费、还款和实际储蓄，都会在该余额基准上继续累计。</p>

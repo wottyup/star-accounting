@@ -43,7 +43,8 @@ public class BillExportPlugin extends Plugin {
     @PluginMethod
     public void begin(PluginCall call) {
         String name = call.getString("fileName");
-        Long size = call.getLong("totalBytes");
+        // JSON byte counts within the 100 MiB limit are Integers, not Longs.
+        Integer size = call.getInt("totalBytes");
         if (name == null || !name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.csv")
                 || size == null || size <= 0 || size > MAX_EXPORT_BYTES) {
             call.reject("导出文件名或文件大小无效。");
@@ -102,7 +103,7 @@ public class BillExportPlugin extends Plugin {
         }
         bridge.execute(() -> {
             try {
-                openSession(call, uri, call.getString("fileName"), call.getLong("totalBytes"), false);
+                openSession(call, uri, call.getString("fileName"), call.getInt("totalBytes"), false);
             } catch (Exception error) {
                 deleteQuietly(uri);
                 synchronized (sessionLock) { resetSession(); }

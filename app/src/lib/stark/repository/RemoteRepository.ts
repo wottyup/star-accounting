@@ -21,6 +21,7 @@ import type { DataRepository } from "@/lib/stark/repository/DataRepository";
 import { getCloudApiUrl } from "@/lib/stark/storage/local-config";
 import { getCurrentAccountId } from "@/lib/stark/storage/local-config";
 import { clearCloudAuth, getCloudAuthToken, getCloudAuthUser } from "@/lib/stark/storage/cloud-auth";
+import { importTransactionBatches } from "./transaction-import-batches";
 import { loanRepaymentClassificationsPath, savingsGoalsPath, savingsPlansPath, transactionsImportPath } from "@/lib/stark/repository/remote-paths";
 import { deletePersistentRemoteCache, readPersistentRemoteCache, synchronizePersistentRemoteCacheSchema, writePersistentRemoteCache } from "@/lib/stark/repository/persistent-remote-cache";
 
@@ -57,7 +58,6 @@ export const REMOTE_CACHE_UPDATED_EVENT = "stark:remote-cache-updated";
 const TRANSACTION_CACHE_TTL = 60_000;
 const RESOURCE_CACHE_TTL = 60_000;
 const TRANSACTION_PAGE_SIZE = 500;
-const TRANSACTION_IMPORT_BATCH_SIZE = 200;
 const TRANSACTION_IMPORT_TIMEOUT_MS = 60_000;
 
 function sortByDateDesc<T extends { date?: string; createdAt?: string }>(items: T[]) {
@@ -530,25 +530,11 @@ export class RemoteRepository implements DataRepository {
   async importTransactions(transactions: Transaction[], onProgress?: (completed: number, total: number) => void): Promise<ImportResult> {
     if (!transactions.length) return { imported: 0, skipped: 0, errors: 0 };
     const accountId = transactions[0].accountId;
-    const summary: ImportResult = { imported: 0, skipped: 0, errors: 0, failedRows: [], loanRepayments: 0, loanRepaymentAmount: 0 };
     try {
-      // Each batch commits independently. Retrying this same prepared list is safe:
-      // the server skips transaction IDs that were already written.
-      for (let offset = 0; offset < transactions.length; offset += TRANSACTION_IMPORT_BATCH_SIZE) {
-        const batch = transactions.slice(offset, offset + TRANSACTION_IMPORT_BATCH_SIZE);
-        const result = await this.request<ImportResult>(transactionsImportPath(accountId), {
-          method: "POST",
-          body: JSON.stringify(batch),
-        }, TRANSACTION_IMPORT_TIMEOUT_MS);
-        summary.imported += result.imported;
-        summary.skipped += result.skipped;
-        summary.errors += result.errors;
-        summary.loanRepayments = (summary.loanRepayments ?? 0) + (result.loanRepayments ?? 0);
-        summary.loanRepaymentAmount = (summary.loanRepaymentAmount ?? 0) + (result.loanRepaymentAmount ?? 0);
-        summary.failedRows?.push(...(result.failedRows ?? []).map((row) => ({ ...row, lineNumber: row.lineNumber + offset })));
-        onProgress?.(offset + batch.length, transactions.length);
-      }
-      return summary;
+      // Batches commit in order; retries skip IDs already confirmed by the server.
+      return await importTransactionBatches(transactions, (body) => this.request<ImportResult>(
+        transactionsImportPath(accountId), { method: "POST", body }, TRANSACTION_IMPORT_TIMEOUT_MS,
+      ), onProgress);
     } finally {
       // A timed-out request may still have committed on the server.
       await this.clearTransactionCaches(accountId);

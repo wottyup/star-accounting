@@ -417,78 +417,7 @@ func (store *Store) ImportTransactions(context context.Context, accountID, userI
 	if err != nil {
 		return ledger.ImportResult{}, err
 	}
-	transaction, err := database.BeginTx(context, nil)
-	if err != nil {
-		return ledger.ImportResult{}, err
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = transaction.Rollback()
-		}
-	}()
-
-	existingTransactionIDs, existingOrderIDs, err := transactionIdentifiers(context, transaction, accountID)
-	if err != nil {
-		return ledger.ImportResult{}, err
-	}
-	result := ledger.ImportResult{FailedRows: make([]ledger.ImportFailure, 0)}
-	for index, raw := range items {
-		payload, payloadErr := decodeObjectPayload(raw)
-		if payloadErr != nil {
-			appendImportFailure(&result, index, raw, payloadErr)
-			continue
-		}
-		transactionID, hasTransactionID, transactionIDErr := nullablePayloadString(payload, "id")
-		sourceID, hasSourceID, sourceIDErr := nullablePayloadString(payload, "sourceId")
-		orderID, hasOrderID, orderErr := nullablePayloadString(payload, "orderId")
-		if transactionIDErr != nil || sourceIDErr != nil || orderErr != nil {
-			cause := transactionIDErr
-			if cause == nil {
-				cause = sourceIDErr
-			}
-			if cause == nil {
-				cause = orderErr
-			}
-			appendImportFailure(&result, index, raw, cause)
-			continue
-		}
-		if (hasTransactionID && existingTransactionIDs[transactionID]) || (hasSourceID && sourceID != "" && existingTransactionIDs[sourceID]) || (hasOrderID && strings.TrimSpace(orderID) != "" && existingOrderIDs[orderID]) {
-			result.Skipped++
-			continue
-		}
-
-		normalizeTransactionPayload(payload, accountID, userID)
-		if err := validateLoanRepayment(context, transaction, payload, accountID, userID); err != nil {
-			appendImportFailure(&result, index, raw, err)
-			continue
-		}
-		if err := upsertEntity(context, transaction, ledger.Transactions, payload); err != nil {
-			appendImportFailure(&result, index, raw, err)
-			continue
-		}
-		repaymentAmount, err := applyImportedLoanRepayment(context, transaction, payload, accountID, userID)
-		if err != nil {
-			appendImportFailure(&result, index, raw, err)
-			continue
-		}
-		if hasOrderID && strings.TrimSpace(orderID) != "" {
-			existingOrderIDs[orderID] = true
-		}
-		if hasTransactionID {
-			existingTransactionIDs[transactionID] = true
-		}
-		result.Imported++
-		if repaymentAmount.Sign() > 0 {
-			result.LoanRepayments++
-			result.LoanRepaymentAmount += ratFloat64(repaymentAmount)
-		}
-	}
-	if err := transaction.Commit(); err != nil {
-		return ledger.ImportResult{}, err
-	}
-	committed = true
-	return result, nil
+	return importTransactionsInBatches(context, database, accountID, userID, items)
 }
 
 // ApplyLoanRepaymentClassifications attaches a manually categorised existing
@@ -565,28 +494,6 @@ func (store *Store) ApplyLoanRepaymentClassifications(context context.Context, a
 	}
 	committed = true
 	return result, nil
-}
-
-func transactionIdentifiers(context context.Context, transaction *sql.Tx, accountID string) (map[string]bool, map[string]bool, error) {
-	rows, err := transaction.QueryContext(context, "SELECT `id`, `orderId` FROM `transaction` WHERE `accountId` = ?", accountID)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer rows.Close()
-	transactionIDs := make(map[string]bool)
-	orderIDs := make(map[string]bool)
-	for rows.Next() {
-		var transactionID string
-		var orderID sql.NullString
-		if err := rows.Scan(&transactionID, &orderID); err != nil {
-			return nil, nil, err
-		}
-		transactionIDs[transactionID] = true
-		if orderID.Valid {
-			orderIDs[orderID.String] = true
-		}
-	}
-	return transactionIDs, orderIDs, rows.Err()
 }
 
 func appendImportFailure(result *ledger.ImportResult, index int, raw json.RawMessage, cause error) {

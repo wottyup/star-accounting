@@ -79,6 +79,13 @@ const translations: Record<string, string> = {
   "支持微信、支付宝官方导出的 CSV / Excel 账单，以及本应用导出的 CSV 账单": "Supports official WeChat and Alipay CSV / Excel bills and CSV bills exported by this app.",
   "支持微信、支付宝官方导出的 CSV / XLS / XLSX 文件，以及本应用导出的 CSV 流水。导入本应用 CSV 时只读取收入、支出、转账和还款记录；储蓄操作行不会被当作账单导入。": "Official WeChat and Alipay CSV / XLS / XLSX files and CSV records exported by this app are supported. App CSV imports read only income, expense, transfer, and repayment rows; savings rows are not imported as bills.",
   本应用导出: "App export", 本应用导出账单: "Bills exported by this app", "本应用导出的 CSV 流水": "CSV records exported by this app",
+  导出账本数据: "Export ledger data", "导出完整账本数据": "Export complete ledger data", "JSON 文件": "JSON file",
+  已取消导出: "Export cancelled", "导出文件名或文件大小无效。": "The export file name or size is invalid.", "导出文件为空或大小无效。": "The export file is empty or has an invalid size.", "文件超过 Android 单次导出上限 100MB。": "The file exceeds Android's 100 MB export limit.",
+  "将导出当前账本的完整业务数据为 JSON 文件": "Exports all business data for the current ledger as a JSON file",
+  "正在整理当前账本数据...": "Preparing the current ledger data…", "正在读取资产、预算和储蓄等账本数据...": "Loading assets, budgets, savings, and other ledger data…", "无法读取当前账本，请重试": "Could not load the current ledger. Try again.",
+  "正在保存账本数据到系统文件...": "Saving ledger data to a system file…", "导出账本数据失败": "Ledger data export failed", "当前安装包尚未包含账本数据导出功能，请安装新版本后再导出": "This app version does not include ledger data export yet. Install a newer version and try again.",
+  "导出当前账本完整业务数据为 JSON，包括全部账单流水、资产余额、预算、贷款、储蓄目标和计划、周期扣费、账单归类规则、导入问题记录及余额基准；汇率参考、主题配置、储蓄凭证和资金池明细也会保留。不会导出其他账本、登录密码、认证令牌或 API 密钥。此文件用于数据归档；上方的账单导入功能目前仍读取 CSV 流水。": "Exports all business data for the current ledger as JSON, including bills, asset balances, budgets, loans, savings goals and plans, recurring charges, bill categorization rules, import issue records, and the opening balance baseline. Exchange rates, theme settings, savings proof images, and fund details are also included. Other ledgers, passwords, authentication tokens, and API keys are excluded. This file is for archiving; the bill import above still reads CSV files.",
+  "文件采用 UTF-8 JSON 格式，包含导出时间、账本信息、各类数据和记录数量。Android 单文件上限为 100MB，超限会报错，不会静默导出部分数据。": "The UTF-8 JSON file includes the export time, ledger details, data categories, and record counts. Android exports are limited to 100 MB; larger files fail rather than silently exporting partial data.",
   "请选择本应用导出的 CSV 账单": "Choose a CSV bill file exported by this app", "没有识别到本应用导出的有效流水，请确认选择的是导出的 CSV 账单": "No valid entries from this app's export were found. Choose a CSV bill file exported by this app.",
   切换数据模式: "Switch data mode", "当前：本地模式": "Current: Local mode",
   全年: "Full year", 全年结余: "Annual balance", 全年收入: "Annual income", 月收入: "Monthly income", 月消费: "Monthly spending", 还款: "Repayment", 收支: "Cash flow", 发薪周期资金明细: "Salary-cycle cash-flow details", 全年按月对比: "Monthly comparison for the year", 可继续安排: "Available to allocate", 已超出收入: "Exceeds income", 本月暂无支出记录: "No spending recorded this month", 普通记账: "Standard entry", 单月录入: "Single-month entry", 批量补录: "Batch backfill", 历史工资补录: "Historical salary backfill", 补录年份: "Backfill year", 全选: "Select all", 清空: "Clear", "每月工资（元）": "Monthly salary (CNY)", 入账账户: "Receiving account", "发薪单位（选填）": "Payer (optional)", "商户名称 (选填)": "Merchant name (optional)", "商户名称（选填）": "Merchant name (optional)", "添加消费备注...": "Add spending note...", "每月月供 (元)": "Monthly payment (CNY)", 日: "day",
@@ -186,6 +193,12 @@ function translateDynamic(source: string) {
   value = value.replace(/^已导入 (\d+) 笔，跳过 (\d+) 笔，失败 (\d+) 笔(?:，自动关联 (\d+) 笔贷款还款(?:（¥(.+?)）)?)?(，失败行可再次确认导入)?$/, (_m, imported, skipped, failed, repayments, amount, retry) => `Imported ${imported}, skipped ${skipped}, failed ${failed}${repayments ? `; ${repayments} loan repayments linked${amount ? ` (¥${amount})` : ""}` : ""}${retry ? "; failed rows can be retried" : ""}`);
   value = value.replace(/^正在读取账单，已读取 (\d+) 笔\.\.\.$/, "Reading bills; $1 loaded…");
   value = value.replace(/^正在保存账单\.\.\. (\d+)%$/, "Saving bills… $1%");
+  value = value.replace(/^正在保存账本数据\.\.\. (\d+)%$/, "Saving ledger data… $1%");
+  value = value.replace(/^已导出当前账本全部业务数据，共 (\d+) 条记录，保存位置：所选位置\/(.+)$/, "Exported all current ledger data ($1 records). Saved to your selected location as $2");
+  value = value.replace(/^已导出当前账本全部业务数据，共 (\d+) 条记录，保存位置：(.+)$/, "Exported all current ledger data ($1 records). Saved to: $2");
+  value = value.replace(/^已导出当前账本全部业务数据，共 (\d+) 条记录，请在浏览器下载记录中查看 (.+)$/, "Exported all current ledger data ($1 records). Check your browser downloads for $2");
+  value = value.replace(/^导出账本数据失败[：:]文件超过 Android 单次导出上限 100MB。$/, "Ledger data export failed: file exceeds Android's 100 MB export limit.");
+  value = value.replace(/^导出账本数据失败[：:](.*)$/, (_m, detail) => `Ledger data export failed: ${detail}`);
   value = value.replace(/^已导出 (\d+) 条记录（账单 (\d+) 笔，储蓄 (\d+) 笔），保存位置：所选位置\/(.+)$/, "Exported $1 records ($2 bills, $3 savings). Saved to your selected location as $4");
   value = value.replace(/^已导出 (\d+) 条记录（账单 (\d+) 笔，储蓄 (\d+) 笔），保存位置：(.+)$/, "Exported $1 records ($2 bills, $3 savings). Saved to: $4");
   value = value.replace(/^已生成 (\d+) 条记录（账单 (\d+) 笔，储蓄 (\d+) 笔），请在浏览器下载记录中查看 (.+)$/, "Generated $1 records ($2 bills, $3 savings). Check your browser downloads for $4");

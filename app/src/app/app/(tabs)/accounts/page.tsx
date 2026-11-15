@@ -15,8 +15,8 @@ import { getCloudAuthUser } from "@/lib/stark/storage/cloud-auth";
 import { nowText } from "@/lib/stark/utils/format";
 import { createId } from "@/lib/stark/utils/id";
 import { applyCategoryRules } from "@/lib/stark/dashboard/remark";
-import { serializeAccountRecordsToCsv } from "@/lib/stark/export/transaction-csv";
-import { saveBillCsvOnAndroid } from "@/lib/stark/export/native-bill-export";
+import { serializeAccountArchiveToJson } from "@/lib/stark/export/account-archive";
+import { saveExportFileOnAndroid } from "@/lib/stark/export/native-bill-export";
 import { buildImportErrorLogs, selectFailedImportTransactions } from "@/lib/stark/import/import-errors";
 import { matchImportedLoanRepayments } from "@/lib/stark/import/loan-repayment";
 import { importedTransactionId } from "@/lib/stark/import/import-id";
@@ -105,7 +105,7 @@ export default function AccountsPage() {
   const [pendingBillImport, setPendingBillImport] = useState<PendingBillImport | null>(null);
   const [importErrors, setImportErrors] = useState<ImportErrorLog[]>([]);
   const [exporting, setExporting] = useState(false);
-  const [exportMessage, setExportMessage] = useState("账单会导出为 CSV 文件，可用 Excel 或 WPS 打开");
+  const [exportMessage, setExportMessage] = useState("将导出当前账本的完整业务数据为 JSON 文件");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dismissLogoutConfirm = useCallback(() => setLogoutConfirmOpen(false), []);
   const consumeLogoutHistory = useLayeredHistoryMarker(logoutConfirmOpen, "starkLogoutConfirm", dismissLogoutConfirm);
@@ -373,41 +373,63 @@ export default function AccountsPage() {
     }
   }
 
-  async function exportBills() {
+  async function exportLedgerData() {
     if (exporting) return;
     setExporting(true);
-    setExportMessage("正在整理当前账本的已发生记录...");
+    setExportMessage("正在整理当前账本数据...");
     try {
       const repository = manager.getRepository();
       const accountId = getCurrentAccountId();
       const pageSize = 500;
       const transactions: Transaction[] = [];
-      let complete = false;
-      for (let page = 1; page <= 1000; page += 1) {
+      for (let page = 1; ; page += 1) {
         const batch = await repository.getTransactions(accountId, page, pageSize);
         transactions.push(...batch);
         setExportMessage(`正在读取账单，已读取 ${transactions.length} 笔...`);
         if (batch.length < pageSize) {
-          complete = true;
           break;
         }
       }
-      if (!complete) throw new Error("账单数量超出单次导出上限，请联系开发者");
-      setExportMessage("正在读取储蓄记录...");
-      const savingsGoals = await repository.getSavingsGoals(accountId);
-      const savingsPlans = await repository.getSavingsPlansByGoals(savingsGoals.map((goal) => goal.id));
-      const exported = serializeAccountRecordsToCsv(transactions, savingsGoals, savingsPlans);
-      const csv = `\uFEFF${exported.csv}`;
+      setExportMessage("正在读取资产、预算和储蓄等账本数据...");
+      const [account, assets, budgets, loans, savingsGoals, categoryRules, subscriptions, importErrorLogs, exchangeRates] = await Promise.all([
+        repository.getAccount(accountId),
+        repository.getAssets(accountId),
+        repository.getBudgets(accountId),
+        repository.getLoans(accountId),
+        repository.getSavingsGoals(accountId),
+        repository.getCategoryRules(accountId),
+        repository.getSubscriptions(accountId),
+        repository.getImportErrorLogs(accountId),
+        repository.getExchangeRates(),
+      ]);
+      if (!account) throw new Error("无法读取当前账本，请重试");
+      const [savingsPlans, themeConfig] = await Promise.all([
+        repository.getSavingsPlansByGoals(savingsGoals.map((goal) => goal.id)),
+        repository.getThemeConfig(cloudUser?.id ?? account.ownerId),
+      ]);
+      const exported = serializeAccountArchiveToJson(account, {
+        transactions,
+        assets,
+        budgets,
+        loans,
+        savingsGoals,
+        savingsPlans,
+        subscriptions,
+        categoryRules,
+        importErrorLogs,
+        exchangeRates,
+        themeConfig,
+      });
       const now = new Date();
       const pad = (value: number) => String(value).padStart(2, "0");
-      const fileName = `star-accounting-bills-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+      const fileName = `star-accounting-ledger-${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
       if (Capacitor.isNativePlatform()) {
-        setExportMessage("正在保存账单到系统文件...");
-        const result = await saveBillCsvOnAndroid(csv, fileName, (percent) => setExportMessage(`正在保存账单... ${percent}%`));
-        setExportMessage(`已导出 ${exported.recordCount} 条记录（账单 ${transactions.length} 笔，储蓄 ${exported.savingsRecordCount} 笔），保存位置：${result.location}`);
+        setExportMessage("正在保存账本数据到系统文件...");
+        const result = await saveExportFileOnAndroid(exported.content, fileName, "application/json", (percent) => setExportMessage(`正在保存账本数据... ${percent}%`));
+        setExportMessage(`已导出当前账本全部业务数据，共 ${exported.totalRecordCount} 条记录，保存位置：${result.location}`);
         return;
       }
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const blob = new Blob([exported.content], { type: "application/json;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -416,15 +438,15 @@ export default function AccountsPage() {
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      setExportMessage(`已生成 ${exported.recordCount} 条记录（账单 ${transactions.length} 笔，储蓄 ${exported.savingsRecordCount} 笔），请在浏览器下载记录中查看 ${fileName}`);
+      setExportMessage(`已导出当前账本全部业务数据，共 ${exported.totalRecordCount} 条记录，请在浏览器下载记录中查看 ${fileName}`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "";
       if (detail === "已取消保存") {
-        setExportMessage("已取消账单导出");
+        setExportMessage("已取消导出");
       } else if (Capacitor.isNativePlatform() && /not implemented/i.test(detail)) {
-        setExportMessage("当前安装包尚未包含账单保存功能，请安装新版本后再导出");
+        setExportMessage("当前安装包尚未包含账本数据导出功能，请安装新版本后再导出");
       } else {
-        setExportMessage(`导出账单失败${detail ? `：${detail}` : ""}`);
+        setExportMessage(`导出账本数据失败${detail ? `：${detail}` : ""}`);
       }
     } finally {
       setExporting(false);
@@ -437,7 +459,7 @@ export default function AccountsPage() {
 
       <section className="settings-center-group">
         <SettingsRow type="IMPORT" title="导入账单" value="微信 / 支付宝" onClick={() => setActivePanel("IMPORT")} />
-        <SettingsRow type="EXPORT" title="导出账单" value="CSV 文件" onClick={() => { setExportMessage("账单会导出为 CSV 文件，可用 Excel 或 WPS 打开"); setActivePanel("EXPORT"); }} />
+        <SettingsRow type="EXPORT" title="导出账本数据" value="JSON 文件" onClick={() => { setExportMessage("将导出当前账本的完整业务数据为 JSON 文件"); setActivePanel("EXPORT"); }} />
       </section>
 
       <section className="settings-center-group">
@@ -493,7 +515,7 @@ export default function AccountsPage() {
 
       {activePanel ? (
         <BottomSheet
-          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账单" : activePanel === "REMARK" ? "账单归类" : activePanel === "BALANCE" ? "余额基准" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "AI_VISION" ? "AI 截图识别" : activePanel === "FLOATING" ? "悬浮记账" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
+          title={activePanel === "ACCOUNT" ? "账户设置" : activePanel === "IMPORT" ? "导入账单" : activePanel === "EXPORT" ? "导出账本数据" : activePanel === "REMARK" ? "账单归类" : activePanel === "BALANCE" ? "余额基准" : activePanel === "SUBSCRIPTIONS" ? "订阅/扣费管理" : activePanel === "AI_VISION" ? "AI 截图识别" : activePanel === "FLOATING" ? "悬浮记账" : activePanel === "LANGUAGE" ? "语言" : activePanel === "FONT" ? "字体大小" : activePanel === "HELP" ? "帮助与反馈" : "关于"}
           className="settings-sheet"
           overlayClassName="settings-sheet-overlay"
           onClose={() => setActivePanel(null)}
@@ -532,10 +554,10 @@ export default function AccountsPage() {
             </div> : null}
 
             {activePanel === "EXPORT" ? <div className="settings-sheet-body">
-              <p className="settings-sheet-note">导出当前账本全部已发生的流水：收入、支出、转账、还款，以及储蓄存入、取用和补齐。未执行的储蓄计划不导出。CSV 会保留日期、类型、金额、商户、支付账户、储蓄目标、关联取用和资金分配明细等信息。导入本应用 CSV 时只识别四类账单流水，不会把储蓄操作误记成消费。</p>
+              <p className="settings-sheet-note">导出当前账本完整业务数据为 JSON，包括全部账单流水、资产余额、预算、贷款、储蓄目标和计划、周期扣费、账单归类规则、导入问题记录及余额基准；汇率参考、主题配置、储蓄凭证和资金池明细也会保留。不会导出其他账本、登录密码、认证令牌或 API 密钥。此文件用于数据归档；上方的账单导入功能目前仍读取 CSV 流水。</p>
               <div className="bill-import-message">{exportMessage}</div>
-              <button type="button" className="settings-sheet-primary" disabled={exporting} onClick={() => void exportBills()}>{exporting ? "正在导出..." : "导出全部账单"}</button>
-              <p className="settings-sheet-tip">文件使用 UTF-8 编码并兼容 Excel / WPS；导出范围仅限当前账本。</p>
+              <button type="button" className="settings-sheet-primary" disabled={exporting} onClick={() => void exportLedgerData()}>{exporting ? "正在导出..." : "导出完整账本数据"}</button>
+              <p className="settings-sheet-tip">文件采用 UTF-8 JSON 格式，包含导出时间、账本信息、各类数据和记录数量。Android 单文件上限为 100MB，超限会报错，不会静默导出部分数据。</p>
             </div> : null}
 
             {activePanel === "REMARK" ? <div className="settings-sheet-body remark-sheet-body">

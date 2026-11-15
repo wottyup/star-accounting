@@ -43,16 +43,26 @@ public class BillExportPlugin extends Plugin {
     @PluginMethod
     public void begin(PluginCall call) {
         String name = call.getString("fileName");
+        String mimeType = call.getString("mimeType");
         // JSON byte counts within the 100 MiB limit are Integers, not Longs.
         Integer size = call.getInt("totalBytes");
-        if (name == null || !name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.csv")
-                || size == null || size <= 0 || size > MAX_EXPORT_BYTES) {
+        boolean csvFile = name != null && name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.csv") && "text/csv".equals(mimeType);
+        boolean jsonFile = name != null && name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,100}\\.json") && "application/json".equals(mimeType);
+        if (!csvFile && !jsonFile) {
             call.reject("导出文件名或文件大小无效。");
+            return;
+        }
+        if (size == null || size <= 0) {
+            call.reject("导出文件为空或大小无效。");
+            return;
+        }
+        if (size > MAX_EXPORT_BYTES) {
+            call.reject("文件超过 Android 单次导出上限 100MB。");
             return;
         }
         synchronized (sessionLock) {
             if (busy) {
-                call.reject("已有账单正在导出，请稍后重试。");
+                call.reject("已有文件正在导出，请稍后重试。");
                 return;
             }
             busy = true;
@@ -61,7 +71,7 @@ public class BillExportPlugin extends Plugin {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Intent picker = new Intent(Intent.ACTION_CREATE_DOCUMENT);
             picker.addCategory(Intent.CATEGORY_OPENABLE);
-            picker.setType("text/csv");
+            picker.setType(mimeType);
             picker.putExtra(Intent.EXTRA_TITLE, name);
             try {
                 startActivityForResult(call, picker, "onDocumentCreated");
@@ -77,7 +87,7 @@ public class BillExportPlugin extends Plugin {
             try {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
-                values.put(MediaStore.MediaColumns.MIME_TYPE, "text/csv");
+                values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
                 values.put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOAD_FOLDER);
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
                 ContentResolver resolver = getContext().getContentResolver();
@@ -87,7 +97,7 @@ public class BillExportPlugin extends Plugin {
             } catch (Exception error) {
                 if (uri != null) deleteQuietly(uri);
                 synchronized (sessionLock) { resetSession(); }
-                call.reject("无法在下载目录创建账单文件，请检查设备存储空间。");
+                call.reject("无法在下载目录创建导出文件，请检查设备存储空间。");
             }
         });
     }
@@ -132,7 +142,7 @@ public class BillExportPlugin extends Plugin {
         String id = call.getString("id");
         String data = call.getString("data");
         if (id == null || data == null) {
-            call.reject("账单数据不完整，请重新导出。");
+            call.reject("导出数据不完整，请重新导出。");
             return;
         }
         bridge.execute(() -> {
@@ -145,14 +155,14 @@ public class BillExportPlugin extends Plugin {
                     byte[] bytes = Base64.decode(data, Base64.DEFAULT);
                     if (bytes.length == 0 || bytes.length > MAX_CHUNK_BYTES
                             || writtenBytes + bytes.length > expectedBytes) {
-                        throw new IOException("账单数据长度无效");
+                        throw new IOException("导出数据长度无效");
                     }
                     output.write(bytes);
                     writtenBytes += bytes.length;
                     call.resolve();
                 } catch (Exception error) {
                     discardSession();
-                    call.reject("账单写入失败，请检查设备存储空间后重试。");
+                    call.reject("文件写入失败，请检查设备存储空间后重试。");
                 }
             }
         });
@@ -168,7 +178,7 @@ public class BillExportPlugin extends Plugin {
                     return;
                 }
                 try {
-                    if (writtenBytes != expectedBytes) throw new IOException("账单数据未写完");
+                    if (writtenBytes != expectedBytes) throw new IOException("导出数据未写完");
                     output.flush();
                     output.close();
                     output = null;
@@ -185,7 +195,7 @@ public class BillExportPlugin extends Plugin {
                     call.resolve(new JSObject().put("location", location));
                 } catch (Exception error) {
                     discardSession();
-                    call.reject("账单保存失败，请检查设备存储空间后重试。");
+                    call.reject("导出文件保存失败，请检查设备存储空间后重试。");
                 }
             }
         });

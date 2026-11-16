@@ -538,11 +538,6 @@ function StarkBudgetAllocationCard({ summary, reportingMonth, transactions, onMa
   const allocation = summary.budgetAllocation;
   const planAllocation = summary.savingsPlanAllocation;
   const planAllocationStatus = [
-    planAllocation.completedPlanCount
-      ? locale === "en-US"
-        ? `Saved ¥${formatMoney(planAllocation.recordedDeposit)} · ${planAllocation.completedPlanCount} completed`
-        : `已存 ¥ ${formatMoney(planAllocation.recordedDeposit)} · ${planAllocation.completedPlanCount} 项已完成`
-      : "",
     planAllocation.pendingPlanCount
       ? locale === "en-US"
         ? `Pending ¥${formatMoney(planAllocation.pendingDeposit)} · ${planAllocation.pendingPlanCount} pending`
@@ -649,7 +644,21 @@ function StarkBudgetAllocationCard({ summary, reportingMonth, transactions, onMa
                 <strong>{translateValue("储蓄计划安排", locale)}</strong>
                 <small>{planExpanded
                   ? `${summary.savingsPlanPeriod} · ${translateValue("计划表金额仅供参考，不参与上方实际分配计算", locale)}`
-                  : `${summary.savingsPlanPeriod} · ${planAllocationStatus || `${translateValue("预计存", locale)} ¥ ${formatMoney(planAllocation.plannedDeposit)}`}`}</small>
+                  : <>
+                    {summary.savingsPlanPeriod} · {planAllocation.completedPlanCount > 0 ? (
+                      <span className="savings-plan-completion-check">
+                        <i aria-hidden="true">✓</i>
+                        {locale === "en-US"
+                          ? `Saved ¥${formatMoney(planAllocation.recordedDeposit)} · ${planAllocation.completedPlanCount} completed`
+                          : `已存 ¥ ${formatMoney(planAllocation.recordedDeposit)} · ${planAllocation.completedPlanCount} 项已完成`}
+                      </span>
+                    ) : null}
+                    {planAllocation.completedPlanCount > 0 && planAllocationStatus ? ` · ${planAllocationStatus}` : null}
+                    {planAllocation.completedPlanCount === 0 && planAllocationStatus ? planAllocationStatus : null}
+                    {planAllocation.completedPlanCount === 0 && !planAllocationStatus
+                      ? `${translateValue("预计存", locale)} ¥ ${formatMoney(planAllocation.plannedDeposit)}`
+                      : null}
+                  </>}</small>
               </span>
               <span className="stark-budget-allocation-plan-toggle-label">
                 {translateValue(planExpanded ? "收起" : "展开", locale)}
@@ -684,7 +693,10 @@ function StarkBudgetAllocationCard({ summary, reportingMonth, transactions, onMa
                 <span>{translateValue("预计存", locale)}</span>
                 <strong>¥ {formatMoney(planAllocation.plannedDeposit)}</strong>
                 <small className="stark-budget-allocation-plan-progress">
-                  <span>{locale === "en-US" ? "Saved" : "已存"} ¥ {formatMoney(planAllocation.recordedDeposit)}</span>
+                  <span className={planAllocation.completedPlanCount > 0 ? "savings-plan-completion-check" : ""}>
+                    {planAllocation.completedPlanCount > 0 ? <i aria-hidden="true">✓</i> : null}
+                    {locale === "en-US" ? "Saved" : "已存"} ¥ {formatMoney(planAllocation.recordedDeposit)}
+                  </span>
                   <span>{locale === "en-US" ? "Pending" : "待存"} ¥ {formatMoney(planAllocation.pendingDeposit)}</span>
                 </small>
               </div>
@@ -735,9 +747,11 @@ function StarkBudgetAllocationCard({ summary, reportingMonth, transactions, onMa
               <div className="stark-budget-allocation-plan-available">
                 <span>
                   <strong>{translateValue("发薪后预计可支配", locale)}</strong>
-                  <small>{translateValue(summary.salaryPlanSource.salaryCarryover === null
-                    ? "发薪时的计划值，未包含未核实的上期结转"
-                    : "发薪时的计划值，实际记账另计", locale)}</small>
+                  <small>{translateValue(summary.savingsPlanAllocation.projectedRemaining !== null
+                    ? "按储蓄计划中的工资、上月结余、支出和预计存计算"
+                    : summary.salaryPlanSource.salaryCarryover === null
+                      ? "发薪时的计划值，未包含未核实的上期结转"
+                      : "发薪时的计划值，实际记账另计", locale)}</small>
                 </span>
                 <strong className={summary.salaryPlanAvailable < 0 ? "negative" : ""}>
                   {summary.salaryPlanAvailable < 0 ? "-¥ " : "¥ "}{formatMoney(Math.abs(summary.salaryPlanAvailable))}

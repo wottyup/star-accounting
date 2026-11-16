@@ -616,10 +616,11 @@ export function buildHomeSummary(input: {
     salaryRecordedAt: forecast.salaryRecordedAt,
     salaryCarryover: forecast.salaryCarryover,
   } : buildSalaryPlanSource(input.transactions, cashflowPlans, salaryDay, savingsPlanPeriod, referenceDate, input.account);
-  const salaryPlanAvailable = salaryPlanSource.salaryRecordedAt && savingsPlanAllocation.planCount > 0
-    ? salaryPlanSource.salaryIncome + (salaryPlanSource.salaryCarryover ?? 0)
-      - savingsPlanAllocation.fixedExpense - savingsPlanAllocation.temporaryExpense - savingsPlanAllocation.plannedDeposit
-    : null;
+  const salaryPlanAvailable = savingsPlanAllocation.projectedRemaining
+    ?? (salaryPlanSource.salaryRecordedAt && savingsPlanAllocation.planCount > 0
+      ? salaryPlanSource.salaryIncome + (salaryPlanSource.salaryCarryover ?? 0)
+        - savingsPlanAllocation.fixedExpense - savingsPlanAllocation.temporaryExpense - savingsPlanAllocation.plannedDeposit
+      : null);
 
   return {
     expense,

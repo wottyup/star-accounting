@@ -48,11 +48,13 @@ export function EChartView({
   className,
   ariaLabel,
   onDataClick,
+  tooltipActive = true,
 }: {
   option: EChartsCoreOption;
   className?: string;
   ariaLabel?: string;
   onDataClick?: (event: EChartDataClick) => void;
+  tooltipActive?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const instanceRef = useRef<EChartsType | null>(null);
@@ -67,6 +69,10 @@ export function EChartView({
   useEffect(() => {
     onDataClickRef.current = onDataClick;
   }, [onDataClick]);
+
+  useEffect(() => {
+    if (!tooltipActive) instanceRef.current?.dispatchAction({ type: "hideTip" });
+  }, [tooltipActive]);
 
   useEffect(() => {
     const root = rootRef.current;

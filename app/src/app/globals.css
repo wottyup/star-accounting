@@ -2135,6 +2135,28 @@ html.kt-hybrid-shell .tabs-shell {
   white-space: nowrap;
 }
 
+.savings-plan-completion-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #13875f;
+}
+
+.savings-plan-completion-check > i {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e2f5ec;
+  color: #13875f;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .stark-budget-allocation-plan-details {
   display: grid;
   gap: 6px;

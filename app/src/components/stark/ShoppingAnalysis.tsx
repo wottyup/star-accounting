@@ -65,6 +65,7 @@ function buildShoppingTrendOption(
     tooltip: {
       trigger: "axis",
       confine: true,
+      z: 10,
       backgroundColor: "rgba(19, 27, 48, 0.92)",
       borderWidth: 0,
       padding: [8, 10],
@@ -244,6 +245,7 @@ export function ShoppingAnalysis({ transactions, period }: { transactions: Trans
                 option={trendOption}
                 className="shopping-analysis-trend"
                 ariaLabel={locale === "zh-CN" ? "购物账单笔数趋势图" : "Shopping bill count trend"}
+                tooltipActive={!detailSelection}
               />
 
               <div className="shopping-analysis-rankings">

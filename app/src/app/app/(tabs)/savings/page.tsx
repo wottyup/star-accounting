@@ -114,12 +114,12 @@ export default function SavingsPage() {
     const monthSkippedPlans = monthPlans.filter((plan) => plan.status === "SKIPPED");
     const monthRecorded = monthCompletedPlans.reduce((sum, plan) => sum + retainedSavingsPlanAmount(plan, goals.find((goal) => goal.id === plan.goalId)), 0);
     const monthPendingAmount = monthPendingPlans.reduce((sum, plan) => sum + plan.amount, 0);
+    const monthCompletedLabel = monthCompletedPlans.length
+      ? locale === "en-US"
+        ? `Saved ¥${formatMoney(monthRecorded)} · ${monthCompletedPlans.length} completed`
+        : `已存 ¥ ${formatMoney(monthRecorded)} · ${monthCompletedPlans.length} 项已完成`
+      : "";
     const monthStatusParts = [
-      monthCompletedPlans.length
-        ? locale === "en-US"
-          ? `Saved ¥${formatMoney(monthRecorded)} · ${monthCompletedPlans.length} completed`
-          : `已存 ¥ ${formatMoney(monthRecorded)} · ${monthCompletedPlans.length} 项已完成`
-        : "",
       monthPendingPlans.length
         ? locale === "en-US"
           ? `Pending ¥${formatMoney(monthPendingAmount)} · ${monthPendingPlans.length} pending`
@@ -133,7 +133,7 @@ export default function SavingsPage() {
     ].filter(Boolean);
     const monthStatus = monthStatusParts.length
       ? `${currentMonth} · ${monthStatusParts.join(" · ")}`
-      : `${currentMonth} · ${locale === "en-US" ? "No savings plans" : "暂无储蓄计划"}`;
+      : `${currentMonth}${monthCompletedLabel ? "" : ` · ${locale === "en-US" ? "No savings plans" : "暂无储蓄计划"}`}`;
     const plannedTotal = plans.reduce((sum, plan) => sum + plan.amount, 0);
     const { savedAmount, target, percent } = summarizeSavingsProgress(goals, plans);
     const completed = plans.filter((plan) => plan.status === "COMPLETED").length;
@@ -144,7 +144,7 @@ export default function SavingsPage() {
     const remainingTarget = Math.max(target - savedAmount, 0);
     const completionRate = monthPlanned > 0 ? clampPercent((monthRecorded / monthPlanned) * 100) : 0;
     const activeCount = goals.filter((goal) => goal.status === "ACTIVE").length;
-    return { activeCount, completed, completionRate, monthPlanned, monthStatus, pending, pendingAmount, plannedTotal, progress, remainingTarget, savedAmount, skipped, target };
+    return { activeCount, completed, completionRate, monthCompletedLabel, monthPlanned, monthStatus, pending, pendingAmount, plannedTotal, progress, remainingTarget, savedAmount, skipped, target };
   }, [currentMonth, goals, locale, plans]);
 
   const recentPlanGroups = useMemo(() => groupRecentSavingsPlans(plans, showAllPlans ? plans.length : 8), [plans, showAllPlans]);
@@ -203,7 +203,15 @@ export default function SavingsPage() {
         <div className="savings-metric-card primary">
           <span>{translateValue("本月计划", locale)}</span>
           <strong>¥ {formatMoney(summary.monthPlanned)}</strong>
-          <small>{summary.monthStatus}</small>
+          <small>
+            {summary.monthStatus}
+            {summary.monthCompletedLabel ? (
+              <>
+                {" · "}
+                <span className="savings-plan-completion-check"><i aria-hidden="true">✓</i>{summary.monthCompletedLabel}</span>
+              </>
+            ) : null}
+          </small>
         </div>
         <div className="savings-metric-card gap">
           <span>{translateValue("目标缺口", locale)}</span>

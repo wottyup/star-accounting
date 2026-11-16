@@ -62,10 +62,10 @@ services:
       API_PORT: ${API_PORT:-12367}
       DB_POOL_MAX_SIZE: ${DB_POOL_MAX_SIZE:-10}
       DB_POOL_MIN_IDLE: ${DB_POOL_MIN_IDLE:-1}
-      AI_VISION_BASE_URL: ${AI_VISION_BASE_URL:-https://api.openai.com/v1}
-      AI_VISION_API_FORMAT: ${AI_VISION_API_FORMAT:-openai}
+      AI_VISION_BASE_URL: ${AI_VISION_BASE_URL:-}
+      AI_VISION_API_FORMAT: ${AI_VISION_API_FORMAT:-}
       AI_VISION_API_KEY: ${AI_VISION_API_KEY:-}
-      AI_VISION_MODEL: ${AI_VISION_MODEL:-gpt-4o-mini}
+      AI_VISION_MODEL: ${AI_VISION_MODEL:-}
       AI_VISION_ALLOW_PRIVATE_ENDPOINTS: ${AI_VISION_ALLOW_PRIVATE_ENDPOINTS:-false}
       # Deployment must initialise new databases and apply compatible additions.
       DB_AUTO_MIGRATE: "true"

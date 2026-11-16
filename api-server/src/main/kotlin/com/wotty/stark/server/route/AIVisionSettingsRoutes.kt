@@ -80,14 +80,17 @@ private fun ApplicationCall.currentAIVisionUserId(): String = principal<JWTPrinc
     ?.takeIf(String::isNotBlank)
     ?: error("Missing authenticated user")
 
-internal fun defaultAIVisionProviderConfig(): AIVisionProviderConfig = AIVisionProviderConfig(
-    baseUrl = System.getenv("AI_VISION_BASE_URL")?.trim()?.trimEnd('/')?.takeIf(String::isNotEmpty)
-        ?: "https://api.openai.com/v1",
-    apiFormat = normalizeAIVisionApiFormat(System.getenv("AI_VISION_API_FORMAT").orEmpty()),
-    model = System.getenv("AI_VISION_MODEL")?.trim()?.takeIf(String::isNotEmpty)
-        ?: "gpt-4o-mini",
-    apiKey = System.getenv("AI_VISION_API_KEY")?.trim().orEmpty(),
-)
+internal fun defaultAIVisionProviderConfig(): AIVisionProviderConfig {
+    val apiFormat = normalizeAIVisionApiFormat(System.getenv("AI_VISION_API_FORMAT").orEmpty().ifBlank { "anthropic" })
+    return AIVisionProviderConfig(
+        baseUrl = System.getenv("AI_VISION_BASE_URL")?.trim()?.trimEnd('/')?.takeIf(String::isNotEmpty)
+            ?: if (apiFormat == "anthropic") "https://api.deepseek.com/anthropic" else "https://api.openai.com/v1",
+        apiFormat = apiFormat,
+        model = System.getenv("AI_VISION_MODEL")?.trim()?.takeIf(String::isNotEmpty)
+            ?: if (apiFormat == "anthropic") "deepseek-flash" else "gpt-6-luna",
+        apiKey = System.getenv("AI_VISION_API_KEY")?.trim().orEmpty(),
+    )
+}
 
 internal fun normalizeAIVisionApiFormat(raw: String): String = raw.trim().lowercase().ifBlank { "openai" }
     .also { require(it == "openai" || it == "anthropic") { "请选择受支持的模型接口格式" } }

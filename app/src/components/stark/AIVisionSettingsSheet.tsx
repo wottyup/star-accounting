@@ -9,6 +9,11 @@ import {
   type AIVisionSettings,
 } from "@/lib/stark/repository/ai-vision-settings";
 
+const modelPresets = {
+  anthropic: { baseUrl: "https://api.deepseek.com/anthropic", model: "deepseek-flash" },
+  openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-6-luna" },
+} as const;
+
 export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: boolean; onOpenCloudLogin: () => void }) {
   const [settings, setSettings] = useState<AIVisionSettings | null>(null);
   const [baseUrl, setBaseUrl] = useState("");
@@ -131,7 +136,12 @@ export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: 
 
       <label className="ai-vision-field">
         <span>接口格式</span>
-        <select value={apiFormat} onChange={(event) => setApiFormat(event.target.value === "anthropic" ? "anthropic" : "openai")} disabled={loading}>
+        <select value={apiFormat} onChange={(event) => {
+          const nextFormat = event.target.value === "anthropic" ? "anthropic" : "openai";
+          setApiFormat(nextFormat);
+          setBaseUrl(modelPresets[nextFormat].baseUrl);
+          setModel(modelPresets[nextFormat].model);
+        }} disabled={loading}>
           <option value="openai">OpenAI 兼容</option>
           <option value="anthropic">Anthropic Messages</option>
         </select>
@@ -141,11 +151,11 @@ export function AIVisionSettingsSheet({ enabled, onOpenCloudLogin }: { enabled: 
       ) : null}
       <label className="ai-vision-field">
         <span>服务地址</span>
-        <input type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={apiFormat === "anthropic" ? "https://api.anthropic.com" : "https://api.openai.com/v1"} disabled={loading} />
+        <input type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={modelPresets[apiFormat].baseUrl} disabled={loading} />
       </label>
       <label className="ai-vision-field">
         <span>模型名称</span>
-        <input type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={model} onChange={(event) => setModel(event.target.value)} placeholder="gpt-4o-mini" disabled={loading} />
+        <input type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={model} onChange={(event) => setModel(event.target.value)} placeholder={modelPresets[apiFormat].model} disabled={loading} />
       </label>
       <label className="ai-vision-field">
         <span>API Key {settings?.hasPersonalConfiguration ? "（留空保留已保存密钥）" : ""}</span>

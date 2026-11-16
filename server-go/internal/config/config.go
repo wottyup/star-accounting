@@ -133,17 +133,29 @@ func Load(lookup LookupEnv) (Config, error) {
 	if len(jwtSecret) < 32 {
 		jwtSecret = defaultJWTSecret
 	}
+	visionFormatRaw := value("AI_VISION_API_FORMAT")
+	if visionFormatRaw == "" {
+		visionFormatRaw = vision.APIFormatAnthropic
+	}
+	visionAPIFormat, err := vision.NormalizeAPIFormat(visionFormatRaw)
+	if err != nil {
+		return Config{}, err
+	}
 	visionBaseURL := value("AI_VISION_BASE_URL")
 	if visionBaseURL == "" {
-		visionBaseURL = "https://api.openai.com/v1"
+		if visionAPIFormat == vision.APIFormatAnthropic {
+			visionBaseURL = "https://api.deepseek.com/anthropic"
+		} else {
+			visionBaseURL = "https://api.openai.com/v1"
+		}
 	}
 	visionModel := value("AI_VISION_MODEL")
 	if visionModel == "" {
-		visionModel = "gpt-4o-mini"
-	}
-	visionAPIFormat, err := vision.NormalizeAPIFormat(value("AI_VISION_API_FORMAT"))
-	if err != nil {
-		return Config{}, err
+		if visionAPIFormat == vision.APIFormatAnthropic {
+			visionModel = "deepseek-flash"
+		} else {
+			visionModel = "gpt-6-luna"
+		}
 	}
 
 	return Config{

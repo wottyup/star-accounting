@@ -93,7 +93,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-可选启用记账页的截图 AI 识别：在 `.env` 配置 `AI_VISION_API_KEY`，并按服务商填写 `AI_VISION_BASE_URL`、`AI_VISION_API_FORMAT` 与 `AI_VISION_MODEL`。接口格式支持 OpenAI 兼容和 Anthropic Messages（例如 DeepSeek 地址 `https://api.deepseek.com/anthropic`）；该功能会把用户选择的截图发送到配置的视觉模型服务进行分析，应用不会保存截图。API 密钥只放在服务器环境中。
+可选启用记账页的截图 AI 识别：在 `.env` 配置 `AI_VISION_API_KEY`，并可按服务商填写 `AI_VISION_BASE_URL`、`AI_VISION_API_FORMAT` 与 `AI_VISION_MODEL`。默认预设为 DeepSeek Anthropic Messages（`https://api.deepseek.com/anthropic`，模型 `deepseek-flash`）；OpenAI 兼容预设使用 `gpt-6-luna`。接口格式支持 OpenAI 兼容和 Anthropic Messages；该功能会把用户选择的截图发送到配置的视觉模型服务进行分析，应用不会保存截图。API 密钥只放在服务器环境中。
 
 此命令同时启动 Next.js 前端和 Ktor API。默认地址为 Web `http://127.0.0.1:12366`、API `http://127.0.0.1:12367`；端口被占用时，启动脚本会输出实际使用的端口。只调试 Android 本地模式时，可以跳过数据库配置，但 API 的数据接口无法使用。
 

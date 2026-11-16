@@ -544,7 +544,7 @@ public class FloatingJournalService extends Service {
                     ScreenshotSources.forget(FloatingJournalService.this, sourceId);
                     return;
                 }
-                if (screenshotRequestId != null || !("pick".equals(operation) || "delete".equals(operation))) return;
+                if (screenshotRequestId != null || !("pick".equals(operation) || "trash".equals(operation))) return;
                 screenshotRequestId = requestId;
                 try {
                     Intent intent = new Intent(FloatingJournalService.this, ScreenshotSourceActivity.class)

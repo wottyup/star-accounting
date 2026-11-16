@@ -3,7 +3,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 type SourceResult = { status: string; id?: string; name?: string; mimeType?: string; url?: string };
 type SourceBridge = {
   pick(): Promise<SourceResult>;
-  remove(options: { sourceId: string }): Promise<SourceResult>;
+  trash(options: { sourceId: string }): Promise<SourceResult>;
   forget(options: { sourceId: string }): Promise<void>;
 };
 const nativeSource = registerPlugin<SourceBridge>("ScreenshotSource");
@@ -54,8 +54,8 @@ export async function pickScreenshotSource(): Promise<{ file: File; sourceId: st
   }
 }
 
-export function removeScreenshotSource(sourceId: string) {
-  return window.AndroidFloatingJournal?.screenshot ? floatingRequest("delete", sourceId) : nativeSource.remove({ sourceId });
+export function trashScreenshotSource(sourceId: string) {
+  return window.AndroidFloatingJournal?.screenshot ? floatingRequest("trash", sourceId) : nativeSource.trash({ sourceId });
 }
 
 export async function forgetScreenshotSource(sourceId: string) {

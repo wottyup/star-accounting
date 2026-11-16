@@ -12,7 +12,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "ScreenshotSource")
 public class ScreenshotSourcePlugin extends Plugin {
     @PluginMethod public void pick(PluginCall call) { launch(call, "pick"); }
-    @PluginMethod public void remove(PluginCall call) { launch(call, "delete"); }
+    @PluginMethod public void trash(PluginCall call) { launch(call, "trash"); }
     @PluginMethod public void forget(PluginCall call) {
         ScreenshotSources.forget(getContext(), call.getString("sourceId"));
         call.resolve();

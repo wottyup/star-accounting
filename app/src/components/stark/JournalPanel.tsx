@@ -22,7 +22,7 @@ import { JournalActionDock, JournalActionTargetContext } from "@/components/star
 import { translateText, useAppLocale } from "@/lib/stark/i18n";
 import { useConfirmDialog } from "@/components/stark/ConfirmDialogProvider";
 import { finishScreenshotCleanup } from "@/lib/stark/journal/screenshot-cleanup";
-import { forgetScreenshotSource, isScreenshotSourceAvailable, pickScreenshotSource, removeScreenshotSource } from "@/lib/stark/journal/screenshot-source";
+import { forgetScreenshotSource, isScreenshotSourceAvailable, pickScreenshotSource, trashScreenshotSource } from "@/lib/stark/journal/screenshot-source";
 
 const SavingsPlanner = dynamic(
   () => import("@/components/stark/SavingsPlanner").then((module) => module.SavingsPlanner),
@@ -572,15 +572,15 @@ export function JournalPanel({
       await finishScreenshotCleanup(isScreenshotSourceAvailable() ? screenshotSourceId : undefined, {
         confirm: () => confirm({
           title: translateText("记账已完成", locale),
-          message: translateText("本次账单已全部保存，是否删除用于识别的原截图？", locale),
-          confirmLabel: translateText("删除原图", locale),
+          message: translateText("本次账单已全部保存，是否将用于识别的原截图移入系统回收站？", locale),
+          confirmLabel: translateText("移入回收站", locale),
           cancelLabel: translateText("保留图片", locale),
         }),
-        remove: removeScreenshotSource,
+        trash: trashScreenshotSource,
         forget: forgetScreenshotSource,
         unavailable: () => confirm({
-          title: translateText("原图未删除", locale),
-          message: translateText("账单已保存，原图无法删除。请到相册或图片来源中手动删除。", locale),
+          title: translateText("未移入回收站", locale),
+          message: translateText("账单已保存，此图片暂时无法移入回收站，请到相册手动处理。", locale),
           confirmLabel: translateText("知道了", locale),
           cancelLabel: translateText("关闭", locale),
         }),

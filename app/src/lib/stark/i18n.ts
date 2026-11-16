@@ -4,6 +4,14 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "关闭": "Close",
+  "记账已完成": "Entries saved",
+  "本次账单已全部保存，是否删除用于识别的原截图？": "All entries have been saved. Delete the original screenshot used for recognition?",
+  "删除原图": "Delete screenshot",
+  "保留图片": "Keep image",
+  "原图未删除": "Image kept",
+  "账单已保存，原图无法删除。请到相册或图片来源中手动删除。": "Your entries are saved, but the original image could not be deleted. Delete it manually from your gallery or image source.",
+  "无法读取截图，请重新选择 PNG、JPG 或 WebP 图片": "Could not read the screenshot. Select a PNG, JPG, or WebP image again.",
   "储蓄取用": "Savings withdrawn",
   "待补齐取用": "To replenish",
   "当前账本": "Current ledger",

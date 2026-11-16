@@ -13,11 +13,13 @@ import java.util.Map;
 
 /** Serves each exported page when a local Next route is loaded directly. */
 final class StaticExportWebViewClient extends BridgeWebViewClient {
+    private final android.content.Context context;
     private final Uri localOrigin;
     private final boolean bundled;
 
     StaticExportWebViewClient(Bridge bridge) {
         super(bridge);
+        context = bridge.getContext();
         localOrigin = Uri.parse(bridge.getLocalUrl());
         bundled = bridge.getServerUrl() == null;
     }
@@ -26,6 +28,11 @@ final class StaticExportWebViewClient extends BridgeWebViewClient {
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
         Uri url = request.getUrl();
         String path = url.getPath();
+        if (localOrigin.getScheme().equals(url.getScheme()) && localOrigin.getAuthority().equals(url.getAuthority())
+                && "GET".equals(request.getMethod())) {
+            WebResourceResponse screenshot = ScreenshotSources.response(context, url);
+            if (screenshot != null) return screenshot;
+        }
         if (bundled && localOrigin.getScheme().equals(url.getScheme())
                 && localOrigin.getAuthority().equals(url.getAuthority())
                 && ("GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod()))

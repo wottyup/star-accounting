@@ -20,6 +20,9 @@ import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMar
 import { useSheetPresentation } from "@/components/stark/useSheetPresentation";
 import { JournalActionDock, JournalActionTargetContext } from "@/components/stark/JournalActionDock";
 import { translateText, useAppLocale } from "@/lib/stark/i18n";
+import { useConfirmDialog } from "@/components/stark/ConfirmDialogProvider";
+import { finishScreenshotCleanup } from "@/lib/stark/journal/screenshot-cleanup";
+import { forgetScreenshotSource, isScreenshotSourceAvailable, pickScreenshotSource, removeScreenshotSource } from "@/lib/stark/journal/screenshot-source";
 
 const SavingsPlanner = dynamic(
   () => import("@/components/stark/SavingsPlanner").then((module) => module.SavingsPlanner),
@@ -107,6 +110,7 @@ export function JournalPanel({
   const isEditingLoan = isLoan && Boolean(loan);
   const isEditingEntity = isEditingTransaction || isEditingAsset || isEditingLoan || isRepayment;
   const locale = useAppLocale();
+  const confirm = useConfirmDialog();
   const isSalaryPreset = variant === "journal" && preset?.type === "INCOME" && preset.category === "工资";
   const draftKind: NewEntryDraftKind = isSavings ? "savings" : isAsset ? "asset" : isLoan ? "loan" : isSalaryPreset ? "salary" : "journal";
   const [visible, setVisible] = useState(false);
@@ -136,6 +140,8 @@ export function JournalPanel({
   const [previewProofImage, setPreviewProofImage] = useState<string | null>(null);
   const [screenshotRecognitionBusy, setScreenshotRecognitionBusy] = useState(false);
   const [screenshotRecognitionNotice, setScreenshotRecognitionNotice] = useState("");
+  const [screenshotSourceId, setScreenshotSourceId] = useState<string>();
+  const screenshotPickingRef = useRef(false);
   const [recognizedDrafts, setRecognizedDrafts] = useState<JournalDraft[]>([]);
   const [activeRecognizedDraftIndex, setActiveRecognizedDraftIndex] = useState(0);
   const [recognitionOverrides, setRecognitionOverrides] = useState<RecognitionOverrides>({});
@@ -246,6 +252,7 @@ export function JournalPanel({
       const draft = readNewEntryDraft<JournalDraft>(draftKind);
       if (draft) {
         const overrides = draft.recognitionOverrides ?? {};
+        setScreenshotSourceId(draft.screenshotSourceId);
         recognitionOverridesRef.current = overrides;
         setRecognitionOverrides(overrides);
         setType(draft.type);
@@ -304,9 +311,10 @@ export function JournalPanel({
         recognizedDrafts: savedRecognizedDrafts,
         activeRecognizedDraftIndex,
         recognitionOverrides,
+        screenshotSourceId,
       } satisfies JournalDraft);
     }
-  }, [activeRecognizedDraftIndex, assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, recognitionOverrides, recognizedDrafts, shoppingPlatform, type]);
+  }, [activeRecognizedDraftIndex, assetBalance, assetName, assetType, date, description, draftKind, draftReady, isEditingEntity, isSavings, loanDueDay, loanMatchKeywords, loanMonthlyPayment, loanPeriods, loanPlatform, loanRemainingAmount, loanTotalAmount, amount, category, merchant, platform, recognitionOverrides, recognizedDrafts, shoppingPlatform, screenshotSourceId, type]);
 
   useEffect(() => {
     if (sheetReady && !closingRef.current) setVisible(true);
@@ -371,10 +379,11 @@ export function JournalPanel({
   }, [floatingOverlay, isSavings, onClose]);
   const consumeHistoryEntry = useLayeredHistoryMarker(historyMode === "marker", "starkJournalPanel", beginClose);
   const handleClose = useCallback(() => {
+    if (transactionSaving) return;
     if (closingRef.current) return;
     consumeHistoryEntry();
     beginClose();
-  }, [beginClose, consumeHistoryEntry]);
+  }, [beginClose, consumeHistoryEntry, transactionSaving]);
 
   const keyboardViewportStyle: CSSProperties | undefined = keyboardViewport
     ? {
@@ -485,6 +494,8 @@ export function JournalPanel({
     const remaining = drafts.filter((_, draftIndex) => draftIndex !== index);
     setRecognizedDrafts(remaining);
     if (remaining.length === 0) {
+      if (screenshotSourceId) void forgetScreenshotSource(screenshotSourceId);
+      setScreenshotSourceId(undefined);
       setActiveRecognizedDraftIndex(0);
       setAmount("");
       setMerchant("");
@@ -558,8 +569,26 @@ export function JournalPanel({
       setDate(nowText().slice(0, 16));
       if (type !== "TRANSFER") setCategory(type === "INCOME" ? "工资" : "餐饮");
       window.dispatchEvent(new Event("stark:transaction-saved"));
+      await finishScreenshotCleanup(isScreenshotSourceAvailable() ? screenshotSourceId : undefined, {
+        confirm: () => confirm({
+          title: translateText("记账已完成", locale),
+          message: translateText("本次账单已全部保存，是否删除用于识别的原截图？", locale),
+          confirmLabel: translateText("删除原图", locale),
+          cancelLabel: translateText("保留图片", locale),
+        }),
+        remove: removeScreenshotSource,
+        forget: forgetScreenshotSource,
+        unavailable: () => confirm({
+          title: translateText("原图未删除", locale),
+          message: translateText("账单已保存，原图无法删除。请到相册或图片来源中手动删除。", locale),
+          confirmLabel: translateText("知道了", locale),
+          cancelLabel: translateText("关闭", locale),
+        }),
+      });
+      setScreenshotSourceId(undefined);
       onSaved?.();
-      handleClose();
+      consumeHistoryEntry();
+      beginClose();
     } catch (error) {
       setScreenshotRecognitionNotice(error instanceof Error ? `保存失败：${error.message}` : "保存失败，请稍后重试");
     } finally {
@@ -567,20 +596,39 @@ export function JournalPanel({
     }
   }
 
-  async function recognizeScreenshot(file: File | undefined) {
+  async function chooseScreenshot() {
+    if (screenshotPickingRef.current || screenshotRecognitionBusy || transactionSaving) return;
+    if (!isScreenshotSourceAvailable()) {
+      screenshotRecognitionInputRef.current?.click();
+      return;
+    }
+    screenshotPickingRef.current = true;
+    try {
+      const picked = await pickScreenshotSource();
+      if (picked) await recognizeScreenshot(picked.file, picked.sourceId);
+    } catch (error) {
+      setScreenshotRecognitionNotice(translateText(error instanceof Error && error.message === "图片超过 10 MiB，请压缩后重试"
+        ? error.message : "无法读取截图，请重新选择 PNG、JPG 或 WebP 图片", locale));
+    } finally { screenshotPickingRef.current = false; }
+  }
+
+  async function recognizeScreenshot(file: File | undefined, sourceId?: string) {
     if (screenshotRecognitionInputRef.current) screenshotRecognitionInputRef.current.value = "";
     if (!file) return;
     setScreenshotRecognitionNotice("");
     if (file.type && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      if (sourceId) void forgetScreenshotSource(sourceId);
       setScreenshotRecognitionNotice("仅支持 PNG、JPG 或 WebP 图片");
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
+      if (sourceId) void forgetScreenshotSource(sourceId);
       setScreenshotRecognitionNotice("图片超过 10 MiB，请压缩后重试");
       return;
     }
     const token = getCloudAuthToken();
     if (!token) {
+      if (sourceId) void forgetScreenshotSource(sourceId);
       setScreenshotRecognitionNotice("请先登录云端账户以使用截图识别");
       return;
     }
@@ -678,6 +726,8 @@ export function JournalPanel({
         };
       });
       const drafts = applyScreenshotRecognition(recognized, currentJournalDraft(), overrides);
+      if (screenshotSourceId && screenshotSourceId !== sourceId) void forgetScreenshotSource(screenshotSourceId);
+      setScreenshotSourceId(sourceId);
       setRecognizedDrafts(drafts);
       setActiveRecognizedDraftIndex(0);
       if (drafts.length > 1) {
@@ -699,6 +749,7 @@ export function JournalPanel({
       const warnings = drafts.flatMap((draft) => draft.warnings ?? []).filter((warning, index, all) => all.indexOf(warning) === index);
       setScreenshotRecognitionNotice(warnings.length ? `${reviewMessage} ${warnings.slice(0, 3).join("；")}` : reviewMessage);
     } catch (error) {
+      if (sourceId) void forgetScreenshotSource(sourceId);
       setScreenshotRecognitionNotice(error instanceof Error && error.name === "AbortError"
         ? "截图识别超时，请稍后重试"
         : error instanceof Error ? error.message : "截图识别失败，请稍后重试");
@@ -1255,8 +1306,8 @@ export function JournalPanel({
                       type="button"
                       className="journal-screenshot-recognition-button"
                       aria-label="上传截图并识别账单"
-                      disabled={screenshotRecognitionBusy}
-                      onClick={() => screenshotRecognitionInputRef.current?.click()}
+                      disabled={screenshotRecognitionBusy || transactionSaving}
+                      onClick={() => void chooseScreenshot()}
                     >
                       <svg className="journal-screenshot-recognition-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
                         <path d="M4.25 8.25h3.1l1.4-2h6.5l1.4 2h3.1a1.25 1.25 0 0 1 1.25 1.25v8.25A1.25 1.25 0 0 1 19.75 19h-15a1.25 1.25 0 0 1-1.25-1.25V9.5a1.25 1.25 0 0 1 1.25-1.25Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -1436,7 +1487,10 @@ export function JournalPanel({
                   <button
                     type="button"
                     className="action-sub-btn"
+                    disabled={transactionSaving || screenshotRecognitionBusy}
                     onClick={() => {
+                      if (screenshotSourceId) void forgetScreenshotSource(screenshotSourceId);
+                      setScreenshotSourceId(undefined);
                       setAmount("");
                       setShoppingPlatform("");
                       setMerchant("");

@@ -68,6 +68,7 @@ public class FloatingJournalService extends Service {
     private String journalOverlayExpectedUrl;
     private Runnable journalOverlayReadyTimeout;
     private ValueCallback<Uri[]> fileChooserCallback;
+    private String screenshotRequestId;
     private float touchDownX;
     private float touchDownY;
     private int touchStartX;
@@ -380,6 +381,8 @@ public class FloatingJournalService extends Service {
     private WebResourceResponse serveLocalAsset(WebResourceRequest request) {
         Uri uri = request.getUrl();
         if (!isLocalAppUrl(uri) || !"GET".equalsIgnoreCase(request.getMethod())) return null;
+        WebResourceResponse screenshot = ScreenshotSources.response(this, uri);
+        if (screenshot != null) return screenshot;
         String path = uri.getPath();
         if (path == null || path.contains("..")) return null;
         String relativePath = path.startsWith("/") ? path.substring(1) : path;
@@ -472,6 +475,26 @@ public class FloatingJournalService extends Service {
         });
     }
 
+    public static void deliverScreenshotResult(String requestId, org.json.JSONObject result) {
+        FloatingJournalService service = currentService;
+        if (service == null) return;
+        service.mainHandler.post(() -> {
+            if (requestId == null || !requestId.equals(service.screenshotRequestId)) {
+                if (result.has("id")) ScreenshotSources.forget(service, result.optString("id"));
+                return;
+            }
+            service.screenshotRequestId = null;
+            service.restoreJournalOverlayAfterFilePicker();
+            if (service.journalWebView != null) {
+                try {
+                    result.put("requestId", requestId);
+                    service.journalWebView.evaluateJavascript("window.dispatchEvent(new CustomEvent('stark:screenshot-result',"
+                            + "{detail:" + result.toString() + "}));", null);
+                } catch (org.json.JSONException ignored) { }
+            }
+        });
+    }
+
     private void closeJournalOverlay() {
         mainHandler.post(() -> {
             journalOverlayExpectedUrl = null;
@@ -489,6 +512,7 @@ public class FloatingJournalService extends Service {
     }
 
     private void removeJournalOverlay() {
+        screenshotRequestId = null;
         journalOverlayExpectedUrl = null;
         cancelJournalOverlayReadyTimeout();
         if (journalOverlayAttached && windowManager != null && journalOverlayRoot != null) {
@@ -511,6 +535,32 @@ public class FloatingJournalService extends Service {
     }
 
     private final class FloatingOverlayBridge {
+        @JavascriptInterface
+        public void screenshot(String operation, String requestId, String sourceId) {
+            mainHandler.post(() -> {
+                if (journalWebView == null || journalWebView.getUrl() == null
+                        || !isLocalAppUrl(Uri.parse(journalWebView.getUrl()))) return;
+                if ("forget".equals(operation)) {
+                    ScreenshotSources.forget(FloatingJournalService.this, sourceId);
+                    return;
+                }
+                if (screenshotRequestId != null || !("pick".equals(operation) || "delete".equals(operation))) return;
+                screenshotRequestId = requestId;
+                try {
+                    Intent intent = new Intent(FloatingJournalService.this, ScreenshotSourceActivity.class)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            .putExtra("floating", true).putExtra("operation", operation)
+                            .putExtra("requestId", requestId).putExtra("sourceId", sourceId);
+                    hideJournalOverlayForFilePicker();
+                    startActivity(intent);
+                } catch (RuntimeException error) {
+                    org.json.JSONObject result = new org.json.JSONObject();
+                    try { result.put("status", "unavailable"); } catch (org.json.JSONException ignored) { }
+                    deliverScreenshotResult(requestId, result);
+                }
+            });
+        }
+
         @JavascriptInterface
         public void onFormReady() {
             mainHandler.post(() -> {

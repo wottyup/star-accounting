@@ -7,6 +7,7 @@ import { SHOWCASE_DEMO_MODE, withAppBasePath } from "@/lib/stark/runtime";
 type FloatingJournalOverlayBridge = {
   onFormReady(): void;
   close(): void;
+  screenshot?(operation: string, requestId: string, sourceId: string): void;
 };
 
 declare global {

@@ -34,6 +34,13 @@
             android:taskAffinity="${applicationId}.floatingpicker"
             android:theme="@style/FloatingJournalPickerTheme" />
 
+        <activity
+            android:name="com.wotty.stark.web.ScreenshotSourceActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="${applicationId}.floatingpicker"
+            android:theme="@style/FloatingJournalPickerTheme" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

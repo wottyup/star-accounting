@@ -8,6 +8,7 @@ type ConfirmOptions = {
   message: string;
   title?: string;
   confirmLabel?: string;
+  cancelLabel?: string;
 };
 
 type ConfirmRequest = ConfirmOptions & { resolve: (confirmed: boolean) => void };
@@ -86,7 +87,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
             <h2 id="stark-confirm-title">{request.title ?? "确认删除"}</h2>
             <p id="stark-confirm-message">{request.message}</p>
             <div className="stark-confirm-actions">
-              <button ref={cancelRef} type="button" onClick={() => close(false)}>取消</button>
+              <button ref={cancelRef} type="button" onClick={() => close(false)}>{request.cancelLabel ?? "取消"}</button>
               <button ref={acceptRef} type="button" className="danger" onClick={() => close(true)}>{request.confirmLabel ?? "删除"}</button>
             </div>
           </section>

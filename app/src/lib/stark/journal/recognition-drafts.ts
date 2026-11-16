@@ -21,6 +21,7 @@ export type JournalDraft = {
   recognizedDrafts?: JournalDraft[];
   activeRecognizedDraftIndex?: number;
   recognitionOverrides?: RecognitionOverrides;
+  screenshotSourceId?: string;
 };
 
 /** Use the visible form as the shared source for every retained batch item. */

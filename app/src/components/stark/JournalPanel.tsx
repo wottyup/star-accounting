@@ -1368,7 +1368,7 @@ export function JournalPanel({
 
                 {!hasMixedCategories ? (
                   <div className="modern-section-block" ref={sharedCategoryRef}>
-                    <span className="section-mini-title">左右滑动选择消费类型</span>
+                    <span className="section-mini-title">{translateText("选择大类，上下滑动查看细分类", locale)}</span>
                     <JournalCategoryGrid
                       categories={categories}
                       category={category}

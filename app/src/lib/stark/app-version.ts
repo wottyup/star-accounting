@@ -1,5 +1,5 @@
-export const CURRENT_APP_VERSION_CODE = 239;
-export const CURRENT_APP_VERSION_NAME = "0.25.0-dev.1";
+export const CURRENT_APP_VERSION_CODE = 240;
+export const CURRENT_APP_VERSION_NAME = "0.25.1-dev.1";
 export const APP_UPDATE_URL = "https://api.github.com/repos/wottyup/star-accounting/releases/latest";
 
 export type AppVersionInfo = {

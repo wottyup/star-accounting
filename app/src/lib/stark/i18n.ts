@@ -4,6 +4,17 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "分类大类": "Category groups",
+  "选择大类，上下滑动查看细分类": "Choose a group; scroll up or down for categories",
+  "餐饮食品": "Food & drinks",
+  "购物穿搭": "Shopping & clothing",
+  "居家生活": "Home & living",
+  "家庭宠物": "Family & pets",
+  "运动户外": "Sports & outdoors",
+  "文教娱乐": "Learning & entertainment",
+  "数码服务": "Digital & services",
+  "人情公益": "Gifts & charity",
+  "保险税费": "Insurance & fees",
   "米面粮油": "Staple foods",
   "调料": "Condiments",
   "蛋奶": "Eggs & dairy",

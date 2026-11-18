@@ -7579,7 +7579,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
-  touch-action: pan-x;
+  touch-action: pan-x pan-y;
   padding: 2px;
 }
 
@@ -7617,7 +7617,9 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   height: calc(4 * var(--journal-category-row-height) + 3 * 8px + 4px);
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
+  /* Short grids and grid boundaries pass vertical scrolling to the journal
+     body, which still prevents scrolling the background behind the sheet. */
+  overscroll-behavior-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #c5d4e5 transparent;
   touch-action: pan-y;

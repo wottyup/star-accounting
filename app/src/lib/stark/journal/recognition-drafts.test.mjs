@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyScreenshotRecognition, prepareJournalDrafts } from "./recognition-drafts.ts";
+import { applyScreenshotRecognition, hasSharedRecognitionCategory, prepareJournalDrafts } from "./recognition-drafts.ts";
 
 const item = (id, amount, overrides = {}) => ({
   id,
@@ -112,4 +112,58 @@ test("single recognition and manual editing keep the current form amount and det
   assert.equal(saved.description, "修改后的商品");
   assert.deepEqual(prepareJournalDrafts(current, []), [current]);
   assert.deepEqual(applyScreenshotRecognition([], current, {}), []);
+});
+
+test("recognition preserves different AI categories and refunds with shared payment choices", () => {
+  const recognized = [
+    item("fruit", "18.50", { category: "水果" }),
+    item("ride", "25.00", { category: "打车" }),
+    item("refund", "4.80", { type: "INCOME", category: "退款" }),
+  ];
+  const applied = applyScreenshotRecognition(recognized, form(), { platform: "支付宝" });
+
+  assert.equal(hasSharedRecognitionCategory(applied), false);
+  assert.deepEqual(applied.map(({ type, category }) => ({ type, category })),
+    recognized.map(({ type, category }) => ({ type, category })));
+  assert.ok(applied.every((draft) => draft.platform === "支付宝"));
+});
+
+test("saving, restoring, switching items and retrying do not overwrite individual categories", () => {
+  const recognized = [item("fruit", "18.50", { category: "水果" }), item("ride", "25.00", { category: "打车" })];
+  const applied = applyScreenshotRecognition(recognized, form(), {});
+  applied[1] = { ...applied[1], category: "公交地铁" };
+  const saved = prepareJournalDrafts(form({ category: "水果" }), applied);
+  const restored = JSON.parse(JSON.stringify(saved));
+  const switched = prepareJournalDrafts({ ...restored[1], ...form({ category: "水果", platform: "微信" }) }, restored);
+  const retried = prepareJournalDrafts(form({ category: "餐饮", platform: "现金" }), switched);
+
+  assert.deepEqual(retried.map((draft) => draft.category), ["水果", "公交地铁"]);
+  assert.ok(retried.every((draft) => draft.platform === "现金"));
+});
+
+test("common category mode follows edits, deletion and transaction type differences", () => {
+  const drafts = [item("first", "18.50", { category: "水果" }), item("last", "25.00", { category: "打车" })];
+  assert.equal(hasSharedRecognitionCategory(drafts), false);
+  assert.equal(hasSharedRecognitionCategory(drafts.slice(1)), true);
+  const unified = drafts.map((draft) => ({ ...draft, category: "水果" }));
+  assert.equal(hasSharedRecognitionCategory(unified), true);
+  assert.equal(hasSharedRecognitionCategory([
+    item("expense", "10.00", { category: "其他" }),
+    item("income", "5.00", { type: "INCOME", category: "其他" }),
+  ]), false);
+  assert.equal(hasSharedRecognitionCategory([]), false);
+});
+
+test("removing the first mixed item and returning to a single form keeps the surviving classification", () => {
+  const drafts = applyScreenshotRecognition([
+    item("fruit", "18.50", { category: "水果" }),
+    item("refund", "4.80", { type: "INCOME", category: "退款" }),
+  ], form(), {});
+  const remaining = prepareJournalDrafts(form(), drafts).slice(1);
+  const [saved] = prepareJournalDrafts({ ...remaining[0], amount: "5.00" }, remaining);
+
+  assert.equal(saved.type, "INCOME");
+  assert.equal(saved.category, "退款");
+  assert.equal(saved.id, "refund");
+  assert.equal(saved.amount, "5.00");
 });

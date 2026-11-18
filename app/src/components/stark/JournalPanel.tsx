@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import { DataModeManager } from "@/lib/stark/repository/DataModeManager";
@@ -11,9 +11,10 @@ import { getCloudApiUrl, getCurrentAccountId } from "@/lib/stark/storage/local-c
 import { getCloudAuthToken } from "@/lib/stark/storage/cloud-auth";
 import { SHOWCASE_DEMO_MODE } from "@/lib/stark/runtime";
 import { buildSalaryBatchTransactions, SALARY_BATCH_MONTHS, salaryBatchMonthKeys, selectSalaryBatchMonths } from "@/lib/stark/journal/salary-batch";
-import { applyScreenshotRecognition, prepareJournalDrafts, type JournalDraft, type RecognitionOverrides } from "@/lib/stark/journal/recognition-drafts";
+import { applyScreenshotRecognition, hasSharedRecognitionCategory, prepareJournalDrafts, type JournalDraft, type RecognitionOverrides } from "@/lib/stark/journal/recognition-drafts";
 import type { Asset, AssetType, Loan, SavingsGoal, SavingsPlan, Transaction, TransactionType } from "@/lib/stark/models";
 import { categoryIconSrcForCategory, expenseCategoryOptions } from "@/lib/stark/utils/category-icon";
+import { JournalCategoryGrid } from "@/components/stark/JournalCategoryGrid";
 import { DateTimePicker } from "@/components/stark/DateTimePicker";
 import { ProofImageViewer } from "@/components/stark/ProofImageViewer";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
@@ -34,6 +35,12 @@ const repo = new DataModeManager().getRepository();
 const expenseCategories = expenseCategoryOptions;
 const incomeCategories = ["工资", "奖金", "兼职", "经营收入", "报销", "退款", "租金", "利息分红", "补贴", "二手转卖", "理财", "其他"];
 const transferCategories = ["转账"];
+const transactionTypeOptions = [
+  ["EXPENSE", "支出"], ["INCOME", "收入"], ["TRANSFER", "转账"],
+] as const;
+const categoriesForType = (type: TransactionType): string[] => (
+  type === "INCOME" ? incomeCategories : type === "TRANSFER" ? transferCategories : expenseCategories
+);
 const platforms = ["支付宝", "微信", "银行卡", "现金", "其他"];
 const identifiablePaymentPlatforms = ["支付宝", "微信", "银行卡", "现金"];
 const assetTypes: AssetType[] = ["CASH", "BANK_CARD", "ALIPAY", "WECHAT", "INVESTMENT", "OTHER"];
@@ -144,6 +151,10 @@ export function JournalPanel({
   const screenshotPickingRef = useRef(false);
   const [recognizedDrafts, setRecognizedDrafts] = useState<JournalDraft[]>([]);
   const [activeRecognizedDraftIndex, setActiveRecognizedDraftIndex] = useState(0);
+  const [expandedCategoryIndex, setExpandedCategoryIndex] = useState<number | null>(null);
+  const batchCategoryButtonRefs = useRef(new Map<number, HTMLButtonElement>());
+  const sharedCategoryRef = useRef<HTMLDivElement>(null);
+  const categoryPickerId = useId();
   const [recognitionOverrides, setRecognitionOverrides] = useState<RecognitionOverrides>({});
   const recognitionOverridesRef = useRef<RecognitionOverrides>({});
   const [transactionSaving, setTransactionSaving] = useState(false);
@@ -167,12 +178,10 @@ export function JournalPanel({
   const [keyboardViewport, setKeyboardViewport] = useState<KeyboardViewport | null>(null);
   const [actionTarget, setActionTarget] = useState<HTMLDivElement | null>(null);
 
-  const categories = useMemo((): string[] => {
-    if (type === "INCOME") return incomeCategories;
-    if (type === "TRANSFER") return transferCategories;
-    return expenseCategories;
-  }, [type]);
+  const categories = useMemo(() => categoriesForType(type), [type]);
   const isBatchRecognition = recognizedDrafts.length > 1;
+  const hasMixedCategories = isBatchRecognition && !hasSharedRecognitionCategory(recognizedDrafts);
+  const hasMixedTypes = isBatchRecognition && recognizedDrafts.some((draft) => draft.type !== recognizedDrafts[0].type);
 
   useEffect(() => {
     if (transaction) {
@@ -467,6 +476,40 @@ export function JournalPanel({
     setDate(draft.date);
   }
 
+  function changeJournalType(nextType: TransactionType, preferredCategory?: string) {
+    const options = categoriesForType(nextType);
+    const categoryFor = (currentCategory: string) => preferredCategory
+      ?? (options.includes(currentCategory) ? currentCategory : options[0]);
+    setType(nextType);
+    setCategory(categoryFor(category));
+    setExpandedCategoryIndex(null);
+    setRecognizedDrafts((drafts) => drafts.map((draft) => ({
+      ...draft, type: nextType, category: categoryFor(draft.category),
+    })));
+  }
+
+  function changeSharedCategory(nextCategory: string) {
+    setCategory(nextCategory);
+    setRecognizedDrafts((drafts) => drafts.map((draft) => ({ ...draft, category: nextCategory })));
+  }
+
+  function changeRecognizedCategory(index: number, nextCategory: string, nextType = recognizedDrafts[index].type) {
+    const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === index
+      ? { ...draft, type: nextType, category: nextCategory }
+      : draft);
+    setRecognizedDrafts(drafts);
+    setType(drafts[0].type);
+    setCategory(drafts[0].category);
+    setExpandedCategoryIndex(null);
+    // The per-item trigger disappears when all classifications become equal.
+    requestAnimationFrame(() => {
+      const target = hasSharedRecognitionCategory(drafts)
+        ? sharedCategoryRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+        : batchCategoryButtonRefs.current.get(index);
+      target?.focus({ preventScroll: true });
+    });
+  }
+
   function selectRecognizedDraft(index: number) {
     if (index < 0 || index >= recognizedDrafts.length || index === activeRecognizedDraftIndex) return;
     const drafts = prepareJournalDrafts(currentJournalDraft(), recognizedDrafts);
@@ -490,6 +533,7 @@ export function JournalPanel({
   }
 
   function removeRecognizedDraft(index: number) {
+    setExpandedCategoryIndex(null);
     const drafts = prepareJournalDrafts(currentJournalDraft(), recognizedDrafts);
     const remaining = drafts.filter((_, draftIndex) => draftIndex !== index);
     setRecognizedDrafts(remaining);
@@ -511,6 +555,9 @@ export function JournalPanel({
     setActiveRecognizedDraftIndex(nextIndex);
     if (remaining.length === 1) {
       applyJournalDraft(remaining[0]);
+    } else {
+      setType(remaining[0].type);
+      setCategory(remaining[0].category);
     }
     setScreenshotRecognitionNotice(translateText("已移除这笔订单，剩余 {count} 笔。", locale).replace("{count}", String(remaining.length)));
   }
@@ -559,6 +606,7 @@ export function JournalPanel({
       draftSubmittedRef.current = true;
       clearNewEntryDraft(draftKind);
       setRecognizedDrafts([]);
+      setExpandedCategoryIndex(null);
       setActiveRecognizedDraftIndex(0);
       recognitionOverridesRef.current = {};
       setRecognitionOverrides({});
@@ -729,6 +777,7 @@ export function JournalPanel({
       if (screenshotSourceId && screenshotSourceId !== sourceId) void forgetScreenshotSource(screenshotSourceId);
       setScreenshotSourceId(sourceId);
       setRecognizedDrafts(drafts);
+      setExpandedCategoryIndex(null);
       setActiveRecognizedDraftIndex(0);
       if (drafts.length > 1) {
         setType(drafts[0].type);
@@ -1215,8 +1264,7 @@ export function JournalPanel({
                       className={!salaryEntryOpen ? "active" : ""}
                       onClick={() => {
                         setSalaryEntryOpen(false);
-                        setType("EXPENSE");
-                        setCategory("餐饮");
+                        changeJournalType("EXPENSE", "餐饮");
                       }}
                     >
                       普通记账
@@ -1226,8 +1274,7 @@ export function JournalPanel({
                       className={salaryEntryOpen ? "active" : ""}
                       onClick={() => {
                         setSalaryEntryOpen(true);
-                        setType("INCOME");
-                        setCategory("工资");
+                        changeJournalType("INCOME", "工资");
                       }}
                     >
                       添加薪资收入
@@ -1239,8 +1286,7 @@ export function JournalPanel({
                     className="journal-salary-entry-trigger"
                     onClick={() => {
                       setSalaryEntryOpen(true);
-                      setType("INCOME");
-                      setCategory("工资");
+                      changeJournalType("INCOME", "工资");
                     }}
                   >
                     ＋ 添加薪资收入
@@ -1256,22 +1302,18 @@ export function JournalPanel({
 
                 {!salaryEntryOpen || salaryEntryMode === "single" ? <>
                 {/* 顶栏类型切换 */}
-                <div className="modern-type-switch">
-                  {[
-                    ["EXPENSE", "支出"],
-                    ["INCOME", "收入"],
-                    ["TRANSFER", "转账"],
-                  ].map(([val, label]) => (
+                {!hasMixedTypes ? <div className="modern-type-switch">
+                  {transactionTypeOptions.map(([val, label]) => (
                     <button
                       key={val}
                       type="button"
-                      onClick={() => setType(val as TransactionType)}
+                      onClick={() => changeJournalType(val)}
                       className={`type-tab ${type === val ? "active" : ""}`}
                     >
                       {label}
                     </button>
                   ))}
-                </div>
+                </div> : null}
 
                 {/* 单笔使用大金额输入；多笔识别时每笔在下方分别填写金额。 */}
                 {recognizedDrafts.length <= 1 ? (
@@ -1324,25 +1366,18 @@ export function JournalPanel({
                   ) : null}
                 </div> : null}
 
-                {/* 精致分类网格 */}
-                <div className="modern-section-block">
-                  <span className="section-mini-title">左右滑动选择消费类型</span>
-                  <div className="modern-category-matrix" aria-label="消费类型">
-                    {categories.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        onClick={() => setCategory(item)}
-                        className={`category-tile ${category === item ? "active" : ""}`}
-                      >
-                        <div className="tile-icon-box">
-                          <img src={categoryIconSrcForCategory(item, type)} alt="" className="tile-icon" />
-                        </div>
-                        <span className="tile-label">{item}</span>
-                      </button>
-                    ))}
+                {!hasMixedCategories ? (
+                  <div className="modern-section-block" ref={sharedCategoryRef}>
+                    <span className="section-mini-title">左右滑动选择消费类型</span>
+                    <JournalCategoryGrid
+                      categories={categories}
+                      category={category}
+                      type={type}
+                      locale={locale}
+                      onChange={changeSharedCategory}
+                    />
                   </div>
-                </div>
+                ) : null}
 
                 {/* 支付账户选择 */}
                 <div className="modern-section-block">
@@ -1361,7 +1396,7 @@ export function JournalPanel({
                   </div>
                 </div>
 
-                {type === "EXPENSE" ? (
+                {(isBatchRecognition ? recognizedDrafts.some((draft) => draft.type === "EXPENSE") : type === "EXPENSE") ? (
                   <div className="modern-section-block">
                     <label className="section-mini-title" htmlFor="journal-shopping-platform">
                       {translateText("购物平台（选填）", locale)}
@@ -1413,7 +1448,9 @@ export function JournalPanel({
                   <div className="journal-screenshot-recognition-list">
                     <div className="journal-screenshot-recognition-list-head">
                       <strong>{translateText("批量录入 {count} 笔", locale).replace("{count}", String(recognizedDrafts.length))}</strong>
-                      <span>{translateText("每笔填写金额、备注和详细明细；上方的记账类型、分类、支付账户、购物平台和时间将应用到全部订单。", locale)}</span>
+                      <span>{translateText(hasMixedCategories
+                        ? "点击每笔的分类图标可修改；支付账户、购物平台和时间共用上方选择。"
+                        : "每笔填写金额、备注和明细；分类、支付账户、购物平台和时间共用上方选择。", locale)}</span>
                     </div>
                     <div className="journal-screenshot-recognition-items">
                       {recognizedDrafts.map((draft, index) => (
@@ -1427,6 +1464,29 @@ export function JournalPanel({
                             >
                               {translateText("第 {number} 笔", locale).replace("{number}", String(index + 1))}
                             </button>
+                            {hasMixedCategories ? (
+                              <button
+                                ref={(button) => {
+                                  if (button) batchCategoryButtonRefs.current.set(index, button);
+                                  else batchCategoryButtonRefs.current.delete(index);
+                                }}
+                                type="button"
+                                className="journal-item-category-button"
+                                aria-label={translateText("第 {number} 笔分类：{category}，点击修改", locale)
+                                  .replace("{number}", String(index + 1))
+                                  .replace("{category}", translateText(draft.category, locale))}
+                                title={translateText(draft.category, locale)}
+                                aria-expanded={expandedCategoryIndex === index}
+                                aria-controls={`journal-item-category-${categoryPickerId}-${draft.id ?? index}`}
+                                onClick={() => setExpandedCategoryIndex(expandedCategoryIndex === index ? null : index)}
+                              >
+                                <img src={categoryIconSrcForCategory(draft.category, draft.type)} alt="" />
+                                {hasMixedTypes ? <span>{translateText(draft.type === "INCOME" ? "收入" : draft.type === "TRANSFER" ? "转账" : "支出", locale)}</span> : null}
+                                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden="true">
+                                  <path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="journal-screenshot-recognition-item-remove"
@@ -1436,6 +1496,41 @@ export function JournalPanel({
                               ×
                             </button>
                           </div>
+                          {hasMixedCategories && expandedCategoryIndex === index ? (
+                            <div
+                              id={`journal-item-category-${categoryPickerId}-${draft.id ?? index}`}
+                              className="journal-item-category-picker"
+                              onKeyDown={(event) => {
+                                if (event.key !== "Escape") return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setExpandedCategoryIndex(null);
+                                batchCategoryButtonRefs.current.get(index)?.focus();
+                              }}
+                            >
+                              <div className="modern-type-switch" aria-label={translateText("记账类型", locale)}>
+                                {transactionTypeOptions.map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    className={`type-tab ${draft.type === value ? "active" : ""}`}
+                                    aria-pressed={draft.type === value}
+                                    onClick={() => {
+                                      if (draft.type !== value) changeRecognizedCategory(index, categoriesForType(value)[0], value);
+                                    }}
+                                  >{translateText(label, locale)}</button>
+                                ))}
+                              </div>
+                              <JournalCategoryGrid
+                                categories={categoriesForType(draft.type)}
+                                category={draft.category}
+                                type={draft.type}
+                                locale={locale}
+                                onChange={(nextCategory) => changeRecognizedCategory(index, nextCategory)}
+                                autoFocus
+                              />
+                            </div>
+                          ) : null}
                           <div className="journal-screenshot-recognition-fields">
                             <label className="journal-screenshot-recognition-field">
                               <span>{translateText("金额", locale)}</span>

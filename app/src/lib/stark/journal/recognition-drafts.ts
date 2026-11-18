@@ -24,13 +24,19 @@ export type JournalDraft = {
   screenshotSourceId?: string;
 };
 
-/** Use the visible form as the shared source for every retained batch item. */
+export function hasSharedRecognitionCategory(recognized: JournalDraft[]): boolean {
+  return recognized.length > 0 && recognized.every((draft) => (
+    draft.type === recognized[0].type && draft.category === recognized[0].category
+  ));
+}
+
+/** Share account and time while keeping each item's classification. */
 export function prepareJournalDrafts(current: JournalDraft, recognized: JournalDraft[]): JournalDraft[] {
   if (recognized.length === 0) return [{ ...current }];
   if (recognized.length === 1) return [{ ...recognized[0], ...current }];
 
-  const { type, category, platform, shoppingPlatform, date } = current;
-  return recognized.map((draft) => ({ ...draft, type, category, platform, shoppingPlatform, date }));
+  const { platform, shoppingPlatform, date } = current;
+  return recognized.map((draft) => ({ ...draft, platform, shoppingPlatform, date }));
 }
 
 /** Manual choices can change while the recognition request is still pending. */

@@ -7,9 +7,12 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Insets;
 import android.graphics.Outline;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -20,8 +23,11 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewOutlineProvider;
+import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.view.WindowMetrics;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -74,6 +80,8 @@ public class FloatingJournalService extends Service {
     private int touchStartX;
     private int touchStartY;
     private boolean dragged;
+    private boolean bubbleGestureActive;
+    private boolean bubbleDockedRight = true;
 
     @Override
     public void onCreate() {
@@ -110,6 +118,22 @@ public class FloatingJournalService extends Service {
         stopForeground(true);
         if (currentService == this) currentService = null;
         super.onDestroy();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        bubbleGestureActive = false;
+        if (bubble != null) {
+            LinearLayout.LayoutParams size = (LinearLayout.LayoutParams) bubble.getLayoutParams();
+            size.width = dp(48);
+            size.height = dp(48);
+            bubble.setLayoutParams(size);
+        }
+        mainHandler.post(() -> {
+            dockBubbleToEdge(true);
+            if (overlayRoot != null) overlayRoot.requestApplyInsets();
+        });
     }
 
     @Nullable
@@ -586,6 +610,15 @@ public class FloatingJournalService extends Service {
         overlayRoot = new LinearLayout(this);
         overlayRoot.setOrientation(LinearLayout.VERTICAL);
         overlayRoot.setGravity(Gravity.END);
+        overlayRoot.setOnApplyWindowInsetsListener((view, insets) -> {
+            mainHandler.post(() -> dockBubbleToEdge(true));
+            return insets;
+        });
+        overlayRoot.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                mainHandler.post(() -> dockBubbleToEdge(true));
+            }
+        });
 
         bubble = new ImageView(this);
         bubble.setImageResource(R.drawable.ic_launcher_vector);
@@ -605,15 +638,21 @@ public class FloatingJournalService extends Service {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 overlayType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
-        overlayParams.gravity = Gravity.TOP | Gravity.END;
-        overlayParams.x = dp(8);
+        // Left/top coordinates stay consistent with drag deltas in RTL too.
+        // Let WindowManager fit the bubble inside system bars and display cutouts.
+        overlayParams.gravity = Gravity.TOP | Gravity.LEFT;
+        overlayParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING;
+        if (Build.VERSION.SDK_INT >= 30) {
+            overlayParams.setFitInsetsTypes(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            overlayParams.setFitInsetsIgnoringVisibility(true);
+        }
         overlayParams.y = dp(180);
+        dockBubbleToEdge(true);
         try {
             windowManager.addView(overlayRoot, overlayParams);
+            overlayRoot.requestApplyInsets();
         } catch (RuntimeException error) {
             overlayRoot = null;
             bubble = null;
@@ -622,8 +661,9 @@ public class FloatingJournalService extends Service {
 
     private boolean onBubbleTouch(View view, MotionEvent event) {
         if (overlayParams == null || windowManager == null) return false;
-        switch (event.getAction()) {
+        switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                bubbleGestureActive = true;
                 touchDownX = event.getRawX();
                 touchDownY = event.getRawY();
                 touchStartX = overlayParams.x;
@@ -631,21 +671,79 @@ public class FloatingJournalService extends Service {
                 dragged = false;
                 return true;
             case MotionEvent.ACTION_MOVE:
+                if (!bubbleGestureActive) return true;
                 float dx = event.getRawX() - touchDownX;
                 float dy = event.getRawY() - touchDownY;
-                if (Math.abs(dx) + Math.abs(dy) > dp(7)) dragged = true;
+                int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
+                if (Math.abs(dx) > touchSlop || Math.abs(dy) > touchSlop) dragged = true;
                 if (dragged) {
-                    overlayParams.x = Math.max(0, touchStartX - Math.round(dx));
-                    overlayParams.y = Math.max(0, touchStartY + Math.round(dy));
-                    try { windowManager.updateViewLayout(overlayRoot, overlayParams); } catch (RuntimeException ignored) { }
+                    FloatingBubbleBounds bounds = bubbleBounds();
+                    updateBubblePosition(bounds.clampX(touchStartX + Math.round(dx)),
+                            bounds.clampY(touchStartY + Math.round(dy)));
                 }
                 return true;
             case MotionEvent.ACTION_UP:
+                if (!bubbleGestureActive) return true;
+                bubbleGestureActive = false;
+                dockBubbleToEdge(false);
                 if (!dragged) view.performClick();
+                return true;
+            case MotionEvent.ACTION_POINTER_DOWN:
+            case MotionEvent.ACTION_CANCEL:
+                bubbleGestureActive = false;
+                dockBubbleToEdge(false);
                 return true;
             default:
                 return false;
         }
+    }
+
+    private FloatingBubbleBounds bubbleBounds() {
+        int width;
+        int height;
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowMetrics metrics = windowManager.getCurrentWindowMetrics();
+            Rect frame = metrics.getBounds();
+            Insets insets = metrics.getWindowInsets().getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            width = frame.width() - insets.left - insets.right;
+            height = frame.height() - insets.top - insets.bottom;
+        } else {
+            // The fitted window uses the safe display frame as its coordinate origin.
+            Rect visibleFrame = new Rect();
+            if (overlayRoot.isAttachedToWindow()) overlayRoot.getWindowVisibleDisplayFrame(visibleFrame);
+            if (!visibleFrame.isEmpty()) {
+                width = visibleFrame.width();
+                height = visibleFrame.height();
+            } else {
+                DisplayMetrics metrics = new DisplayMetrics();
+                windowManager.getDefaultDisplay().getMetrics(metrics);
+                int statusBarId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+                int statusBarHeight = statusBarId == 0 ? 0 : getResources().getDimensionPixelSize(statusBarId);
+                width = metrics.widthPixels;
+                height = metrics.heightPixels - statusBarHeight;
+            }
+        }
+        int bubbleWidth = overlayRoot.getWidth() > 0 ? overlayRoot.getWidth() : dp(48);
+        int bubbleHeight = overlayRoot.getHeight() > 0 ? overlayRoot.getHeight() : dp(48);
+        return new FloatingBubbleBounds(0, 0, width, height, bubbleWidth, bubbleHeight);
+    }
+
+    private void dockBubbleToEdge(boolean keepSide) {
+        if (overlayParams == null || overlayRoot == null || windowManager == null) return;
+        if (keepSide && bubbleGestureActive) return;
+        FloatingBubbleBounds bounds = bubbleBounds();
+        int x = keepSide ? bounds.edgeX(bubbleDockedRight) : bounds.nearestEdgeX(overlayParams.x);
+        bubbleDockedRight = x == bounds.maxX;
+        updateBubblePosition(x, bounds.clampY(overlayParams.y));
+    }
+
+    private void updateBubblePosition(int x, int y) {
+        if (overlayParams.x == x && overlayParams.y == y) return;
+        overlayParams.x = x;
+        overlayParams.y = y;
+        if (!overlayRoot.isAttachedToWindow()) return;
+        try { windowManager.updateViewLayout(overlayRoot, overlayParams); } catch (RuntimeException ignored) { }
     }
 
     private void removeOverlay() {
@@ -654,6 +752,8 @@ public class FloatingJournalService extends Service {
         }
         overlayRoot = null;
         bubble = null;
+        overlayParams = null;
+        bubbleGestureActive = false;
     }
 
     private void stopEverything() {

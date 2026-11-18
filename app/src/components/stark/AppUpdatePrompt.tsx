@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
 import { usePathname } from "next/navigation";
-import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, downloadAppUpdate, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
+import { APP_UPDATE_URL, CURRENT_APP_VERSION_CODE, CURRENT_APP_VERSION_NAME, downloadAppUpdate, fetchLatestAppVersion, hasNewerAppVersion, type AppVersionInfo } from "@/lib/stark/app-version";
 import { setAppUpdateAvailable } from "@/lib/stark/app-update-status";
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 
@@ -42,14 +42,6 @@ const initialDownload: DownloadState = {
   message: null,
 };
 const CHECK_TIMEOUT_MS = 30_000;
-function isAppVersionInfo(value: unknown): value is AppVersionInfo {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<AppVersionInfo>;
-  return Number.isFinite(candidate.versionCode)
-    && typeof candidate.versionName === "string"
-    && candidate.versionName.trim().length > 0;
-}
-
 function parseChangelogItems(changelog: string | null | undefined) {
   return (changelog ?? "")
     .split(/\r?\n/)
@@ -178,11 +170,8 @@ export function AppUpdatePrompt() {
           throw new Error("Invalid installed app version");
         }
         if (!cancelled && requestId === checkRequestIdRef.current) setInstalledVersionName(installed.versionName);
-        const response = await fetch(APP_UPDATE_URL, { signal: controller.signal, cache: "no-store" });
-        if (!response.ok) throw new Error("版本服务暂时不可用。");
-        const responseInfo: unknown = await response.json();
+        const responseInfo = await fetchLatestAppVersion(controller.signal);
         if (cancelled || requestId !== checkRequestIdRef.current) return;
-        if (!isAppVersionInfo(responseInfo)) throw new Error("Invalid app version manifest");
         // A shared manifest must never offer another edition's APK.
         // Untagged legacy manifests are only eligible for the Web shell.
         const mismatchedEdition = responseInfo.edition

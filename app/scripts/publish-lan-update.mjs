@@ -110,7 +110,7 @@ function main() {
   const manifestUrl = versionSource.match(/APP_UPDATE_URL\s*=\s*["']([^"']+)["']/)?.[1];
   if (!manifestUrl) throw new Error("找不到 App 检测更新地址。");
   if (new URL(manifestUrl).protocol === "https:") {
-    console.log("[lan-update] 当前检测地址为官网，跳过本机更新发布。");
+    console.log("[lan-update] 当前检测地址使用 HTTPS，跳过本机更新发布。");
     return;
   }
   const metadataDir = join(appDir, "android/app/build/outputs/apk/ktweb/debug");

@@ -1,10 +1,10 @@
 # 分类图标目录
 
-现有 115 个 WebP 图标按用途分成下列 15 个文件夹，其中 37 个新增分类图标裁剪自用户提供的透明图标表。新增图片采用 256×256 透明画布，保持比例与统一留白。
+现有 115 个 WebP 图标按用途分成下列 16 个文件夹，其中 37 个新增分类图标裁剪自用户提供的透明图标表。新增图片采用 256×256 透明画布，保持比例与统一留白。
 
 | 文件夹 | 大类 | 图片数 |
 | --- | --- | ---: |
-| [food-drink](./food-drink/) | 餐饮食品 | 18 |
+| [food-drink](./food-drink/) | 餐饮食品 | 17 |
 | [shopping-clothing](./shopping-clothing/) | 购物穿搭 | 6 |
 | [transport-travel](./transport-travel/) | 交通出行 | 12 |
 | [home-living](./home-living/) | 居家生活 | 20 |
@@ -17,6 +17,7 @@
 | [gifts-social](./gifts-social/) | 人情往来与公益 | 3 |
 | [income](./income/) | 收入 | 9 |
 | [finance-fees](./finance-fees/) | 保险税费 | 2 |
+| [tobacco](./tobacco/) | 烟草 | 1 |
 | [payment-platforms](./payment-platforms/) | 支付平台 | 3 |
 | [common](./common/) | 通用图标 | 1 |
 

@@ -14,6 +14,7 @@ const expenseGroups = [
   ["digital", "数码服务"],
   ["gifts-social", "人情公益"],
   ["finance-fees", "保险税费"],
+  ["tobacco", "烟草"],
   ["common", "其他"],
 ] as const;
 

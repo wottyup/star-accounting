@@ -23,6 +23,17 @@ test("shared income and transfer artwork never assigns those entries to expense 
   assert.deepEqual(groupJournalCategories(["转账"], "TRANSFER"), [{ id: "TRANSFER", label: "转账", categories: ["转账"] }]);
 });
 
+test("tobacco and legacy cigarette categories stay out of food and drinks", () => {
+  const groups = groupJournalCategories(expenseCategoryOptions, "EXPENSE");
+  assert.ok(!groups.find((group) => group.id === "food-drink").categories.includes("烟草"));
+  assert.deepEqual(groups.find((group) => group.id === "tobacco"), {
+    id: "tobacco", label: "烟草", categories: ["烟草"],
+  });
+  assert.deepEqual(groupJournalCategories(["香烟"], "EXPENSE"), [
+    { id: "tobacco", label: "烟草", categories: ["香烟"] },
+  ]);
+});
+
 test("filtered options omit empty groups and preserve unknown categories under Other", () => {
   assert.deepEqual(groupJournalCategories(["API", "AI订阅", "自定义分类"], "EXPENSE"), [
     { id: "digital", label: "数码服务", categories: ["API", "AI订阅"] },

@@ -5,7 +5,7 @@ export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
   "分类大类": "Category groups",
-  "选择大类，上下滑动查看细分类": "Choose a group; scroll up or down for categories",
+  "左右滑动切换大类，上下滑动查看细分类": "Swipe left or right for groups; up or down for categories",
   "餐饮食品": "Food & drinks",
   "购物穿搭": "Shopping & clothing",
   "居家生活": "Home & living",

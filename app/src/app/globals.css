@@ -7607,12 +7607,6 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   font-weight: 600;
 }
 
-@media (max-width: 360px) {
-  .journal-category-picker {
-    --journal-category-columns: 4;
-  }
-}
-
 .modern-category-matrix {
   display: grid;
   grid-template-columns: repeat(var(--journal-category-columns), minmax(0, 1fr));
@@ -7627,6 +7621,7 @@ body .journal-panel.savings .savings-plan-actions .stark-choice-picker-trigger,
   scrollbar-width: thin;
   scrollbar-color: #c5d4e5 transparent;
   touch-action: pan-y;
+  user-select: none;
   padding: 2px;
 }
 

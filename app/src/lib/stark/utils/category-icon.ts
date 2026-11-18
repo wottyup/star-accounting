@@ -77,7 +77,7 @@ const categoryIconFiles: Record<string, string> = {
   闲食: "food-drink/xianshi.webp",
   下午茶: "food-drink/xiawucha.webp",
   鞋类: "shopping-clothing/xielei.webp",
-  烟草: "food-drink/yancaplei.webp",
+  烟草: "tobacco/yancaplei.webp",
   药品: "healthcare/yaopin.webp",
   影音: "education-entertainment/yingyinlei.webp",
   饮品: "food-drink/niunai.webp",
@@ -129,7 +129,7 @@ const nonExpenseCategories = new Set([
   "工资", "奖金", "理财", "报销", "补贴", "二手转卖", "兼职", "经营收入", "利息分红", "退款", "租金", "转账", "还款",
 ]);
 const expenseCategoryOrder = [
-  // 餐饮食品
+  // 饮食及烟草的既有候选顺序；界面按资源目录独立分组
   "餐饮", "外卖", "买菜", "米面粮油", "调料", "蛋奶", "速食", "干货", "闲食", "水果", "肉类", "水产", "糖果", "甜品", "下午茶", "饮品", "酒类", "烟草",
   // 购物服饰与宠物
   "购物", "服装", "鞋类", "箱包", "配饰", "美容", "个人护理", "理发", "宠物", "宠物食品", "宠物洗护", "宠物医疗", "宠物寄养", "母婴", "玩具", "礼物", "红包", "公益捐赠",
@@ -192,7 +192,7 @@ const categoryKeywordIcons: Array<[RegExp, string]> = [
   [/甜品|蛋糕/, "food-drink/tianpinlei.webp"],
   [/下午茶/, "food-drink/xiawucha.webp"],
   [/酒/, "food-drink/jiulei.webp"],
-  [/烟|香烟|烟草/, "food-drink/yancaplei.webp"],
+  [/烟|香烟|烟草/, "tobacco/yancaplei.webp"],
   [/餐|美食|咖啡/, "food-drink/canyinlei.webp"],
   [/自行车|骑行|摩托|汽车|打车|出租|自驾/, "transport-travel/gongongchuxing.webp"],
   [/公交|地铁/, "transport-travel/gongongchuxing.webp"],

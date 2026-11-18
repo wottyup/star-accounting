@@ -86,6 +86,43 @@ const categoryIconFiles: Record<string, string> = {
   网费: "digital/wangfei-optimized.webp",
   维修: "home-living/weixiu.webp",
   物业费: "home-living/wuyefei.webp",
+  米面粮油: "food-drink/staple-foods.webp",
+  调料: "food-drink/condiments.webp",
+  蛋奶: "food-drink/eggs-dairy.webp",
+  速食: "food-drink/instant-food.webp",
+  干货: "food-drink/dried-foods.webp",
+  箱包: "shopping-clothing/bags-luggage.webp",
+  配饰: "shopping-clothing/accessories.webp",
+  机票车票: "transport-travel/tickets.webp",
+  过路费: "transport-travel/tolls.webp",
+  住宿: "transport-travel/accommodation.webp",
+  快递跑腿: "home-living/courier-errands.webp",
+  洗衣洗鞋: "home-living/laundry.webp",
+  搬家: "home-living/moving.webp",
+  体检: "healthcare/checkup.webp",
+  牙科: "healthcare/dental.webp",
+  康复理疗: "healthcare/rehabilitation.webp",
+  宠物食品: "family-pets/pet-food.webp",
+  宠物洗护: "family-pets/pet-grooming.webp",
+  宠物医疗: "family-pets/pet-healthcare.webp",
+  宠物寄养: "family-pets/pet-boarding.webp",
+  数码配件: "digital/digital-accessories.webp",
+  AI订阅: "digital/ai-subscription.webp",
+  API: "digital/api.webp",
+  软件应用: "digital/software-apps.webp",
+  云盘备份: "digital/cloud-backup.webp",
+  云服务器: "digital/cloud-servers.webp",
+  域名建站: "digital/domains-websites.webp",
+  网络加速: "digital/network-acceleration.webp",
+  游戏购买: "digital/game-purchases.webp",
+  游戏充值: "digital/game-topups.webp",
+  数字阅读: "digital/digital-reading.webp",
+  短剧付费: "digital/short-dramas.webp",
+  素材授权: "digital/creative-licenses.webp",
+  文具办公: "education-entertainment/stationery-office.webp",
+  在线课程: "education-entertainment/online-courses.webp",
+  演出展览: "education-entertainment/live-shows-exhibitions.webp",
+  公益捐赠: "gifts-social/charity-donations.webp",
 };
 
 const nonExpenseCategories = new Set([
@@ -93,21 +130,21 @@ const nonExpenseCategories = new Set([
 ]);
 const expenseCategoryOrder = [
   // 餐饮食品
-  "餐饮", "外卖", "买菜", "闲食", "水果", "肉类", "水产", "糖果", "甜品", "下午茶", "饮品", "酒类", "烟草",
+  "餐饮", "外卖", "买菜", "米面粮油", "调料", "蛋奶", "速食", "干货", "闲食", "水果", "肉类", "水产", "糖果", "甜品", "下午茶", "饮品", "酒类", "烟草",
   // 购物服饰与宠物
-  "购物", "服装", "鞋类", "美容", "个人护理", "理发", "宠物", "母婴", "玩具", "礼物", "红包",
+  "购物", "服装", "鞋类", "箱包", "配饰", "美容", "个人护理", "理发", "宠物", "宠物食品", "宠物洗护", "宠物医疗", "宠物寄养", "母婴", "玩具", "礼物", "红包", "公益捐赠",
   // 交通出行
-  "交通", "公交地铁", "打车", "出行", "旅游", "加油", "充电", "汽车保养", "停车费",
+  "交通", "公交地铁", "打车", "出行", "旅游", "机票车票", "过路费", "住宿", "加油", "充电", "汽车保养", "停车费",
   // 住房与日用
-  "住房", "房租", "物业费", "家具", "家电", "装修", "水费", "电费", "燃气", "网费", "清洁", "清洁优化", "日常清洁", "家政", "维修", "日用", "生活用品",
+  "住房", "房租", "物业费", "家具", "家电", "装修", "水费", "电费", "燃气", "网费", "清洁", "清洁优化", "日常清洁", "家政", "维修", "日用", "生活用品", "快递跑腿", "洗衣洗鞋", "搬家",
   // 数码通讯
-  "通讯", "电子产品", "影音", "打印",
+  "通讯", "电子产品", "数码配件", "AI订阅", "API", "软件应用", "云盘备份", "云服务器", "域名建站", "网络加速", "影音", "打印", "素材授权",
   // 医疗健康
-  "医疗", "药品", "门诊",
+  "医疗", "药品", "门诊", "体检", "牙科", "康复理疗",
   // 运动户外
   "体育", "户外",
   // 教育与娱乐
-  "教育", "图书", "娱乐", "会员订阅",
+  "教育", "图书", "文具办公", "在线课程", "数字阅读", "娱乐", "演出展览", "游戏购买", "游戏充值", "短剧付费", "会员订阅",
   // 其他
   "工具", "保险", "税费手续费", "花圃", "其他",
 ];

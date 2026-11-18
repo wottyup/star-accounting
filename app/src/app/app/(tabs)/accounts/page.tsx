@@ -581,8 +581,8 @@ export default function AccountsPage() {
 
             {activePanel === "IMPORT" ? <div className="settings-sheet-body">
               <div className="bill-platform-picker">
-                <button type="button" className={importPlatform === "微信" ? "active wechat" : "wechat"} onClick={() => selectImportPlatform("微信")}><span><img src={withAppBasePath("/category-icons/weixin.webp")} alt="" /></span><div><strong>微信账单</strong><small>微信支付 CSV / Excel 格式</small></div></button>
-                <button type="button" className={importPlatform === "支付宝" ? "active alipay" : "alipay"} onClick={() => selectImportPlatform("支付宝")}><span><img src={withAppBasePath("/category-icons/zhifubao.webp")} alt="" /></span><div><strong>支付宝账单</strong><small>支付宝交易记录 CSV / Excel</small></div></button>
+                <button type="button" className={importPlatform === "微信" ? "active wechat" : "wechat"} onClick={() => selectImportPlatform("微信")}><span><img src={withAppBasePath("/category-icons/payment-platforms/weixin.webp")} alt="" /></span><div><strong>微信账单</strong><small>微信支付 CSV / Excel 格式</small></div></button>
+                <button type="button" className={importPlatform === "支付宝" ? "active alipay" : "alipay"} onClick={() => selectImportPlatform("支付宝")}><span><img src={withAppBasePath("/category-icons/payment-platforms/zhifubao.webp")} alt="" /></span><div><strong>支付宝账单</strong><small>支付宝交易记录 CSV / Excel</small></div></button>
                 <button type="button" className={importPlatform === "本应用导出" ? "active backup" : "backup"} onClick={() => selectImportPlatform("本应用导出")}><span><img src={withAppBasePath("/icon.svg")} alt="" /></span><div><strong>本应用导出账单</strong><small>完整 Excel 工作簿 / CSV 流水</small></div></button>
               </div>
               <div className={`bill-import-message ${importMessage.startsWith("已导入") ? "success" : ""}`}>{importMessage}</div>

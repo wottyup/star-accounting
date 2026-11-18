@@ -23,13 +23,13 @@ export function paymentPlatformIconSrc(value: string | null | undefined) {
   const normalized = value?.trim().toLocaleLowerCase();
   if (!normalized) return null;
   if (normalized.includes("支付宝") || normalized.includes("alipay")) {
-    return withAppBasePath("/category-icons/zhifubao.webp");
+    return withAppBasePath("/category-icons/payment-platforms/zhifubao.webp");
   }
   if (normalized.includes("微信") || normalized.includes("wechat") || normalized.includes("weixin")) {
-    return withAppBasePath("/category-icons/weixin.webp");
+    return withAppBasePath("/category-icons/payment-platforms/weixin.webp");
   }
   if (normalized.includes("银行卡") || normalized.includes("银联") || normalized.includes("银行") || normalized.includes("bank")) {
-    return withAppBasePath("/category-icons/unionpau.webp");
+    return withAppBasePath("/category-icons/payment-platforms/unionpau.webp");
   }
   return null;
 }

@@ -54,10 +54,10 @@ function categoryIconForFilter(category: string) {
 }
 
 function accountIconSrcForFilter(account: string) {
-  if (account === "微信") return withAppBasePath("/category-icons/weixin.webp");
-  if (account === "支付宝") return withAppBasePath("/category-icons/zhifubao.webp");
-  if (account === "银行卡") return withAppBasePath("/category-icons/unionpau.webp");
-  if (account === "全部账户" || account === "其他") return withAppBasePath("/category-icons/qita.webp");
+  if (account === "微信") return withAppBasePath("/category-icons/payment-platforms/weixin.webp");
+  if (account === "支付宝") return withAppBasePath("/category-icons/payment-platforms/zhifubao.webp");
+  if (account === "银行卡") return withAppBasePath("/category-icons/payment-platforms/unionpau.webp");
+  if (account === "全部账户" || account === "其他") return withAppBasePath("/category-icons/common/qita.webp");
   return "";
 }
 

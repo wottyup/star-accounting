@@ -73,8 +73,7 @@ Web 壳版和 KT 混合版的本地模式使用 IndexedDB；纯 KT 原生版的�
 | `native-app/` | 独立纯 Kotlin / Jetpack Compose Android 工程 |
 | `server-go/` | Docker Compose 默认使用的 Go API |
 | `api-server/` | 本地 `pnpm dev` 使用的 Ktor API |
-| `docs/` | 开发、部署和版本说明 |
-| `releases/` | 本地打包时保存带版本号和时间戳的 APK |
+| `docs/` | 公开使用说明和页面截图 |
 
 主要技术包括 Next.js 16、React 19、TypeScript、Capacitor 6、Kotlin、Go、MySQL 8 和 pnpm workspace。
 
@@ -138,9 +137,11 @@ Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访�
 | KT 混合版 | `pnpm --dir app apk:ktweb` | `pnpm --dir app apk:ktweb:linux` |
 | 纯 KT 原生版 | `.\gradlew.bat :native-app:assembleDebug` | `./gradlew :native-app:assembleDebug` |
 
-新 APK 会按版本和时间戳另存到 `releases/`，保留旧包。各版 Android `versionCode` 随新安装包单独递增。
+新 APK 会按版本和时间戳另存到本地 `releases/`，保留旧包。该目录不纳入 Git；公开安装包通过 [GitHub Releases](https://github.com/wottyup/star-accounting/releases) 发布。各版 Android `versionCode` 随新安装包单独递增。
 
-KT 混合版的两条打包命令会在构建成功后自动同步本机更新源：读取 APK 实际版本，将安装包放入 `releases/lan-update-test/`，再更新该目录的 `version.json`。检测地址沿用 [app-version.ts](app/src/lib/stark/app-version.ts) 中配置的本机地址，手机不用修改链接。运行中的本机更新服务会立即提供新包；清单保留备份，历史 APK 不覆盖。手机按 `versionCode` 比较版本，同版本重打包不会重复提示更新。CI 构建或使用官网 HTTPS 更新地址时跳过此步骤，公开发版流程不受影响。
+应用检查更新使用 [app-version.ts](app/src/lib/stark/app-version.ts) 中配置的 GitHub Releases 来源，按 Android `versionCode` 比较版本，并下载同一发布版本的 APK。本地打包不自动上传 GitHub；当前 HTTPS 来源会跳过局域网更新发布。
+
+内部开发记录与 `deploy/` 中的具体服务器配置只保留本地，并由 `.gitignore` 排除。`docker/` 构建源码和 `testdata/` 共用测试样本继续纳入版本管理。
 
 ## 数据与凭据
 
@@ -155,6 +156,5 @@ KT 混合版的两条打包命令会在构建成功后自动同步本机更新�
 ## 更多文档
 
 - [更新日志](CHANGELOG.md)
-- [开发迭代记录](docs/version-history.md)
-- [Android Live Reload](docs/android-live-reload.md)
-- [Android APK 构建记录](docs/android-apk-build-development.md)
+- [Android 安装包版本区分](docs/android-app-editions.md)
+- [数据库配置与部署说明](docs/database-config.md)

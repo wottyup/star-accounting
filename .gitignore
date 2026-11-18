@@ -33,3 +33,13 @@ local.properties
 
 # Legacy Web project kept only on local machines
 /web/
+
+# Local deployment configuration and package archives
+/deploy/
+/releases/
+
+# Internal notes stay local; publish only user documentation and screenshots
+/docs/*
+!/docs/android-app-editions.md
+!/docs/database-config.md
+!/docs/screenshots/

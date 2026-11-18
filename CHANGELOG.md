@@ -20,8 +20,8 @@
 `app/package.json`、`app/android/app/build.gradle` 和
 `app/src/lib/stark/app-version.ts` 中的版本号为准。
 
-开发过程中的细粒度功能记录见 [开发迭代记录](docs/version-history.md)。归档目录中的部分
-APK 属于临时测试包，可能没有对应的独立源码版本条目。
+内部开发过程记录与临时 APK 归档仅保留本地，不纳入 Git。公开安装包以
+[GitHub Releases](https://github.com/wottyup/star-accounting/releases) 中的附件为准。
 
 ## [Unreleased]
 

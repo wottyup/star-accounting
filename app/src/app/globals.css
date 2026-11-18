@@ -3075,6 +3075,11 @@ button.stark-compass-card {
   color: #0060c0;
   font-weight: 600;
   text-decoration: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  cursor: pointer;
 }
 
 .home-modal-mask {

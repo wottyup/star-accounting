@@ -4,7 +4,7 @@ import {
   splitReportingMonthTransactions,
 } from "./reporting-month.ts";
 import { REPORTING_MONTH_KEY, clampPercent, isReportingYearKey, reportingPeriodDate } from "../utils/format.ts";
-import { calculateBudgetSpent } from "./budget-period.ts";
+import { calculateBudgetSpent, summarizeHomeTotalBudget, type HomeTotalBudget } from "./budget-period.ts";
 import { calculateBudgetAllocation, type BudgetAllocation } from "./budget-allocation.ts";
 import { calculateBalanceFromBaseline, calculateCalendarPeriodCashflow, calculateCashflowSinceBalanceBaseline, calculateSalaryCycleCashflow, salaryCycleRange } from "./salary-cycle.ts";
 import { summarizeSavingsPlanAllocation, type SavingsPlanAllocation } from "../savings/planner.ts";
@@ -124,6 +124,7 @@ export interface HomeSummary {
   loanTotal: number;
   loanDelta: number;
   budgetAlerts: HomeBudgetAlert[];
+  totalBudget: HomeTotalBudget | null;
   budgetAllocation: HomeBudgetAllocation;
   savingsPlanAllocation: SavingsPlanAllocation;
   savingsPlanPeriod: string;
@@ -650,6 +651,7 @@ export function buildHomeSummary(input: {
     loanTotal,
     loanDelta: input.loans.reduce((sum, item) => sum + item.monthlyPayment, 0),
     budgetAlerts,
+    totalBudget: summarizeHomeTotalBudget(input.budgets, currentMonth, expense),
     budgetAllocation,
     savingsPlanAllocation,
     savingsPlanPeriod,

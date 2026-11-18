@@ -1,5 +1,5 @@
-export const CURRENT_APP_VERSION_CODE = 236;
-export const CURRENT_APP_VERSION_NAME = "0.24.1-dev.1";
+export const CURRENT_APP_VERSION_CODE = 237;
+export const CURRENT_APP_VERSION_NAME = "0.24.2-dev.1";
 export const APP_UPDATE_URL = "http://10.126.126.3:18767/version.json";
 
 export type AppVersionInfo = {

@@ -21,7 +21,7 @@ import {
 import { homeCoreTransactionMonths, homeSupplementalTransactionMonths } from "@/lib/stark/dashboard/home-load-stages";
 import { toAnalysisTransactions } from "@/lib/stark/dashboard/remark";
 import { matchSavingsPlanExpensesWithBills } from "@/lib/stark/savings/expense-bill-matching";
-import { formatMoney, isReportingYearKey, monthKey, reportingMonthDate, reportingMonthEndDate, reportingMonthLabel, reportingMonthSequence, reportingPeriodMonths } from "@/lib/stark/utils/format";
+import { formatMoney, isReportingYearKey, monthKey, reportingMonthDate, reportingMonthLabel, reportingMonthSequence, reportingPeriodMonths } from "@/lib/stark/utils/format";
 import type { Account, Asset, Budget, Loan, SavingsGoal, SavingsPlan, Transaction } from "@/lib/stark/models";
 import { translateText, translateValue, useAppLocale, type AppLocale } from "@/lib/stark/i18n";
 
@@ -768,12 +768,12 @@ function StarkBudgetAllocationCard({ summary, reportingMonth, transactions, onMa
 }
 
 // 四维财务罗盘 (Compass Matrix)
-function StarkCompassMatrix({ summary, onManageBudget }: { summary: HomeSummary; onManageBudget: () => void }) {
+function StarkCompassMatrix({ summary, reportingMonth, onManageBudget }: { summary: HomeSummary; reportingMonth: string; onManageBudget: () => void }) {
   const locale = useAppLocale();
-  const budget = summary.budgetAlerts[0];
+  const budget = summary.totalBudget;
   const loanTask = summary.tasks.find((task) => task.source === "loan");
-  const budgetPercent = budget ? Math.round(budget.percent) : 0;
-  const budgetLeft = budget ? Math.max(0, 100 - budgetPercent) : 100;
+  const budgetPercent = budget ? Math.round(budget.usedPercent) : 0;
+  const budgetLeft = budget ? Math.max(0, Math.round(budget.remainingPercent)) : null;
   const netWorthStr =
     Math.abs(summary.netWorth) >= 10000
       ? `${(summary.netWorth / 10000).toFixed(1)}w`
@@ -802,12 +802,15 @@ function StarkCompassMatrix({ summary, onManageBudget }: { summary: HomeSummary;
           <span className="compass-icon-wrapper budget">
             <TargetIcon size={14} strokeWidth={2.2} color="#0060c0" />
           </span>
-          <span className="compass-label">{translateValue("预算余量", locale)}</span>
+          <span className="compass-label">{translateValue(isReportingYearKey(reportingMonth) ? "年度预算余量" : "月度预算余量", locale)}</span>
         </div>
-        <strong className="compass-value">{budget ? `${budgetLeft}%` : "100%"}</strong>
+        <strong className="compass-value">{budget ? `${budgetLeft}%` : "—"}</strong>
         <div className="compass-meta">
-          <span className={`compass-badge ${budget?.tone === "danger" ? "danger" : "normal"}`}>
-            {budget?.tone === "danger" ? translateValue("已超支", locale) : locale === "en-US" ? `${budgetPercent}% used` : `已用 ${budgetPercent}%`}
+          <span className={`compass-badge ${budget && budget.state !== "available" ? "danger" : "normal"}`}>
+            {!budget ? translateValue("未设置预算", locale)
+              : budget.state === "overspent" ? `${translateValue("已超支", locale)} ¥${formatMoney(-budget.remaining)}`
+                : budget.state === "exhausted" ? translateValue("预算已用尽", locale)
+                  : locale === "en-US" ? `${budgetPercent}% used` : `已用 ${budgetPercent}%`}
           </span>
           <ChevronRightIcon size={12} />
         </div>
@@ -1007,16 +1010,12 @@ function TopExpenseStructure({ summary, reportingMonth }: { summary: HomeSummary
 }
 
 // 智能理财与省钱行动建议
-function SmartAdvisoryCard({ summary, reportingMonth, locale }: { summary: HomeSummary; reportingMonth: string; locale: AppLocale }) {
-  const periodDays = Math.max(
-    Math.round((reportingMonthEndDate(reportingMonth).getTime() - reportingMonthDate(reportingMonth).getTime()) / 86400000) + 1,
-    1,
-  );
-  const dailyAvg = (summary.expense / periodDays).toFixed(1);
-  const remainingBudget = summary.budgetAlerts[0]
-    ? Math.max(0, summary.budgetAlerts[0].budget - summary.budgetAlerts[0].spent)
-    : 0;
-  const isHealthy = summary.forecast.monthBalance >= 0;
+function SmartAdvisoryCard({ summary, reportingMonth, locale, onManageBudget }: { summary: HomeSummary; reportingMonth: string; locale: AppLocale; onManageBudget: () => void }) {
+  const budget = summary.totalBudget;
+  const annual = isReportingYearKey(reportingMonth);
+  const status = !budget ? "未设置预算"
+    : budget.state === "exhausted" ? "预算已用尽"
+      : budget.state === "overspent" || summary.forecast.monthBalance < 0 ? "需控制支出" : "节律健康";
 
   return (
     <SurfaceCard className="stark-advisory-card">
@@ -1025,21 +1024,34 @@ function SmartAdvisoryCard({ summary, reportingMonth, locale }: { summary: HomeS
           <CompassIcon size={16} strokeWidth={2.2} color="#0060c0" />
           <strong>{translateValue("财务行动建议", locale)}</strong>
         </div>
-        <span className="advisory-status-tag">{translateValue(isHealthy ? "节律健康" : "需控制支出", locale)}</span>
+        <span className="advisory-status-tag">{translateValue(status, locale)}</span>
       </div>
 
       <div className="advisory-card-body">
         <div className="advisory-tip-row">
           <span className="tip-bullet">1</span>
           <p>
-            {locale === "en-US" ? <>Daily spending is currently <b>¥{dailyAvg}</b>. At this pace, the projected month-end balance is <b>¥{formatMoney(Math.max(0, summary.forecast.monthBalance))}</b>.</> : <>当前日均支出 <b>¥{dailyAvg}</b>，若保持当前速率，预计月底可结余 <b>¥{formatMoney(Math.max(0, summary.forecast.monthBalance))}</b>。</>}
+            {locale === "en-US"
+              ? <>Recorded spending for the selected {annual ? "year" : "month"} is <b>¥{formatMoney(summary.expense)}</b>. The recorded balance after repayments and savings is <b>¥{formatMoney(summary.forecast.monthBalance)}</b>.</>
+              : <>所选{annual ? "年度" : "月份"}已记录支出 <b>¥{formatMoney(summary.expense)}</b>，计入还款及储蓄后的账面结余为 <b>¥{formatMoney(summary.forecast.monthBalance)}</b>。</>}
           </p>
         </div>
         <div className="advisory-tip-row">
           <span className="tip-bullet">2</span>
           <p>
-            {locale === "en-US" ? <>Remaining total budget <b>¥{formatMoney(remainingBudget)}</b>. Consider directing the surplus to </> : <>剩余总预算 <b>¥{formatMoney(remainingBudget)}</b>，建议将富余资金分配至</>}
-            <Link href="/app/savings" className="advisory-inline-link">{translateText("储蓄计划 ›", locale)}</Link>
+            {!budget ? (locale === "en-US"
+              ? <>No {annual ? "annual" : "monthly"} total budget is set. Set one to track remaining spending.</>
+              : <>尚未设置{annual ? "年度" : "月度"}总预算，设置后可查看预算余量。</>)
+              : budget.state === "overspent" ? (locale === "en-US"
+                ? <>The {annual ? "annual" : "monthly"} budget is exceeded by <b>¥{formatMoney(-budget.remaining)}</b>. Reduce nonessential spending or review the budget.</>
+                : <>{annual ? "年度" : "月度"}总预算已超支 <b>¥{formatMoney(-budget.remaining)}</b>，建议减少非必要支出，或重新检查预算。</>)
+                : budget.state === "exhausted" ? (locale === "en-US"
+                  ? <>The {annual ? "annual" : "monthly"} total budget is used up. Review the budget before spending more.</>
+                  : <>{annual ? "年度" : "月度"}总预算已用尽，新增消费前请先检查预算安排。</>)
+                  : (locale === "en-US"
+                    ? <>Remaining {annual ? "annual" : "monthly"} total budget: <b>¥{formatMoney(budget.remaining)}</b>. Plan further spending within this limit.</>
+                    : <>剩余{annual ? "年度" : "月度"}总预算 <b>¥{formatMoney(budget.remaining)}</b>，建议在预算内安排后续支出。</>)}
+            <button type="button" className="advisory-inline-link" onClick={onManageBudget}>{translateValue("预算管理", locale)} ›</button>
           </p>
         </div>
       </div>
@@ -1192,6 +1204,7 @@ export function HomeDashboard() {
   const [salaryDay, setSalaryDay] = useState(15);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [coreStatus, setCoreStatus] = useState<HomeModuleStatus>("loading");
   const [assetStatus, setAssetStatus] = useState<HomeModuleStatus>("loading");
   const [budgetStatus, setBudgetStatus] = useState<HomeModuleStatus>("loading");
   const [loanStatus, setLoanStatus] = useState<HomeModuleStatus>("loading");
@@ -1226,6 +1239,7 @@ export function HomeDashboard() {
       if (!background) {
         hasCoreDataRef.current = false;
         setLoading(true);
+        setCoreStatus("loading");
         setAssetStatus("loading");
         setBudgetStatus("loading");
         setLoanStatus("loading");
@@ -1302,6 +1316,7 @@ export function HomeDashboard() {
         if (!canUpdate()) return;
         setAccount(loadedAccount);
         setTransactions(coreTransactions);
+        setCoreStatus("ready");
         hasCoreDataRef.current = true;
         setLoading(false);
 
@@ -1320,6 +1335,7 @@ export function HomeDashboard() {
         );
       } catch {
         if (!canUpdate()) return;
+        setCoreStatus("error");
         if (!hasCoreDataRef.current) {
           setLoadError("云端数据加载失败，请检查后端服务和数据库连接后重试。");
           setLoading(false);
@@ -1407,8 +1423,9 @@ export function HomeDashboard() {
     [account, analysisTransactions, assets, budgets, loans, reportingMonth, savingsGoals, savingsPlans, salaryDay],
   );
   const budgetAllocationStatus = combinedHomeModuleStatus(assetStatus, budgetStatus, savingsStatus);
-  const diagnosticStatus = budgetStatus;
-  const compassStatus = combinedHomeModuleStatus(assetStatus, loanStatus, savingsStatus);
+  const diagnosticStatus = combinedHomeModuleStatus(coreStatus, budgetStatus);
+  const compassStatus = combinedHomeModuleStatus(coreStatus, assetStatus, budgetStatus, loanStatus, savingsStatus);
+  const advisoryStatus = combinedHomeModuleStatus(coreStatus, budgetStatus, savingsStatus);
   const showDiagnosticStage = budgetAllocationStatus !== "loading";
   const showCompassStage = showDiagnosticStage && diagnosticStatus !== "loading";
   const showDetailStages = showCompassStage && compassStatus !== "loading";
@@ -1515,7 +1532,7 @@ export function HomeDashboard() {
       {/* 四维财务罗盘 */}
       {showCompassStage ? (
         compassStatus === "ready" ? (
-          <StarkCompassMatrix summary={summary} onManageBudget={() => setBudgetManagementOpen(true)} />
+          <StarkCompassMatrix summary={summary} reportingMonth={reportingMonth} onManageBudget={() => setBudgetManagementOpen(true)} />
         ) : (
           <HomeModulePlaceholder status={compassStatus} onRetry={reloadDashboard} height={172} />
         )
@@ -1528,10 +1545,10 @@ export function HomeDashboard() {
 
           {/* 财务行动建议 */}
           <DeferredHomeSection fallback={<Skeleton className="skeleton-card" style={{ height: 128 }} />}>
-            {diagnosticStatus === "ready" ? (
-              <SmartAdvisoryCard summary={summary} reportingMonth={reportingMonth} locale={locale} />
+            {advisoryStatus === "ready" ? (
+              <SmartAdvisoryCard summary={summary} reportingMonth={reportingMonth} locale={locale} onManageBudget={() => setBudgetManagementOpen(true)} />
             ) : (
-              <HomeModulePlaceholder status={diagnosticStatus} onRetry={reloadDashboard} height={128} />
+              <HomeModulePlaceholder status={advisoryStatus} onRetry={reloadDashboard} height={128} />
             )}
           </DeferredHomeSection>
 

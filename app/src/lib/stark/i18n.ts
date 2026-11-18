@@ -4,6 +4,10 @@ import type { LanguageChoice } from "@/lib/stark/storage/ui-settings";
 export type AppLocale = "zh-CN" | "en-US";
 
 const translations: Record<string, string> = {
+  "年度预算余量": "Annual budget remaining",
+  "月度预算余量": "Monthly budget remaining",
+  "未设置预算": "Budget not set",
+  "预算已用尽": "Budget used up",
   "第 {number} 笔分类：{category}，点击修改": "Transaction {number} category: {category}. Click to change.",
   "点击每笔的分类图标可修改；支付账户、购物平台和时间共用上方选择。": "Tap a transaction’s category icon to change it. Payment account, shopping platform, and date use the choices above.",
   "每笔填写金额、备注和明细；分类、支付账户、购物平台和时间共用上方选择。": "Enter an amount, note, and details for each transaction. Category, payment account, shopping platform, and date use the choices above.",

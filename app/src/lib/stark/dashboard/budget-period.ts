@@ -1,5 +1,45 @@
 import type { Budget, Transaction } from "../models/types";
 
+export interface HomeTotalBudget {
+  id: string;
+  period: Budget["period"];
+  amount: number;
+  spent: number;
+  remaining: number;
+  usedPercent: number;
+  remainingPercent: number;
+  state: "available" | "exhausted" | "overspent";
+}
+
+/** A manual total for the selected calendar period, independent of risk-sorted alerts. */
+export function summarizeHomeTotalBudget(
+  budgets: readonly Budget[],
+  reportingPeriod: string,
+  periodExpense: number,
+): HomeTotalBudget | null {
+  const period = isYearKey(reportingPeriod) ? "YEARLY" : "MONTHLY";
+  const budget = budgets
+    .filter((item) => item.scopeType === "GLOBAL" && item.period === period
+      && Number.isFinite(item.amount) && Math.round(item.amount * 100) > 0)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)
+      || b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))[0];
+  if (!budget) return null;
+
+  const amountCents = Math.round(budget.amount * 100);
+  const spentCents = Math.round(periodExpense * 100);
+  const remainingCents = amountCents - spentCents;
+  return {
+    id: budget.id,
+    period,
+    amount: amountCents / 100,
+    spent: spentCents / 100,
+    remaining: remainingCents / 100,
+    usedPercent: spentCents / amountCents * 100,
+    remainingPercent: remainingCents / amountCents * 100,
+    state: remainingCents < 0 ? "overspent" : remainingCents === 0 ? "exhausted" : "available",
+  };
+}
+
 function isYearKey(value: string) {
   return /^\d{4}$/.test(value);
 }

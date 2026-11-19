@@ -95,6 +95,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        STARK_BUILD_CHANNEL: ${STARK_BUILD_CHANNEL:-dev}
     restart: unless-stopped
     depends_on:
       api-runtime:

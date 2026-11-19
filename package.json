@@ -6,6 +6,17 @@
     "dev": "pnpm --dir app dev",
     "build": "pnpm --dir app build",
     "typecheck": "pnpm --dir app typecheck",
-    "test": "pnpm --dir app test"
+    "test": "pnpm --dir app test",
+    "version:status": "node app/scripts/version.mjs status",
+    "version:sync": "node app/scripts/version.mjs sync",
+    "version:next": "node app/scripts/version.mjs next",
+    "version:reserve": "node app/scripts/version.mjs reserve",
+    "release:check": "node app/scripts/version.mjs check-release",
+    "apk:dev": "node app/scripts/build.mjs apk dev ktweb",
+    "apk:beta": "node app/scripts/build.mjs apk beta ktweb",
+    "apk:stable": "node app/scripts/build.mjs apk stable ktweb",
+    "build:beta": "node app/scripts/build.mjs web beta",
+    "build:stable": "node app/scripts/build.mjs web stable",
+    "test:version": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test app/scripts/version.test.mjs app/src/lib/stark/app-version.test.mjs app/src/lib/stark/github-app-update.test.mjs app/scripts/publish-lan-update.test.mjs"
   }
 }

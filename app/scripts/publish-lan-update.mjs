@@ -4,6 +4,8 @@ import { constants, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSy
 import { isIP } from "node:net";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildVersion } from "../src/lib/stark/version-policy.ts";
+import { readVersions } from "./version.mjs";
 
 const appDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoDir = resolve(appDir, "..");
@@ -119,10 +121,9 @@ function main() {
     throw new Error("构建产物不是单一 KT 混合版 Debug APK。");
   }
   const { versionCode, versionName, outputFile } = metadata.elements[0];
-  const sourceCode = Number(versionSource.match(/CURRENT_APP_VERSION_CODE\s*=\s*(\d+)/)?.[1]);
-  const sourceName = versionSource.match(/CURRENT_APP_VERSION_NAME\s*=\s*["']([^"']+)["']/)?.[1];
-  if (versionCode !== sourceCode || versionName !== sourceName || JSON.parse(readFileSync(join(appDir, "package.json"), "utf8")).version !== versionName) {
-    throw new Error("APK、前端与 package.json 版本不一致，未发布。");
+  const sourceVersion = buildVersion(readVersions(), process.env.STARK_BUILD_CHANNEL || "dev");
+  if (versionCode !== sourceVersion.versionCode || versionName !== sourceVersion.versionName) {
+    throw new Error("APK 与所选渠道版本不一致，未发布。");
   }
   const builtApk = join(metadataDir, outputFile);
   const badging = execFileSync(aaptPath(), ["dump", "badging", builtApk], { encoding: "utf8", maxBuffer: 1024 * 1024 });

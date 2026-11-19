@@ -8,8 +8,8 @@ test("compares APK versions by version code instead of version name text", () =>
   assert.equal(hasNewerAppVersion(84, { versionCode: 83, versionName: "0.0.83" }), false);
 });
 
-test("uses the StarAccounting GitHub latest release API", () => {
-  assert.equal(APP_UPDATE_URL, "https://api.github.com/repos/wottyup/star-accounting/releases/latest");
+test("uses the StarAccounting GitHub public release list API", () => {
+  assert.equal(APP_UPDATE_URL, "https://api.github.com/repos/wottyup/star-accounting/releases?per_page=100");
 });
 
 const lanManifestUrl = "http://10.126.126.3:18767/version.json";

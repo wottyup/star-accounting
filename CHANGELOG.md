@@ -17,13 +17,14 @@
 ## [v0.2.1] - 修复宣传演示后台恢复时跳转到宿主网站首页
 
 本文件记录可安装 Android App 和对应前端源码的发布版本。产品版本以
-`app/package.json`、`app/android/app/build.gradle` 和
-`app/src/lib/stark/app-version.ts` 中的版本号为准。
+`app/version.json` 的独立内部版本与公开版本配置为准。Android 版本码跨渠道统一递增。
 
 内部开发过程记录与临时 APK 归档仅保留本地，不纳入 Git。公开安装包以
 [GitHub Releases](https://github.com/wottyup/star-accounting/releases) 中的附件为准。
 
 ## [Unreleased]
+
+- 内部开发与公开公测版本独立编号，构建自动同步应用版本并校验 Android 升级版本码，更新检测支持 GitHub 公测发布。
 
 - 修复分类区阻断记账页滚动的问题，图标不足或滚动到边界时可继续浏览页面。
 
@@ -66,6 +67,12 @@
 - 截图识别失败时显示经过脱敏的模型服务错误信息，便于定位连接和模型响应问题。
 - 修复局域网开发页面沿用旧 API 端口，导致新接口请求失败。
 - AI 截图识别新增 Anthropic Messages 接口格式支持。
+
+## [0.10.0-beta.1]
+
+- 新增 AI 截图识别记账与逐笔分类核对，扩充消费分类及配套图标。
+- 优化底部导航、悬浮记账和分类浏览，修复预算及账本数据联动问题。
+- 检查更新接入 GitHub 公测发布，内部开发与公开版本独立编号。
 
 ## [0.9.1-beta.1]
 

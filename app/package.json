@@ -1,20 +1,20 @@
 {
   "name": "wotty-stark-web",
   "private": true,
-  "version": "0.25.3-dev.1",
+  "version": "0.25.4-dev.1",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:mobile": "node scripts/mobile-dev.mjs",
     "sync:android": "node scripts/sync-android.mjs",
-    "build": "next build",
+    "build": "node scripts/build.mjs web",
     "start": "next start -H 0.0.0.0 -p 12366",
     "typecheck": "tsc --noEmit",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/**/*.test.mjs",
     "test:lan-update": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test scripts/publish-lan-update.test.mjs",
-    "apk": "pnpm build && pnpm run sync:android && cd android && .\\gradlew.bat assembleWebDebug",
-    "apk:linux": "pnpm build && pnpm run sync:android && cd android && ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk GRADLE_OPTS='-Dorg.gradle.jvmargs=-Xmx1280m -Dfile.encoding=UTF-8' bash ./gradlew --no-daemon --max-workers=1 assembleWebDebug",
-    "apk:ktweb": "pnpm build && pnpm run sync:android && cd android && .\\gradlew.bat assembleKtwebDebug && node ../scripts/publish-lan-update.mjs",
-    "apk:ktweb:linux": "pnpm build && pnpm run sync:android && cd android && ANDROID_HOME=/opt/android-sdk ANDROID_SDK_ROOT=/opt/android-sdk GRADLE_OPTS='-Dorg.gradle.jvmargs=-Xmx1280m -Dfile.encoding=UTF-8' bash ./gradlew --no-daemon --max-workers=1 assembleKtwebDebug && node ../scripts/publish-lan-update.mjs"
+    "apk": "node scripts/build.mjs apk dev web",
+    "apk:linux": "node scripts/build.mjs apk dev web",
+    "apk:ktweb": "node scripts/build.mjs apk dev ktweb",
+    "apk:ktweb:linux": "node scripts/build.mjs apk dev ktweb"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

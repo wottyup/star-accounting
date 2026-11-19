@@ -1,9 +1,10 @@
-name: Android Beta Release
+name: Android Public Release
 
 on:
   push:
     tags:
-      - "v*-beta.*"
+      - "v[0-9]*.[0-9]*.[0-9]*"
+      - "!v*-dev.*"
 
 permissions:
   contents: write
@@ -11,6 +12,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      STARK_BUILD_CHANNEL: ${{ contains(github.ref_name, '-beta.') && 'beta' || 'stable' }}
     steps:
       - name: Check out release source
         uses: actions/checkout@v4
@@ -25,6 +28,18 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+
+      - name: Validate public version, tag, notes and upgrade code
+        run: node app/scripts/version.mjs check-release-github "$GITHUB_REF_NAME"
+
+      - name: Refuse to replace a historical release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "This release already exists; prepare a new version instead." >&2
+            exit 1
+          fi
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -70,8 +85,8 @@ jobs:
 
           VERSION="${GITHUB_REF_NAME#v}"
           APK_NAME="star-accounting-v${VERSION}.apk"
-          APP_VERSION="$(node -p 'require("./app/package.json").version')"
-          APP_VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode \([0-9][0-9]*\)$/\1/p' app/android/app/build.gradle | head -n 1)"
+          APP_VERSION="$(node -p 'require("./app/version.json").public.versionName')"
+          APP_VERSION_CODE="$(node -p 'require("./app/version.json").public.versionCode')"
           UNSIGNED_APK="app/android/app/build/outputs/apk/ktweb/release/app-ktweb-release-unsigned.apk"
           KEYSTORE="$RUNNER_TEMP/stark-android-beta.keystore"
           ALIGNED_APK="$RUNNER_TEMP/stark-android-beta-aligned.apk"
@@ -115,7 +130,15 @@ jobs:
             capture { print }
           ' CHANGELOG.md > "$NOTES_FILE"
           grep -q '^- ' "$NOTES_FILE"
+          if [[ "$STARK_BUILD_CHANNEL" == "beta" ]]; then
+            RELEASE_FLAGS=(--prerelease --latest=false)
+            RELEASE_TITLE="星会计 ${VERSION} 公测版"
+          else
+            RELEASE_FLAGS=(--latest)
+            RELEASE_TITLE="星会计 ${VERSION}"
+          fi
           gh release create "$GITHUB_REF_NAME" "$APK_PATH#星会计-v${VERSION}.apk" \
-            --title "星会计 ${VERSION} 公测版" \
+            --verify-tag \
+            --title "$RELEASE_TITLE" \
             --notes-file "$NOTES_FILE" \
-            --latest
+            "${RELEASE_FLAGS[@]}"

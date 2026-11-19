@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
+def versionConfig = new groovy.json.JsonSlurper().parse(new File(rootProject.projectDir.parentFile, 'version.json'))
+def buildChannel = System.getenv('STARK_BUILD_CHANNEL') ?: 'dev'
+if (!(buildChannel in ['dev', 'beta', 'stable'])) throw new GradleException("Unknown build channel: ${buildChannel}")
+def selectedVersion = buildChannel == 'dev' ? versionConfig.dev : versionConfig.public
+if (buildChannel != 'dev' && ((buildChannel == 'beta') != selectedVersion.versionName.contains('-beta.') || selectedVersion.versionCode != versionConfig.lastVersionCode)) {
+    throw new GradleException('Public version is stale or channel does not match; run pnpm version:reserve for the matching public channel.')
+}
+
 android {
     namespace "com.wotty.stark.web"
     compileSdk rootProject.ext.compileSdkVersion
@@ -8,8 +16,8 @@ android {
         applicationId "com.wotty.stark.web"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 242
-        versionName "0.25.3-dev.1"
+        versionCode selectedVersion.versionCode as int
+        versionName selectedVersion.versionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -22,8 +30,6 @@ android {
         web {
             dimension "edition"
             applicationId "com.wotty.stark.web"
-            versionCode 242
-            versionName "0.25.3-dev.1"
             manifestPlaceholders = [
                 appLabel: "星会计 Web 壳",
                 appActivityName: "com.wotty.stark.web.MainActivity"
@@ -32,8 +38,6 @@ android {
         ktweb {
             dimension "edition"
             applicationId "com.wotty.stark.ktweb"
-            versionCode 242
-            versionName "0.25.3-dev.1"
             manifestPlaceholders = [
                 appLabel: "星会计",
                 appActivityName: "com.wotty.stark.web.KtHybridActivity"
@@ -55,16 +59,32 @@ android {
     }
 }
 
+tasks.register('verifyWebBuildVersion') {
+    doLast {
+        def metadataFile = file('src/main/assets/public/build-version.json')
+        if (!metadataFile.exists()) throw new GradleException('Missing web version metadata; run the channel build and sync:android first.')
+        def metadata = new groovy.json.JsonSlurper().parse(metadataFile)
+        if (metadata.versionName != selectedVersion.versionName || metadata.versionCode != selectedVersion.versionCode || metadata.channel != buildChannel) {
+            throw new GradleException('Web assets and Android version/channel do not match; rebuild and sync the selected channel.')
+        }
+    }
+}
+tasks.named('preBuild') { dependsOn('verifyWebBuildVersion') }
+
 afterEvaluate {
     android.applicationVariants.all { variant ->
         if (variant.buildType.name == "debug") {
             def edition = variant.flavorName
             def outputApk = variant.outputs.first().outputFile
-            def timestamp = new Date().format('yyyyMMdd-HHmmss')
+            def timestamp = new Date().format('yyyyMMdd-HHmmss-SSS') + '-' + java.util.UUID.randomUUID().toString()
             def archivedApkName = "wotty-stark-${edition}-debug-v${variant.versionName}-c${variant.versionCode}-${timestamp}.apk"
             def archiveTaskName = "archive${variant.name.capitalize()}Apk"
 
             tasks.register(archiveTaskName, Copy) {
+                doFirst {
+                    def destination = new File(rootProject.projectDir.parentFile.parentFile, "releases/${archivedApkName}")
+                    if (destination.exists()) throw new GradleException('Refusing to overwrite an archived APK.')
+                }
                 from(outputApk)
                 rename { archivedApkName }
                 into(new File(rootProject.projectDir.parentFile.parentFile, "releases"))

@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/wottyup/star-accounting/blob/main/LICENSE"><img src="https://img.shields.io/github/license/wottyup/star-accounting?style=flat-square" alt="许可证"></a>
-  <a href="https://github.com/wottyup/star-accounting/releases"><img src="https://img.shields.io/github/v/release/wottyup/star-accounting?style=flat-square" alt="最新发布版本"></a>
+  <a href="https://github.com/wottyup/star-accounting/releases"><img src="https://img.shields.io/github/v/release/wottyup/star-accounting?include_prereleases&style=flat-square" alt="最新发布版本"></a>
   <a href="https://github.com/wottyup/star-accounting/releases"><img src="https://img.shields.io/github/downloads/wottyup/star-accounting/total?style=flat-square" alt="安装包下载量"></a>
   <a href="https://github.com/wottyup/star-accounting/stargazers"><img src="https://img.shields.io/github/stars/wottyup/star-accounting?style=flat-square" alt="GitHub 星标数"></a>
   <a href="https://github.com/wottyup/star-accounting/issues"><img src="https://img.shields.io/github/issues/wottyup/star-accounting?style=flat-square" alt="未关闭的问题数"></a>
@@ -79,7 +79,7 @@ Web 壳版和 KT 混合版的本地模式使用 IndexedDB；纯 KT 原生版的�
 
 ## 本地开发
 
-前端开发需要 Node.js 20.9 或更高版本和 pnpm；本地运行 Ktor API 还需要 Java 17，使用云端账本时需要 MySQL 8。Android 打包还需要 Android SDK。所有 Node 依赖都从仓库根目录安装：
+前端开发及版本脚本使用 Node.js 24 LTS 和 pnpm；本地运行 Ktor API 还需要 Java 17，使用云端账本时需要 MySQL 8。Android 打包还需要 Android SDK。所有 Node 依赖都从仓库根目录安装：
 
 ```bash
 pnpm install
@@ -137,9 +137,34 @@ Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访�
 | KT 混合版 | `pnpm --dir app apk:ktweb` | `pnpm --dir app apk:ktweb:linux` |
 | 纯 KT 原生版 | `.\gradlew.bat :native-app:assembleDebug` | `./gradlew :native-app:assembleDebug` |
 
-新 APK 会按版本和时间戳另存到本地 `releases/`，保留旧包。该目录不纳入 Git；公开安装包通过 [GitHub Releases](https://github.com/wottyup/star-accounting/releases) 发布。各版 Android `versionCode` 随新安装包单独递增。
+新 APK 会按版本、时间和唯一编号另存到本地 `releases/`，保留旧包。该目录不纳入 Git；公开安装包通过 [GitHub Releases](https://github.com/wottyup/star-accounting/releases) 发布。本地打包不会上传。
 
-应用检查更新使用 [app-version.ts](app/src/lib/stark/app-version.ts) 中配置的 GitHub Releases 来源，按 Android `versionCode` 比较版本，并下载同一发布版本的 APK。本地打包不自动上传 GitHub；当前 HTTPS 来源会跳过局域网更新发布。
+版本统一配置在 [`app/version.json`](app/version.json)：`dev` 保留内部 `0.25.x-dev.N`，`public` 独立维护 `0.10.0-beta.N` 或正式版本。两条线的名称互不影响；Android `versionCode` 共用递增计数，更新只比较该整数。
+
+在仓库根目录运行：
+
+| 操作 | 命令 |
+| --- | --- |
+| 查看两条版本线 | `pnpm version:status` |
+| 打内部 KT 混合包，自动递增 dev 序号和版本码 | `pnpm apk:dev` |
+| 内部修复升级目标并重置 dev 序号 | `pnpm version:next dev patch` |
+| 内部新功能升级目标并重置补丁和 dev 序号 | `pnpm version:next dev minor` |
+| 打公测 KT 混合包；需要时自动补分配版本码，名称不变 | `pnpm apk:beta` |
+| 仅刷新公测版本码，供提交、打标签和 CI 使用 | `pnpm version:reserve beta` |
+| 准备下一次公测，仅递增 beta 序号和版本码 | `pnpm version:next beta` |
+| 公测切换新目标，从 beta.1 开始 | `pnpm version:next beta minor` 或 `pnpm version:next beta 0.11.0` |
+| 将当前公测转为正式版，分配新版本码 | `pnpm version:next stable` |
+| 打已准备好的正式 KT 混合包 | `pnpm apk:stable` |
+| 校验公开配置、标签和发布摘要 | `pnpm release:check v0.10.0-beta.1` |
+| 仅构建对应渠道网页，不递增编号 | `pnpm build` / `pnpm build:beta` / `pnpm build:stable` |
+
+首次公测已预留 `0.10.0-beta.1`，直接使用；下一次才运行 `version:next beta`。内部包若已超过预留公测码，`apk:beta` 会自动补分配更高版本码，仍保持 `beta.1`；仅构建网页或直接发 CI 前可先运行 `version:reserve beta`。只有主动运行 `version:next beta` 才进入下一次公测。失败构建已分配的编号不会回收；同一已准备公开版本可重建，但不作为新更新，且归档不会覆盖。本地 APK 命令生成 Debug 验证包，公开下载包由 CI 使用原发布签名生成。
+
+公开发布前运行 `pnpm version:reserve beta`（正式版用 `stable`），同步最新分支、版本配置及 `CHANGELOG.md` 对应版本摘要，先本地提交，再按需推送提交和对应 `v公开版本` 标签。标签触发签名发布工作流；必须沿用既有 Android 发布签名密钥。CI 校验公开版本码高于 GitHub 已发布版本，beta 使用 GitHub prerelease，正式版使用 latest。旧版本标签和安装包不可覆盖。脚本本身不会提交、推送或创建标签。
+
+`STARK_BUILD_CHANNEL=dev|beta|stable` 控制底层 Next/Gradle 构建渠道，默认 dev；同次构建必须一致。Gradle 校验随网页导出的版本元数据，拒绝把内部网页误打进公开包。`app/package.json` 始终记录内部版本；手动编辑配置后可用 `pnpm version:sync` 同步，通常直接使用递增命令。
+
+应用检查更新使用 [app-version.ts](app/src/lib/stark/app-version.ts) 中配置的 GitHub Releases 列表，读取最近公开 beta／正式发布对应标签的版本配置，排除 dev 和草稿，按 Android `versionCode` 比较并下载同一发布版本的 APK。旧版字面量版本配置继续兼容。HTTPS 来源跳过局域网更新发布。
 
 内部开发记录与 `deploy/` 中的具体服务器配置只保留本地，并由 `.gitignore` 排除。`docker/` 构建源码和 `testdata/` 共用测试样本继续纳入版本管理。
 

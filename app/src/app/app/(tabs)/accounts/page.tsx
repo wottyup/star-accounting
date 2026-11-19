@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
-import packageInfo from "../../../../../package.json";
+import { CURRENT_APP_VERSION_NAME } from "@/lib/stark/app-version";
 import { PageTopBar } from "@/components/stark/PageTopBar";
 import { SettingsPictogram, type SettingPictogramType } from "@/components/stark/SettingsPictogram";
 import type { Account, DataMode, ImportErrorLog, ImportFailedRow, Transaction } from "@/lib/stark/models";
@@ -529,8 +529,8 @@ export default function AccountsPage() {
 
       <section className="settings-center-group">
         <SettingsRow type="HELP" title="帮助与反馈" onClick={() => setActivePanel("HELP")} />
-        <SettingsRow type="UPDATE" title="检查更新" value={`v${packageInfo.version}`} updateAvailable={updateAvailable} onClick={() => window.dispatchEvent(new Event("stark:check-app-update"))} />
-        <SettingsRow type="ABOUT" title="关于" value={`v${packageInfo.version}`} onClick={() => setActivePanel("ABOUT")} />
+        <SettingsRow type="UPDATE" title="检查更新" value={`v${CURRENT_APP_VERSION_NAME}`} updateAvailable={updateAvailable} onClick={() => window.dispatchEvent(new Event("stark:check-app-update"))} />
+        <SettingsRow type="ABOUT" title="关于" value={`v${CURRENT_APP_VERSION_NAME}`} onClick={() => setActivePanel("ABOUT")} />
       </section>
 
       {mode === "LOCAL" ? (
@@ -625,7 +625,7 @@ export default function AccountsPage() {
             {activePanel === "ABOUT" ? <div className="settings-about">
               <span><img src={withAppBasePath("/icon.svg")} alt="" /></span>
               <strong>星会计</strong>
-              <p>版本 {packageInfo.version}</p>
+              <p>版本 {CURRENT_APP_VERSION_NAME}</p>
               <small>本地优先、可连接云端的个人财务管理工具</small>
               <div>Next.js · Capacitor · Kotlin</div>
               <nav className="settings-about-links" aria-label="相关网站">

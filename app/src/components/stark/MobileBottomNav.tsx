@@ -172,6 +172,9 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
               ) : null}
               <Link
                 href={target}
+                // Anchors are draggable even when their image is not. A small
+                // mouse movement must not turn a tab click into a URL drag.
+                draggable={false}
                 // Main tabs are peers. Do not make an edge-back gesture walk
                 // through each prior tab; overlays and detail routes retain
                 // their own history entries.

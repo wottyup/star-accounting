@@ -39,6 +39,6 @@ test("groups blank merchants and respects the top limit", () => {
   const result = buildMerchantRanking(transactions, 10);
 
   assert.equal(result.length, 10);
-  assert.equal(result[0].merchant, "其他商家");
+  assert.equal(result[0].merchant, "未注明去向");
   assert.equal(result[0].amount, 100);
 });

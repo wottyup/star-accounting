@@ -7,7 +7,7 @@ import { ShoppingAnalysis } from "@/components/stark/ShoppingAnalysis";
 import { formatMoney, isReportingYearKey, reportingMonthDate } from "@/lib/stark/utils/format";
 import type { HomeRatio, HomeTrend } from "@/lib/stark/dashboard/summary";
 import { buildDailyPlatformData, buildMonthlyPlatformData, buildPlatformCategoryFlow } from "@/lib/stark/dashboard/consumption-platforms";
-import { buildMerchantRanking } from "@/lib/stark/dashboard/merchant-ranking";
+import { buildMerchantRanking, UNKNOWN_MERCHANT } from "@/lib/stark/dashboard/merchant-ranking";
 import { sankeyLayoutOptions } from "@/lib/stark/dashboard/sankey-layout";
 import type { Transaction } from "@/lib/stark/models";
 import { translateValue, useAppLocale, type AppLocale } from "@/lib/stark/i18n";
@@ -355,7 +355,7 @@ function buildBarOption(transactions: Transaction[], monthKey: string, locale: A
   };
 }
 
-/* ────────── 商家排行横向条形图 ────────── */
+/* ────────── 支出去向排行横向条形图 ────────── */
 
 function buildMerchantRankingOption(transactions: Transaction[], locale: AppLocale): EChartsCoreOption {
   const ranking = buildMerchantRanking(transactions);
@@ -388,14 +388,14 @@ function buildMerchantRankingOption(transactions: Transaction[], locale: AppLoca
     },
     yAxis: {
       type: "category",
-      data: displayRows.map((item) => item.merchant),
+      data: displayRows.map((item) => item.merchant === UNKNOWN_MERCHANT ? translateValue(UNKNOWN_MERCHANT, locale) : item.merchant),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: "#405268", fontSize: 11, formatter: truncateLabel },
     },
     series: [
       {
-        name: locale === "en-US" ? "Merchant spending" : "商家消费",
+        name: translateValue("支出金额", locale),
         type: "bar",
         barWidth: 14,
         itemStyle: { color: "#2a78d6", borderRadius: [0, 7, 7, 0] },
@@ -589,14 +589,14 @@ export function ConsumptionCharts({
             <div className="trend-panel">
               <div className="section-head">
                 <div className="consumption-chart-title">
-                  <h2>{translateValue(incomeMode ? "收入来源排行" : "商家消费排行", locale)}</h2>
-                  <span>{translateValue(incomeMode ? "收入金额前 10 名" : "消费金额前 10 名", locale)}</span>
+                  <h2>{translateValue(incomeMode ? "收入来源排行" : "支出去向排行", locale)}</h2>
+                  <span>{translateValue(incomeMode ? "收入金额前 10 名" : "支出金额前 10 名", locale)}</span>
                 </div>
               </div>
               {merchantRanking.length ? (
                 <EChartView option={merchantRankingOption} className="merchant-ranking-chart" />
               ) : (
-                <div className="merchant-ranking-empty">{translateValue(incomeMode ? "当前筛选下暂无收入来源" : "当前筛选下暂无商家支出", locale)}</div>
+                <div className="merchant-ranking-empty">{translateValue(incomeMode ? "当前筛选下暂无收入来源" : "当前筛选下暂无支出记录", locale)}</div>
               )}
             </div>
           </section>

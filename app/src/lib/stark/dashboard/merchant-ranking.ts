@@ -6,9 +6,9 @@ export type MerchantRankingItem = {
   count: number;
 };
 
-const UNKNOWN_MERCHANT = "其他商家";
+export const UNKNOWN_MERCHANT = "未注明去向";
 
-/** 汇总支出流水中的商家金额，并返回金额最高的前 N 名。 */
+/** 按支出流水的交易对方汇总，名称可以是商家、个人或填写的用途。 */
 export function buildMerchantRanking(transactions: Transaction[], limit = 10): MerchantRankingItem[] {
   const totals = new Map<string, MerchantRankingItem>();
 

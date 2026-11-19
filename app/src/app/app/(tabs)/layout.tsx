@@ -7,6 +7,8 @@ import { LazyJournalPanel as JournalPanel, preloadJournalPanel } from "@/compone
 import { useLayeredHistoryMarker } from "@/components/stark/useLayeredHistoryMarker";
 import { usePrimaryTabBackGuard } from "@/components/stark/usePrimaryTabBackGuard";
 import { hasActiveLayerHistoryMarker } from "@/lib/stark/navigation/layered-history";
+import { appRoute } from "@/lib/stark/navigation/routes";
+import { reportHybridTabCommit } from "@/lib/stark/navigation/native-tab-navigation";
 
 const KT_HYBRID_TAB_PATHS = new Set([
   "/app",
@@ -22,6 +24,10 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const [ktHybridShell, setKtHybridShell] = useState(false);
   const tabsPrefetchedRef = useRef(false);
+  const pendingNativeTabRef = useRef<{ path: string; requestId: number } | null>(null);
+  const committedPathRef = useRef(pathname);
+  const routerRef = useRef(router);
+  routerRef.current = router;
   usePrimaryTabBackGuard(pathname);
   const isJournalRoute = pathname.startsWith("/app/journal");
   const isSavingsRoute = pathname.startsWith("/app/savings");
@@ -65,13 +71,36 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!ktHybridShell) return;
     const handleNativeTab = (event: Event) => {
-      const path = (event as CustomEvent<{ path?: unknown }>).detail?.path;
+      const detail = (event as CustomEvent<{ path?: unknown; requestId?: unknown }>).detail;
+      const path = detail?.path;
       if (typeof path !== "string" || !KT_HYBRID_TAB_PATHS.has(path)) return;
-      router.replace(path, { scroll: false });
+      const requestId = detail?.requestId === undefined ? 0 : detail.requestId;
+      if (typeof requestId !== "number" || !Number.isSafeInteger(requestId) || requestId < 0) return;
+      if (committedPathRef.current.replace(/\/+$/, "") === path) {
+        void reportHybridTabCommit(path, requestId);
+        return;
+      }
+      pendingNativeTabRef.current = { path, requestId };
+      try {
+        routerRef.current.replace(appRoute(path), { scroll: false });
+      } catch {
+        // Do not acknowledge a failed transition. The native deadline still
+        // restores this target through the static root entry.
+      }
     };
     window.addEventListener("stark:kt-hybrid-tab", handleNativeTab);
     return () => window.removeEventListener("stark:kt-hybrid-tab", handleNativeTab);
-  }, [ktHybridShell, router]);
+  }, [ktHybridShell]);
+
+  useEffect(() => {
+    committedPathRef.current = pathname;
+    if (!ktHybridShell) return;
+    const path = pathname.replace(/\/+$/, "");
+    const pending = pendingNativeTabRef.current;
+    const arrived = pending?.path === path;
+    void reportHybridTabCommit(path, arrived ? pending.requestId : 0);
+    if (arrived) pendingNativeTabRef.current = null;
+  }, [ktHybridShell, pathname]);
 
   useEffect(() => {
     if (!ktHybridShell || tabsPrefetchedRef.current) return;

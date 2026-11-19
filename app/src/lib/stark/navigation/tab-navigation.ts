@@ -49,6 +49,14 @@ export function createTabNavigation(environment: NavigationEnvironment) {
       if (disposed || replacingDocument) return;
 
       if (routePath(target) === routePath(committedPathname)) {
+        if (pending && routePath(pending.target) === routePath(target)) {
+          // A second tap may beat the passive committed() effect after React
+          // has already rendered this route. That is arrival, not cancellation.
+          clearTimer();
+          pending = null;
+          environment.onPendingChange(null);
+          return;
+        }
         // A Link to the current route is normally a no-op. While a different
         // transition is suspended, explicitly cancel it by restoring this page.
         if (pending) {

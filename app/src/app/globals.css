@@ -4552,6 +4552,8 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   min-width: 0;
   color: #818a98;
   text-decoration: none;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .mobile-bottom-nav-item.near-center-left {
@@ -4568,6 +4570,8 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   object-fit: contain;
   opacity: 0.56;
   filter: grayscale(1);
+  pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .mobile-bottom-nav-icon.active {
@@ -4593,6 +4597,8 @@ html[data-stark-journal-opening] .mobile-bottom-nav {
   background: transparent;
   color: #ffffff;
   transition: transform 150ms ease;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .mobile-bottom-nav-action svg {

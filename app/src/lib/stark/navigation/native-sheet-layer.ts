@@ -1,24 +1,6 @@
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
 import { createSheetLayerCoordinator } from "./sheet-layer-coordinator";
-
-type NavigationImage = {
-  active: boolean;
-  token: number;
-  dataUrl: string;
-  width: number;
-  height: number;
-  viewportWidth: number;
-  left: number;
-  bottom: number;
-};
-
-type HybridNavigation = {
-  prepareSheetLayer(): Promise<NavigationImage>;
-  commitSheetLayer(options: { token: number }): Promise<void>;
-  releaseSheetLayer(options: { token: number }): Promise<void>;
-};
-
-const navigation = registerPlugin<HybridNavigation>("HybridNavigation");
+import { hybridNavigation as navigation } from "./hybrid-navigation-bridge";
 
 async function prepareNativeSheetLayer() {
   const noop = async () => {};

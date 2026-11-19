@@ -9,6 +9,21 @@ import com.getcapacitor.annotation.CapacitorPlugin
 @CapacitorPlugin(name = "HybridNavigation")
 class HybridNavigationPlugin : Plugin() {
     @PluginMethod
+    fun commitTabNavigation(call: PluginCall) {
+        val host = activity as? KtHybridActivity
+        val path = call.getString("path")
+        val requestId = call.getInt("requestId") ?: 0
+        if (host == null || path == null || requestId < 0) {
+            call.resolve()
+            return
+        }
+        host.runOnUiThread {
+            host.commitTabNavigation(path, requestId)
+            call.resolve()
+        }
+    }
+
+    @PluginMethod
     fun prepareSheetLayer(call: PluginCall) {
         val host = activity as? KtHybridActivity
         if (host == null) {

@@ -48,7 +48,7 @@ class KtHybridActivity : MainActivity() {
     private var journalAction: View? = null
     private var sheetNavigationToken = 0
     private var navigationInWebLayer = false
-    private var pendingPath: String? = null
+    private val tabNavigation = HybridTabNavigationState()
     private var fallbackNavigation: Runnable? = null
     private val routeTracker = object : Runnable {
         override fun run() {
@@ -119,7 +119,7 @@ class KtHybridActivity : MainActivity() {
                     setBackgroundResource(selectableBackground.resourceId)
                 }
                 addView(image, FrameLayout.LayoutParams(dp(29), dp(29), Gravity.CENTER))
-                setOnClickListener { navigateToTab(index, tab) }
+                setOnClickListener { navigateToTab(tab) }
             }
             row.addView(item, LinearLayout.LayoutParams(0, dp(56), 1f))
             icons.add(image)
@@ -291,20 +291,29 @@ class KtHybridActivity : MainActivity() {
         synchronizeRoute()
     }
 
-    private fun navigateToTab(index: Int, tab: HybridTab) {
+    private fun navigateToTab(tab: HybridTab) {
         val activeWebView = webView ?: return
-        pendingPath = tab.path
-        setSelectedTab(index)
+        val previousRequestId = tabNavigation.pendingRequestId
+        val cancelPending = previousRequestId != 0 && tabNavigation.committedPath == tab.path
+        val requestId = tabNavigation.select(tab.path)
+        // Repeat taps preserve the first deadline rather than postponing it.
+        if (requestId == 0 || requestId == previousRequestId) return
+        fallbackNavigation?.let(mainHandler::removeCallbacks)
+        fallbackNavigation = null
+        if (cancelPending) {
+            tabNavigation.beginRecovery(requestId)
+            loadTabDirectly(activeWebView, tab.path)
+            return
+        }
 
         val targetJson = JSONObject.quote(tab.path)
         activeWebView.evaluateJavascript(
-            "window.dispatchEvent(new CustomEvent('stark:kt-hybrid-tab',{detail:{path:$targetJson}}));",
+            "window.dispatchEvent(new CustomEvent('stark:kt-hybrid-tab',{detail:{path:$targetJson,requestId:$requestId}}));",
             null,
         )
 
-        fallbackNavigation?.let(mainHandler::removeCallbacks)
         val fallback = Runnable {
-            if (pendingPath == tab.path && currentWebPath(activeWebView) != tab.path) {
+            if (tabNavigation.beginRecovery(requestId)) {
                 loadTabDirectly(activeWebView, tab.path)
             }
         }
@@ -315,8 +324,23 @@ class KtHybridActivity : MainActivity() {
     private fun loadTabDirectly(activeWebView: WebView, path: String) {
         val currentUri = runCatching { Uri.parse(activeWebView.url.orEmpty()) }.getOrNull() ?: return
         if (!isAppPage(currentUri)) return
-        val targetUri = currentUri.buildUpon().path(path).clearQuery().fragment(null).build()
+        // Capacitor can serve the root document even when a nested static URL
+        // cannot be loaded directly. AppAccessGate restores the requested tab.
+        val targetUri = currentUri.buildUpon().path("/").clearQuery().fragment(null)
+            .appendQueryParameter("next", "${path.trimEnd('/')}/")
+            .appendQueryParameter("resume-navigation", "1").build()
         activeWebView.loadUrl(targetUri.toString())
+    }
+
+    fun commitTabNavigation(path: String, requestId: Int) {
+        val activeWebView = webView ?: return
+        val normalized = path.trimEnd('/')
+        if (tabIndexForPath(normalized) < 0 || !isAppPage(runCatching { Uri.parse(activeWebView.url.orEmpty()) }.getOrNull())) return
+        if (tabNavigation.commit(normalized, requestId)) {
+            fallbackNavigation?.let(mainHandler::removeCallbacks)
+            fallbackNavigation = null
+        }
+        synchronizeRoute()
     }
 
     private fun isAppPage(uri: Uri?): Boolean {
@@ -326,17 +350,15 @@ class KtHybridActivity : MainActivity() {
         return pageUri.scheme == appUri.scheme && pageUri.authority == appUri.authority
     }
 
-    private fun currentWebPath(activeWebView: WebView): String? =
-        runCatching { Uri.parse(activeWebView.url.orEmpty()).path?.trimEnd('/') }.getOrNull()
-
     private fun synchronizeRoute() {
         val activeWebView = webView ?: return
         val uri = runCatching { Uri.parse(activeWebView.url.orEmpty()) }.getOrNull()
         val path = if (isAppPage(uri)) uri?.path?.trimEnd('/') else null
         val index = path?.let(::tabIndexForPath) ?: -1
         if (index >= 0) {
-            setSelectedTab(index)
-            journalAction?.contentDescription = when (index) {
+            val committedIndex = tabNavigation.committedPath?.let(::tabIndexForPath) ?: index
+            setSelectedTab(committedIndex)
+            journalAction?.contentDescription = when (committedIndex) {
                 2 -> "添加储蓄"
                 3 -> "新增贷款"
                 4 -> "新增资产"
@@ -355,11 +377,6 @@ class KtHybridActivity : MainActivity() {
             }
         } else {
             bottomBar?.visibility = View.GONE
-        }
-        if (path == pendingPath?.trimEnd('/')) {
-            pendingPath = null
-            fallbackNavigation?.let(mainHandler::removeCallbacks)
-            fallbackNavigation = null
         }
     }
 

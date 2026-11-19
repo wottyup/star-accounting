@@ -117,6 +117,18 @@ test("selecting the active tab is idle unless it must cancel another pending tra
   assert.deepEqual(h.documentNavigations, ["/app/"]);
 });
 
+test("a repeat tap after render but before the commit effect never reloads the arrived tab", (t) => {
+  const h = setup(t);
+  h.navigation.select("/app/assets/", "/app");
+  // React has rendered the new pathname, but its passive committed() effect
+  // has not run when another tap arrives.
+  h.navigation.select("/app/assets/", "/app/assets");
+  h.tick(TAB_NAVIGATION_TIMEOUT_MS * 2);
+  assert.deepEqual(h.documentNavigations, []);
+  assert.deepEqual(h.clientNavigations, ["/app/assets/"]);
+  assert.deepEqual(h.pendingChanges, ["/app/assets/", null]);
+});
+
 test("an unavailable router recovers immediately", (t) => {
   const h = setup(t);
   h.failRouter();

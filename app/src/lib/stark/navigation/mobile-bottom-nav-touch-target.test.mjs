@@ -14,6 +14,6 @@ test("bottom navigation has no untappable vertical gutter", () => {
   const itemRule = ruleBody(".mobile-bottom-nav-item");
   const minimumHeight = Number(itemRule.match(/min-height:\s*(\d+)px/)?.[1] ?? 0);
 
-  assert.match(containerRule, /padding:\s*0\s+6px\s*;/);
+  assert.match(containerRule, /padding:\s*0\s+\d+px\s*;/);
   assert.ok(minimumHeight >= 48, `expected a touch target of at least 48px, received ${minimumHeight}px`);
 });

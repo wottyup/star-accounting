@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { appRoute, planBackgroundResume } from "@/lib/stark/navigation/routes";
+import { appRoute, navigationRecoveryUrl, planBackgroundResume } from "@/lib/stark/navigation/routes";
 import { createTabNavigation } from "@/lib/stark/navigation/tab-navigation";
 import { isNativeAppRuntime } from "@/lib/stark/storage/local-config";
 import { SHOWCASE_DEMO_MODE, withAppBasePath } from "@/lib/stark/runtime";
@@ -63,7 +63,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
       // Native App routes are bundled locally and can recover while offline.
       canRecover: () => document.visibilityState === "visible" && (navigator.onLine || isNativeAppRuntime()),
       replace: (target) => routerRef.current.replace(target),
-      replaceDocument: (target) => window.location.replace(withAppBasePath(target)),
+      replaceDocument: (target) => window.location.replace(withAppBasePath(isNativeAppRuntime() ? navigationRecoveryUrl(target) : target)),
       onPendingChange: setPendingTarget,
     });
     navigationRef.current = navigation;
@@ -190,7 +190,7 @@ export function MobileBottomNav({ onOpenJournal, journalLabel }: { onOpenJournal
                   getNavigation().select(target, pathname);
                 }}
               >
-                <img src={withAppBasePath(item.icon)} alt="" width={29} height={29} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
+                <img src={withAppBasePath(item.icon)} alt="" draggable={false} width={29} height={29} className={active ? "mobile-bottom-nav-icon active" : "mobile-bottom-nav-icon"} />
               </Link>
             </Fragment>
           );

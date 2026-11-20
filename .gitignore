@@ -1,8 +1,8 @@
 # Gradle
 .gradle/
+.kotlin/
 build/
 !gradle/wrapper/gradle-wrapper.jar
-!/**/build/
 
 # IDE
 .idea/
@@ -11,6 +11,7 @@ build/
 
 # Local development
 .claude/
+/.impeccable.md
 .next/
 *.tsbuildinfo
 node_modules/

@@ -37,6 +37,27 @@ test("existing expense and income icons retain their mappings and special transa
   for (const category of ["工资", "退款", "转账", "还款"]) assert.ok(!expenseCategoryOptions.includes(category));
 });
 
+test("personal transfers retain their lending direction while loan repayments keep repayment semantics", () => {
+  const categories = ["借出", "借入", "收回借款", "归还借款"];
+  const transferIcon = categoryIconSrcForCategory("转账", "TRANSFER");
+  const repaymentIcon = categoryIconSrcForCategory("贷款还款", "REPAYMENT");
+  const icons = categories.map((category) => {
+    const icon = categoryIconSrcForCategory(category, "TRANSFER");
+    assert.notEqual(icon, transferIcon);
+    assert.notEqual(icon, repaymentIcon);
+    assert.equal(categoryIconSrc({ category, type: "TRANSFER" }), icon);
+    assert.equal(categoryIconSrcForCategory(` ${category} `, "TRANSFER"), icon);
+    assert.equal(categoryIconSrcForCategory(category, "REPAYMENT"), repaymentIcon);
+    assert.equal(categoryIconSrc({ category, type: "REPAYMENT" }), repaymentIcon);
+    assert.ok(!expenseCategoryOptions.includes(category));
+    return icon;
+  });
+  assert.equal(new Set(icons).size, 4);
+  assert.equal(categoryIconSrcForCategory("还款"), repaymentIcon);
+  assert.equal(categoryIconSrcForCategory("贷款还款"), repaymentIcon);
+  assert.ok(!expenseCategoryOptions.includes("贷款还款"));
+});
+
 test("both AI backends offer exactly the categories accepted by the journal picker", () => {
   for (const file of [
     "../../../../../server-go/internal/httpapi/screenshot_recognition.go",

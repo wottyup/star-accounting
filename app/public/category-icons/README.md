@@ -1,6 +1,6 @@
 # 分类图标目录
 
-现有 115 个 WebP 图标按用途分成下列 16 个文件夹，其中 37 个新增分类图标裁剪自用户提供的透明图标表。新增图片采用 256×256 透明画布，保持比例与统一留白。
+现有 123 个 WebP 图标按用途分成下列 18 个文件夹，其中 37 个消费分类图标及 8 个借款与财务图标裁剪自用户提供的透明图标表。这两批图片采用 256×256 透明画布，保持比例与统一留白。
 
 | 文件夹 | 大类 | 图片数 |
 | --- | --- | ---: |
@@ -15,7 +15,9 @@
 | [education-entertainment](./education-entertainment/) | 文教娱乐 | 8 |
 | [digital](./digital/) | 数码通讯与数字服务 | 17 |
 | [gifts-social](./gifts-social/) | 人情往来与公益 | 3 |
-| [income](./income/) | 收入 | 9 |
+| [income](./income/) | 收入 | 11 |
+| [lending](./lending/) | 个人借款往来 | 4 |
+| [fund-transfers](./fund-transfers/) | 转账与贷款还款 | 2 |
 | [finance-fees](./finance-fees/) | 保险税费 | 2 |
 | [tobacco](./tobacco/) | 烟草 | 1 |
 | [payment-platforms](./payment-platforms/) | 支付平台 | 3 |
@@ -27,5 +29,22 @@
 - 记账分类的资源映射位于 `app/src/lib/stark/utils/category-icon.ts`；仅增加图片文件不会自动增加应用分类。
 - 分类候选同时用于手动记账和截图识别。新增类别时需同步 Go、Ktor 截图识别提示词；数字消费目前分别提供 AI 订阅与 API、游戏购买与游戏充值等细分类别。
 - 支付平台图标由 `app/src/lib/stark/utils/platform-icons.ts` 及相关页面引用。
-- 共享图标只保存一份。例如 `home-living/jiajulei1.webp` 由家电与理财共用，`shopping-clothing/wanju.webp` 由玩具与奖金共用，`digital/dianzilei.webp` 由通讯与转账共用。保持既有映射，避免因目录归属改变旧账单图标。
+- 共享图标只保存一份。例如医疗与药品共用 `healthcare/yaopin.webp`。奖金、理财、转账、贷款还款已使用专属图标。
 - `common/` 保留“其他”通用图标；`finance-fees/` 存放保险、税费手续费图标。
+
+## 借款与财务图标
+
+| 类别 | 资源 |
+| --- | --- |
+| 借出 | `lending/lend.webp` |
+| 借入 | `lending/borrow.webp` |
+| 收回借款 | `lending/collect-loan.webp` |
+| 归还借款 | `lending/repay-personal-loan.webp` |
+| 奖金 | `income/bonus.webp` |
+| 理财 | `income/investment.webp` |
+| 转账 | `fund-transfers/transfer.webp` |
+| 贷款还款 | `fund-transfers/loan-repayment.webp` |
+
+既有“还款”名称及 `REPAYMENT` 流水使用贷款还款图标。`TRANSFER` 流水明确标注个人借款四项名称时显示对应方向，其余转账使用通用转账图标。
+
+个人借款四图已接入名称映射并预留资源，尚未新增借还记账入口或借款余额关联；不会自动加入日常消费分类。

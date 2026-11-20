@@ -3,7 +3,15 @@ import type { Transaction } from "@/lib/stark/models";
 const APP_BASE_PATH = (process.env.NEXT_PUBLIC_APP_BASE_PATH ?? "").replace(/\/+$/, "");
 const withAppBasePath = (path: string) => APP_BASE_PATH ? `${APP_BASE_PATH}${path}` : path;
 
+const personalLoanIconFiles: Record<string, string> = {
+  借出: "lending/lend.webp",
+  借入: "lending/borrow.webp",
+  收回借款: "lending/collect-loan.webp",
+  归还借款: "lending/repay-personal-loan.webp",
+};
+
 const categoryIconFiles: Record<string, string> = {
+  ...personalLoanIconFiles,
   餐饮: "food-drink/canyinlei.webp",
   购物: "shopping-clothing/gouwulei.webp",
   交通: "transport-travel/gongongchuxing.webp",
@@ -18,10 +26,11 @@ const categoryIconFiles: Record<string, string> = {
   运动: "sports-outdoors/jianshenlei.webp",
   教育: "education-entertainment/jiaoyulei.webp",
   工资: "income/gongjulei.webp",
-  奖金: "shopping-clothing/wanju.webp",
-  理财: "home-living/jiajulei1.webp",
-  转账: "digital/dianzilei.webp",
-  还款: "income/gongjulei.webp",
+  奖金: "income/bonus.webp",
+  理财: "income/investment.webp",
+  转账: "fund-transfers/transfer.webp",
+  还款: "fund-transfers/loan-repayment.webp",
+  贷款还款: "fund-transfers/loan-repayment.webp",
   其他: "common/qita.webp",
   保险: "finance-fees/baoxian.webp",
   红包: "gifts-social/hongbao.webp",
@@ -126,7 +135,9 @@ const categoryIconFiles: Record<string, string> = {
 };
 
 const nonExpenseCategories = new Set([
-  "工资", "奖金", "理财", "报销", "补贴", "二手转卖", "兼职", "经营收入", "利息分红", "退款", "租金", "转账", "还款",
+  "工资", "奖金", "理财", "报销", "补贴", "二手转卖", "兼职", "经营收入", "利息分红", "退款", "租金", "转账", "还款", "贷款还款",
+  // Artwork alone must not introduce lending into everyday expense totals.
+  ...Object.keys(personalLoanIconFiles),
 ]);
 const expenseCategoryOrder = [
   // 饮食及烟草的既有候选顺序；界面按资源目录独立分组
@@ -165,8 +176,8 @@ export const expenseCategoryOptions = [
 
 const incomeCategoryIcons: Record<string, string> = {
   工资: "income/gongjulei.webp",
-  奖金: "shopping-clothing/wanju.webp",
-  理财: "home-living/jiajulei1.webp",
+  奖金: "income/bonus.webp",
+  理财: "income/investment.webp",
   报销: "income/baoxiao.webp",
   补贴: "income/butie.webp",
   二手转卖: "income/ershouzhuanmai.webp",
@@ -214,11 +225,11 @@ const categoryKeywordIcons: Array<[RegExp, string]> = [
   [/运动|体育/, "sports-outdoors/jianshenlei.webp"],
   [/户外/, "sports-outdoors/huwai.webp"],
   [/工|薪资|薪酬/, "income/gongjulei.webp"],
-  [/奖|红利|分红/, "shopping-clothing/wanju.webp"],
-  [/理财|投资/, "home-living/jiajulei1.webp"],
+  [/奖|红利|分红/, "income/bonus.webp"],
+  [/理财|投资/, "income/investment.webp"],
   [/教/, "education-entertainment/jiaoyulei.webp"],
   [/书|阅读/, "education-entertainment/tushulei.webp"],
-  [/转|退款|收入/, "digital/dianzilei.webp"],
+  [/转|退款|收入/, "fund-transfers/transfer.webp"],
 ];
 
 const categoryIconPath = (file: string) => withAppBasePath(`/category-icons/${file}`);
@@ -233,10 +244,15 @@ function incomeIconFile(category: string): string | null {
   return null;
 }
 
+function transactionTypeIconFile(category: string, type?: Transaction["type"]): string | null {
+  if (type === "REPAYMENT") return categoryIconFiles.还款;
+  if (type === "TRANSFER") return personalLoanIconFiles[category.trim()] ?? categoryIconFiles.转账;
+  return null;
+}
+
 export function categoryIconSrcForCategory(category: string, type?: Transaction["type"]): string {
-  if (type === "TRANSFER" || type === "REPAYMENT") {
-    return categoryIconPath(categoryIconFiles[type === "TRANSFER" ? "转账" : "还款"]);
-  }
+  const transactionIcon = transactionTypeIconFile(category, type);
+  if (transactionIcon) return categoryIconPath(transactionIcon);
   const normalized = category.trim();
   if (categoryIconFiles[normalized]) return categoryIconPath(categoryIconFiles[normalized]);
   if (type === "INCOME") {
@@ -249,9 +265,8 @@ export function categoryIconSrcForCategory(category: string, type?: Transaction[
 }
 
 export function categoryIconSrc(item: Transaction): string {
-  if (item.type === "TRANSFER" || item.type === "REPAYMENT") {
-    return categoryIconPath(categoryIconFiles[item.type === "TRANSFER" ? "转账" : "还款"]);
-  }
+  const transactionIcon = transactionTypeIconFile(item.category, item.type);
+  if (transactionIcon) return categoryIconPath(transactionIcon);
   const normalized = item.category.trim();
   if (categoryIconFiles[normalized]) return categoryIconPath(categoryIconFiles[normalized]);
   if (item.type === "INCOME") {

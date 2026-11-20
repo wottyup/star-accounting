@@ -21,9 +21,9 @@
 
 在线体验：[打开 Web 演示](https://s.wotty.app/web-demo/app/)。
 
-**Android 公测版下载：**请在 [GitHub 发布页面](https://github.com/wottyup/star-accounting/releases) 查看可用安装包。
+**Android 公测版下载：**[0.10.0-beta.1 KT 混合版 APK](https://github.com/wottyup/star-accounting/releases/download/v0.10.0-beta.1/star-accounting-v0.10.0-beta.1.apk) · [本版更新说明与全部附件](https://github.com/wottyup/star-accounting/releases/tag/v0.10.0-beta.1)。
 
-**Docker 镜像包：**Android 公测版的[GitHub 发布页面](https://github.com/wottyup/star-accounting/releases)同时提供版本化镜像包和 SHA-256 校验文件；也可[在 GitHub Actions 单独构建并下载](https://github.com/wottyup/star-accounting/actions/workflows/docker-image-package.yml)（Linux amd64，仅包含 Web 和 Go API；部署机器需联网拉取 MySQL 和 Alpine）。
+**Docker 镜像包：**[0.10.0-beta.1 发布页](https://github.com/wottyup/star-accounting/releases/tag/v0.10.0-beta.1)同时提供版本化镜像包和 SHA-256 校验文件；也可[在 GitHub Actions 单独构建并下载](https://github.com/wottyup/star-accounting/actions/workflows/docker-image-package.yml)（Linux amd64，仅包含 Web 和 Go API；部署机器需联网拉取 MySQL 和 Alpine）。
 
 ## 主要功能
 
@@ -51,7 +51,7 @@
 
 ## 页面预览
 
-以下为 Android `0.8.0-beta.1` 的空账本页面。点击图片可查看原尺寸。
+以下为 Android KT 混合版 `0.10.0-beta.1` 的空账本页面。点击图片可查看原尺寸。
 
 <table>
   <tr><th>首页</th><th>消费分析</th><th>储蓄</th></tr>
@@ -154,7 +154,7 @@ Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访�
 
 新 APK 会按版本、时间和唯一编号另存到本地 `releases/`，保留旧包。该目录不纳入 Git；公开安装包通过 [GitHub Releases](https://github.com/wottyup/star-accounting/releases) 发布。本地打包不会上传。
 
-版本统一配置在 [`app/version.json`](app/version.json)：`dev` 保留内部 `0.25.x-dev.N`，`public` 独立维护 `0.10.0-beta.N` 或正式版本。两条线的名称互不影响；Android `versionCode` 共用递增计数，更新只比较该整数。
+版本统一配置在 [`app/version.json`](app/version.json)：`dev` 维护内部 `x.y.z-dev.N`，`public` 独立维护公开的 `x.y.z-beta.N` 或正式版本。两条线的名称互不影响；Android `versionCode` 共用递增计数，更新只比较该整数。
 
 在仓库根目录运行：
 
@@ -173,7 +173,7 @@ Web 默认绑定宿主机 `127.0.0.1:12366`。需要通过局域网或 VPN 访�
 | 校验公开配置、标签和发布摘要 | `pnpm release:check v0.10.0-beta.1` |
 | 仅构建对应渠道网页，不递增编号 | `pnpm build` / `pnpm build:beta` / `pnpm build:stable` |
 
-首次公测已预留 `0.10.0-beta.1`，直接使用；下一次才运行 `version:next beta`。内部包若已超过预留公测码，`apk:beta` 会自动补分配更高版本码，仍保持 `beta.1`；仅构建网页或直接发 CI 前可先运行 `version:reserve beta`。只有主动运行 `version:next beta` 才进入下一次公测。失败构建已分配的编号不会回收；同一已准备公开版本可重建，但不作为新更新，且归档不会覆盖。本地 APK 命令生成 Debug 验证包，公开下载包由 CI 使用原发布签名生成。
+当前已发布 `0.10.0-beta.1`；准备下一次同目标公测时先运行 `pnpm version:next beta`，进入 `0.10.0-beta.2`。内部包若已超过待发布公测的版本码，`apk:beta` 会自动补分配更高版本码，保持已准备的公测名称；仅构建网页或直接发 CI 前可先运行 `version:reserve beta`。`version:reserve` 不会开启新一轮公测。失败构建已分配的编号不会回收；尚未发布的同一公开版本可重建，且归档不会覆盖；已经发布的标签和安装包保持不变。本地 APK 命令生成 Debug 验证包，公开下载包由 CI 使用原发布签名生成。
 
 公开发布前运行 `pnpm version:reserve beta`（正式版用 `stable`），同步最新分支、版本配置及 `CHANGELOG.md` 对应版本摘要，先本地提交，再按需推送提交和对应 `v公开版本` 标签。标签触发签名发布工作流；必须沿用既有 Android 发布签名密钥。CI 校验公开版本码高于 GitHub 已发布版本，beta 使用 GitHub prerelease，正式版使用 latest。旧版本标签和安装包不可覆盖。脚本本身不会提交、推送或创建标签。
 

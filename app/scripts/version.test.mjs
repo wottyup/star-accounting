@@ -72,6 +72,16 @@ test("public release validation uses the independent public name, latest code an
   assert.throws(() => buildVersion(config, "unknown"), /未知/);
 });
 
+test("release notes accept contiguous change prefixes and reject empty summaries", () => {
+  const heading = "## [0.10.0-beta.1]\n";
+  const result = validateRelease(fixture(), "v0.10.0-beta.1", `${heading}\n新增：截图记账。\n修改：修复分类滚动。\n`);
+  assert.equal(result.versionName, "0.10.0-beta.1");
+  for (const summary of ["", "\n", "新增：\n修改：\n", "新增：   \n", "-    \n"]) {
+    assert.throws(() => validateRelease(fixture(), "v0.10.0-beta.1",
+      `${heading}${summary}\n## [0.9.1]\n- 历史版本不能充当本次摘要。\n`), /摘要/);
+  }
+});
+
 test("file automation preserves the other channel and invalid operations leave all files untouched", (t) => {
   const directory = mkdtempSync(join(tmpdir(), "star-version-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

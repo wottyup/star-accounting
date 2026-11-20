@@ -83,6 +83,6 @@ export function validateRelease(config: VersionConfig, tag: string, changelog: s
   if (tag !== `v${version.versionName}`) throw new Error("发布标签与公开版本配置不一致。");
   const heading = `## [${version.versionName}]`;
   const section = changelog.split(heading + "\n")[1]?.split(/^## /m)[0];
-  if (!section || !/^- .+/m.test(section)) throw new Error(`CHANGELOG.md 缺少 ${heading} 的发布摘要。`);
+  if (!section || !/^(?:- |新增：|修改：)\S.*$/m.test(section)) throw new Error(`CHANGELOG.md 缺少 ${heading} 的发布摘要。`);
   return { ...version, channel, tag, apkName: `star-accounting-v${version.versionName}.apk` };
 }

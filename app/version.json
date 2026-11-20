@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "lastVersionCode": 249,
+  "lastVersionCode": 250,
   "dev": {
     "versionName": "0.26.0-dev.1",
     "versionCode": 249
   },
   "public": {
     "versionName": "0.10.0-beta.1",
-    "versionCode": 244
+    "versionCode": 250
   }
 }

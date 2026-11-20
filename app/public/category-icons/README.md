@@ -1,6 +1,6 @@
 # 分类图标目录
 
-现有 123 个 WebP 图标按用途分成下列 18 个文件夹，其中 37 个消费分类图标及 8 个借款与财务图标裁剪自用户提供的透明图标表。这两批图片采用 256×256 透明画布，保持比例与统一留白。
+现有 123 个 WebP 图标按用途分成下列 17 个文件夹，其中 37 个消费分类图标及 8 个借款与财务图标裁剪自用户提供的透明图标表。这两批图片采用 256×256 透明画布，保持比例与统一留白。
 
 | 文件夹 | 大类 | 图片数 |
 | --- | --- | ---: |
@@ -14,9 +14,8 @@
 | [sports-outdoors](./sports-outdoors/) | 运动户外 | 3 |
 | [education-entertainment](./education-entertainment/) | 文教娱乐 | 8 |
 | [digital](./digital/) | 数码通讯与数字服务 | 17 |
-| [gifts-social](./gifts-social/) | 人情往来与公益 | 3 |
+| [gifts-social](./gifts-social/) | 人情往来与公益 | 7 |
 | [income](./income/) | 收入 | 11 |
-| [lending](./lending/) | 个人借款往来 | 4 |
 | [fund-transfers](./fund-transfers/) | 转账与贷款还款 | 2 |
 | [finance-fees](./finance-fees/) | 保险税费 | 2 |
 | [tobacco](./tobacco/) | 烟草 | 1 |
@@ -36,10 +35,10 @@
 
 | 类别 | 资源 |
 | --- | --- |
-| 借出 | `lending/lend.webp` |
-| 借入 | `lending/borrow.webp` |
-| 收回借款 | `lending/collect-loan.webp` |
-| 归还借款 | `lending/repay-personal-loan.webp` |
+| 借出 | `gifts-social/lend.webp` |
+| 借入 | `gifts-social/borrow.webp` |
+| 收回借款 | `gifts-social/collect-loan.webp` |
+| 归还借款 | `gifts-social/repay-personal-loan.webp` |
 | 奖金 | `income/bonus.webp` |
 | 理财 | `income/investment.webp` |
 | 转账 | `fund-transfers/transfer.webp` |
@@ -47,4 +46,4 @@
 
 既有“还款”名称及 `REPAYMENT` 流水使用贷款还款图标。`TRANSFER` 流水明确标注个人借款四项名称时显示对应方向，其余转账使用通用转账图标。
 
-个人借款四图已接入名称映射并预留资源，尚未新增借还记账入口或借款余额关联；不会自动加入日常消费分类。
+借出、借入、收回借款、归还借款均位于记账分类的“人情公益”大类，支出和收入选择器均可浏览这四项。选择借出/归还借款时按支出保存，借入/收回借款按收入保存；沿用现有收支统计规则，尚未新增借款余额关联。

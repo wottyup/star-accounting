@@ -49,7 +49,7 @@ test("personal transfers retain their lending direction while loan repayments ke
     assert.equal(categoryIconSrcForCategory(` ${category} `, "TRANSFER"), icon);
     assert.equal(categoryIconSrcForCategory(category, "REPAYMENT"), repaymentIcon);
     assert.equal(categoryIconSrc({ category, type: "REPAYMENT" }), repaymentIcon);
-    assert.ok(!expenseCategoryOptions.includes(category));
+    assert.equal(expenseCategoryOptions.filter((value) => value === category).length, 1);
     return icon;
   });
   assert.equal(new Set(icons).size, 4);
@@ -68,6 +68,7 @@ test("both AI backends offer exactly the categories accepted by the journal pick
     assert.deepEqual(categories, expenseCategoryOptions, file);
     assert.match(source, /AI订阅用于 AI 会员或订阅套餐，API用于接口调用或 Token 用量付费/);
     assert.match(source, /游戏购买与游戏充值分开，宠物医疗与人员医疗分开/);
+    assert.match(source, /借出、归还借款使用 EXPENSE，借入、收回借款使用 INCOME/);
   }
 });
 

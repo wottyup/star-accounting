@@ -1,5 +1,6 @@
 import type { TransactionType } from "@/lib/stark/models";
 import { categoryIconSrcForCategory } from "./category-icon.ts";
+import { personalLoanCategories } from "../journal/personal-loan.ts";
 
 const expenseGroups = [
   ["food-drink", "餐饮食品"],
@@ -24,7 +25,11 @@ export type JournalCategoryGroup = { id: string; label: string; categories: stri
 export function groupJournalCategories(categories: string[], type: TransactionType): JournalCategoryGroup[] {
   if (categories.length === 0) return [];
   if (type !== "EXPENSE") {
-    return [{ id: type, label: type === "INCOME" ? "收入" : "转账", categories: [...categories] }];
+    const isPersonalLoan = (category: string) => personalLoanCategories.some((value) => value === category);
+    return [
+      { id: type, label: type === "INCOME" ? "收入" : "转账", categories: categories.filter((category) => !isPersonalLoan(category)) },
+      { id: "gifts-social", label: "人情公益", categories: categories.filter(isPersonalLoan) },
+    ].filter((group) => group.categories.length > 0);
   }
   const groups: JournalCategoryGroup[] = expenseGroups.map(([id, label]) => ({ id, label, categories: [] }));
   const byFolder = new Map(groups.map((group) => [group.id, group]));

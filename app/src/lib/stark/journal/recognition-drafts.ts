@@ -1,4 +1,5 @@
 import type { TransactionType } from "../models/types";
+import { journalTypeForCategory } from "./personal-loan.ts";
 
 export type RecognitionOverrides = {
   platform?: string;
@@ -32,11 +33,14 @@ export function hasSharedRecognitionCategory(recognized: JournalDraft[]): boolea
 
 /** Share account and time while keeping each item's classification. */
 export function prepareJournalDrafts(current: JournalDraft, recognized: JournalDraft[]): JournalDraft[] {
-  if (recognized.length === 0) return [{ ...current }];
-  if (recognized.length === 1) return [{ ...recognized[0], ...current }];
+  const withDirection = (draft: JournalDraft): JournalDraft => ({
+    ...draft, type: journalTypeForCategory(draft.category, draft.type),
+  });
+  if (recognized.length === 0) return [withDirection(current)];
+  if (recognized.length === 1) return [withDirection({ ...recognized[0], ...current })];
 
   const { platform, shoppingPlatform, date } = current;
-  return recognized.map((draft) => ({ ...draft, platform, shoppingPlatform, date }));
+  return recognized.map((draft) => withDirection({ ...draft, platform, shoppingPlatform, date }));
 }
 
 /** Manual choices can change while the recognition request is still pending. */

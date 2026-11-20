@@ -9,12 +9,15 @@ import { useConfirmDialog } from "@/components/stark/ConfirmDialogProvider";
 import { createId } from "@/lib/stark/utils/id";
 import { formatMoney, nowText } from "@/lib/stark/utils/format";
 import { expenseCategoryOptions } from "@/lib/stark/utils/category-icon";
+import { personalLoanCategories } from "@/lib/stark/journal/personal-loan";
 import { syncDueSubscriptionTransactions } from "@/lib/stark/subscriptions/recurring";
 import { translateValue, useAppLocale } from "@/lib/stark/i18n";
 
 const manager = new DataModeManager();
 const platforms = ["支付宝", "微信", "银行卡", "现金", "其他"];
-const categoryPickerOptions = expenseCategoryOptions.map((category) => ({ value: category, label: category }));
+const categoryPickerOptions = expenseCategoryOptions
+  .filter((category) => !personalLoanCategories.some((value) => value === category))
+  .map((category) => ({ value: category, label: category }));
 const platformPickerOptions = platforms.map((platform) => ({ value: platform, label: platform }));
 
 type FormState = {

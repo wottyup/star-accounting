@@ -1,13 +1,14 @@
 import type { Transaction } from "@/lib/stark/models";
+import { personalLoanCategories } from "../journal/personal-loan.ts";
 
 const APP_BASE_PATH = (process.env.NEXT_PUBLIC_APP_BASE_PATH ?? "").replace(/\/+$/, "");
 const withAppBasePath = (path: string) => APP_BASE_PATH ? `${APP_BASE_PATH}${path}` : path;
 
 const personalLoanIconFiles: Record<string, string> = {
-  借出: "lending/lend.webp",
-  借入: "lending/borrow.webp",
-  收回借款: "lending/collect-loan.webp",
-  归还借款: "lending/repay-personal-loan.webp",
+  借出: "gifts-social/lend.webp",
+  借入: "gifts-social/borrow.webp",
+  收回借款: "gifts-social/collect-loan.webp",
+  归还借款: "gifts-social/repay-personal-loan.webp",
 };
 
 const categoryIconFiles: Record<string, string> = {
@@ -136,14 +137,12 @@ const categoryIconFiles: Record<string, string> = {
 
 const nonExpenseCategories = new Set([
   "工资", "奖金", "理财", "报销", "补贴", "二手转卖", "兼职", "经营收入", "利息分红", "退款", "租金", "转账", "还款", "贷款还款",
-  // Artwork alone must not introduce lending into everyday expense totals.
-  ...Object.keys(personalLoanIconFiles),
 ]);
 const expenseCategoryOrder = [
   // 饮食及烟草的既有候选顺序；界面按资源目录独立分组
   "餐饮", "外卖", "买菜", "米面粮油", "调料", "蛋奶", "速食", "干货", "闲食", "水果", "肉类", "水产", "糖果", "甜品", "下午茶", "饮品", "酒类", "烟草",
   // 购物服饰与宠物
-  "购物", "服装", "鞋类", "箱包", "配饰", "美容", "个人护理", "理发", "宠物", "宠物食品", "宠物洗护", "宠物医疗", "宠物寄养", "母婴", "玩具", "礼物", "红包", "公益捐赠",
+  "购物", "服装", "鞋类", "箱包", "配饰", "美容", "个人护理", "理发", "宠物", "宠物食品", "宠物洗护", "宠物医疗", "宠物寄养", "母婴", "玩具", "礼物", "红包", "公益捐赠", ...personalLoanCategories,
   // 交通出行
   "交通", "公交地铁", "打车", "出行", "旅游", "机票车票", "过路费", "住宿", "加油", "充电", "汽车保养", "停车费",
   // 住房与日用
@@ -187,6 +186,12 @@ const incomeCategoryIcons: Record<string, string> = {
   退款: "income/tuikuan.webp",
   租金: "income/zujin.webp",
 };
+
+// Both pickers expose the same lending group; selection resolves cash direction.
+export const incomeCategoryOptions = [
+  "工资", "奖金", "兼职", "经营收入", "报销", "退款", "租金", "利息分红", "补贴", "二手转卖", "理财",
+  ...personalLoanCategories, "其他",
+];
 
 const categoryKeywordIcons: Array<[RegExp, string]> = [
   [/保险/, "finance-fees/baoxian.webp"],

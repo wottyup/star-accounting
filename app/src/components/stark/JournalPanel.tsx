@@ -12,8 +12,9 @@ import { getCloudAuthToken } from "@/lib/stark/storage/cloud-auth";
 import { SHOWCASE_DEMO_MODE } from "@/lib/stark/runtime";
 import { buildSalaryBatchTransactions, SALARY_BATCH_MONTHS, salaryBatchMonthKeys, selectSalaryBatchMonths } from "@/lib/stark/journal/salary-batch";
 import { applyScreenshotRecognition, hasSharedRecognitionCategory, prepareJournalDrafts, type JournalDraft, type RecognitionOverrides } from "@/lib/stark/journal/recognition-drafts";
+import { journalTypeForCategory } from "@/lib/stark/journal/personal-loan";
 import type { Asset, AssetType, Loan, SavingsGoal, SavingsPlan, Transaction, TransactionType } from "@/lib/stark/models";
-import { categoryIconSrcForCategory, expenseCategoryOptions } from "@/lib/stark/utils/category-icon";
+import { categoryIconSrcForCategory, expenseCategoryOptions, incomeCategoryOptions } from "@/lib/stark/utils/category-icon";
 import { JournalCategoryGrid } from "@/components/stark/JournalCategoryGrid";
 import { DateTimePicker } from "@/components/stark/DateTimePicker";
 import { ProofImageViewer } from "@/components/stark/ProofImageViewer";
@@ -33,7 +34,7 @@ const SavingsPlanner = dynamic(
 const repo = new DataModeManager().getRepository();
 
 const expenseCategories = expenseCategoryOptions;
-const incomeCategories = ["工资", "奖金", "兼职", "经营收入", "报销", "退款", "租金", "利息分红", "补贴", "二手转卖", "理财", "其他"];
+const incomeCategories = incomeCategoryOptions;
 const transferCategories = ["转账"];
 const transactionTypeOptions = [
   ["EXPENSE", "支出"], ["INCOME", "收入"], ["TRANSFER", "转账"],
@@ -218,6 +219,11 @@ export function JournalPanel({
   }, [asset, isRepayment, loan, transaction]);
 
   useEffect(() => {
+    const resolvedType = journalTypeForCategory(category, type);
+    if (resolvedType !== type) {
+      setType(resolvedType);
+      return;
+    }
     if (type === "TRANSFER") setCategory("转账");
     if (type !== "TRANSFER" && category === "转账") setCategory(type === "INCOME" ? "工资" : "餐饮");
     if (type === "INCOME" && !incomeCategories.includes(category)) setCategory("工资");
@@ -275,7 +281,7 @@ export function JournalPanel({
         if (Array.isArray(draft.recognizedDrafts)) {
           const recognizedDrafts = draft.recognizedDrafts.filter((item) => (
             item && typeof item.amount === "string" && typeof item.merchant === "string" && typeof item.description === "string"
-          ));
+          )).map((item) => ({ ...item, type: journalTypeForCategory(item.category, item.type) }));
           setRecognizedDrafts(recognizedDrafts);
           setActiveRecognizedDraftIndex(Math.min(
             Math.max(0, draft.activeRecognizedDraftIndex ?? 0),
@@ -466,7 +472,7 @@ export function JournalPanel({
   }
 
   function applyJournalDraft(draft: JournalDraft) {
-    setType(draft.type);
+    setType(journalTypeForCategory(draft.category, draft.type));
     setAmount(draft.amount);
     setCategory(draft.category);
     setPlatform(draft.platform);
@@ -479,7 +485,8 @@ export function JournalPanel({
   function changeJournalType(nextType: TransactionType, preferredCategory?: string) {
     const options = categoriesForType(nextType);
     const categoryFor = (currentCategory: string) => preferredCategory
-      ?? (options.includes(currentCategory) ? currentCategory : options[0]);
+      ?? (options.includes(currentCategory) && journalTypeForCategory(currentCategory, nextType) === nextType
+        ? currentCategory : options[0]);
     setType(nextType);
     setCategory(categoryFor(category));
     setExpandedCategoryIndex(null);
@@ -490,12 +497,15 @@ export function JournalPanel({
 
   function changeSharedCategory(nextCategory: string) {
     setCategory(nextCategory);
-    setRecognizedDrafts((drafts) => drafts.map((draft) => ({ ...draft, category: nextCategory })));
+    setType(journalTypeForCategory(nextCategory, type));
+    setRecognizedDrafts((drafts) => drafts.map((draft) => ({
+      ...draft, category: nextCategory, type: journalTypeForCategory(nextCategory, draft.type),
+    })));
   }
 
   function changeRecognizedCategory(index: number, nextCategory: string, nextType = recognizedDrafts[index].type) {
     const drafts = recognizedDrafts.map((draft, draftIndex) => draftIndex === index
-      ? { ...draft, type: nextType, category: nextCategory }
+      ? { ...draft, type: journalTypeForCategory(nextCategory, nextType), category: nextCategory }
       : draft);
     setRecognizedDrafts(drafts);
     setType(drafts[0].type);

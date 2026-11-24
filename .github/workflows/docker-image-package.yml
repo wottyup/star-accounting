@@ -77,9 +77,3 @@ jobs:
               docker push "$image:$tag"
             done
           done
-
-          export GH_TOKEN="$GITHUB_TOKEN"
-          for package in star-accounting-api star-accounting-web; do
-            gh api --method PATCH "/user/packages/container/$package/visibility" \
-              -f visibility=public >/dev/null
-          done

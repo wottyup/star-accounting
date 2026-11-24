@@ -12,6 +12,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o
 
 FROM alpine:3.21
 
+LABEL org.opencontainers.image.source="https://github.com/wottyup/star-accounting"
+
 RUN apk add --no-cache ca-certificates \
     && addgroup -S stark \
     && adduser -S -G stark stark

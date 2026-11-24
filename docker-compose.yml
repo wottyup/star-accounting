@@ -43,7 +43,7 @@ services:
       start_period: 30s
 
   api-runtime:
-    image: wotty-staraccounting-api:go
+    image: ${STAR_ACCOUNTING_API_IMAGE:-ghcr.io/wottyup/star-accounting-api}:${STAR_ACCOUNTING_IMAGE_TAG:-latest}
     container_name: wotty-staraccounting-api-1
     build:
       context: .
@@ -91,7 +91,7 @@ services:
       start_period: 10s
 
   web:
-    image: wotty-staraccounting-web:latest
+    image: ${STAR_ACCOUNTING_WEB_IMAGE:-ghcr.io/wottyup/star-accounting-web}:${STAR_ACCOUNTING_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.web

@@ -24,6 +24,8 @@
 
 ## [Unreleased]
 
+新增：Docker Web 与 API 镜像发布到 GitHub Packages，可按版本直接拉取部署。
+
 ## [0.10.0-beta.1]
 
 新增：AI 截图记账，支持单笔、多笔订单识别，逐笔核对金额、备注及分类后批量保存。

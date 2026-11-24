@@ -23,7 +23,7 @@
 
 **Android 公测版下载：**[0.10.0-beta.1 KT 混合版 APK](https://github.com/wottyup/star-accounting/releases/download/v0.10.0-beta.1/star-accounting-v0.10.0-beta.1.apk) · [本版更新说明与全部附件](https://github.com/wottyup/star-accounting/releases/tag/v0.10.0-beta.1)。
 
-**Docker 镜像包：**[0.10.0-beta.1 发布页](https://github.com/wottyup/star-accounting/releases/tag/v0.10.0-beta.1)同时提供版本化镜像包和 SHA-256 校验文件；也可[在 GitHub Actions 单独构建并下载](https://github.com/wottyup/star-accounting/actions/workflows/docker-image-package.yml)（Linux amd64，仅包含 Web 和 Go API；部署机器需联网拉取 MySQL 和 Alpine）。
+**Docker 镜像：**Web 与 Go API 镜像发布在 [GitHub Packages](https://github.com/wottyup/star-accounting/packages)，可按版本直接拉取，例如 `ghcr.io/wottyup/star-accounting-web:0.10.0-beta.1` 和 `ghcr.io/wottyup/star-accounting-api:0.10.0-beta.1`（Linux amd64；MySQL 和 Alpine 基础镜像需联网拉取）。
 
 ## 主要功能
 
@@ -123,7 +123,14 @@ docker compose up -d --build
 
 默认不需要 `.env`。首次启动会自动生成数据库密码、登录密钥和管理员恢复密钥，保存在 Docker 命名卷中；MySQL 自动建库，Go API 自动建表。
 
-需要使用镜像包时，可从 GitHub 发布页面下载 `.tar.gz` 和 `.sha256`，也可从上述工作流下载 artifact 并解压。校验后在仓库根目录执行 `docker load -i 路径/镜像包.tar.gz`，随后联网运行 `docker compose up -d --no-build`。Compose 会从 Docker Hub 拉取缺少的 `mysql:8.0` 和 `alpine:3.21`。镜像包不包含数据库数据卷或密钥；更新已有部署前应先备份对应数据卷。
+如需使用已发布的 Docker 镜像，在仓库根目录按目标版本拉取并启动 Web 与 API；MySQL 仍由 Compose 单独运行：
+
+```bash
+STAR_ACCOUNTING_IMAGE_TAG=0.10.0-beta.1 docker compose pull api-runtime web
+STAR_ACCOUNTING_IMAGE_TAG=0.10.0-beta.1 docker compose up -d --no-build
+```
+
+公开 GHCR 镜像无需登录。镜像不包含数据库数据卷或密钥；更新已有部署前应先备份对应数据卷。开发者仍可用 `docker compose up -d --build` 从源码构建。
 
 只有需要自定义配置时，才在**首次启动前**于仓库根目录创建 `.env`：
 
